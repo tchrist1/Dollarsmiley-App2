@@ -7,8 +7,9 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import { MapPin, Navigation, Plus, Minus, Maximize2, List, User, Star, BadgeCheck, Clock, TrendingUp, Award, MessageCircle } from 'lucide-react-native';
+import { MapPin, Navigation, Plus, Minus, Maximize2, List, User, Star, BadgeCheck, Clock, TrendingUp, Award, MessageCircle, Briefcase, Package, Wrench } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
 interface MapMarker {
@@ -18,6 +19,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: 'Service' | 'Job' | 'CustomService';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -26,6 +28,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  photoUrl?: string;
 }
 
 interface MapRegion {
@@ -311,6 +314,29 @@ export default function InteractiveMapView({
           const marker = item;
           const isSelected = selectedMarker?.id === marker.id;
           const isProvider = marker.type === 'provider';
+          const listingType = marker.listingType;
+
+          const getMarkerColor = () => {
+            if (isProvider) return colors.success;
+            if (listingType === 'Job') return '#FF6B00';
+            if (listingType === 'CustomService') return '#9333EA';
+            return colors.primary;
+          };
+
+          const getMarkerIcon = () => {
+            if (isProvider) {
+              return <User size={24} color={isSelected ? colors.white : colors.success} strokeWidth={2.5} />;
+            }
+            if (listingType === 'Job') {
+              return <Briefcase size={20} color={isSelected ? colors.white : '#FF6B00'} strokeWidth={2.5} />;
+            }
+            if (listingType === 'CustomService') {
+              return <Wrench size={20} color={isSelected ? colors.white : '#9333EA'} strokeWidth={2.5} />;
+            }
+            return <Package size={20} color={isSelected ? colors.white : colors.primary} strokeWidth={2.5} />;
+          };
+
+          const markerColor = getMarkerColor();
 
           return (
             <TouchableOpacity
@@ -318,32 +344,33 @@ export default function InteractiveMapView({
               style={[
                 styles.markerContainer,
                 {
-                  left: position.x - 20,
-                  top: position.y - 40,
+                  left: position.x - 30,
+                  top: position.y - (marker.photoUrl ? 70 : 40),
                 },
               ]}
               onPress={() => handleMarkerPress(marker)}
               activeOpacity={0.7}
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
+              {marker.photoUrl && !isProvider && (
+                <View style={styles.markerImageContainer}>
+                  <Image
+                    source={{ uri: marker.photoUrl }}
+                    style={styles.markerImage}
+                    resizeMode="cover"
+                  />
+                  <View style={[styles.markerImageBadge, { backgroundColor: markerColor }]}>
+                    {getMarkerIcon()}
+                  </View>
+                </View>
+              )}
               <View style={[
                 styles.marker,
+                { borderColor: markerColor },
                 isProvider && styles.markerProvider,
-                isSelected && (isProvider ? styles.markerProviderSelected : styles.markerSelected)
+                isSelected && { backgroundColor: markerColor, borderColor: colors.white, transform: [{ scale: 1.2 }] }
               ]}>
-                {isProvider ? (
-                  <User
-                    size={24}
-                    color={isSelected ? colors.white : colors.success}
-                    strokeWidth={2.5}
-                  />
-                ) : (
-                  <MapPin
-                    size={24}
-                    color={isSelected ? colors.white : colors.primary}
-                    fill={isSelected ? colors.primary : colors.white}
-                  />
-                )}
+                {!marker.photoUrl && getMarkerIcon()}
                 {isProvider && marker.isVerified && (
                   <View style={styles.verifiedBadge}>
                     <BadgeCheck size={12} color={colors.white} fill={colors.success} />
@@ -351,11 +378,16 @@ export default function InteractiveMapView({
                 )}
               </View>
               {marker.price && !isProvider && (
-                <View style={[styles.markerPriceTag, isSelected && styles.markerPriceTagSelected]}>
-                  <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
+                <TouchableOpacity
+                  style={[styles.markerPriceTag, { borderColor: markerColor }, isSelected && { backgroundColor: markerColor, borderColor: markerColor }]}
+                  onPress={() => handleMarkerPress(marker)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={[styles.markerPriceText, { color: markerColor }, isSelected && { color: colors.white }]}>
                     ${Math.round(marker.price).toLocaleString('en-US')}
                   </Text>
-                </View>
+                </TouchableOpacity>
               )}
               {isProvider && marker.rating && (
                 <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
@@ -620,6 +652,32 @@ const styles = StyleSheet.create({
   markerContainer: {
     position: 'absolute',
     alignItems: 'center',
+  },
+  markerImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors.white,
+    ...shadows.lg,
+  },
+  markerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  markerImageBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
   },
   marker: {
     width: 40,

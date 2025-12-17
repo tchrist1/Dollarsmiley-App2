@@ -10,6 +10,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: 'Service' | 'Job' | 'CustomService';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -18,6 +19,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  photoUrl?: string;
 }
 
 interface MapRegion {

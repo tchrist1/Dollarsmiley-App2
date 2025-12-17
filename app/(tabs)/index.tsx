@@ -705,6 +705,19 @@ export default function HomeScreen() {
         } else {
           price = listing.base_price || 0;
         }
+
+        let photoUrl = null;
+        if (listing.photos && listing.photos.length > 0) {
+          photoUrl = typeof listing.photos[0] === 'string' ? listing.photos[0] : null;
+        }
+
+        let listingType: 'Service' | 'Job' | 'CustomService' = 'Service';
+        if (listing.marketplace_type === 'Job') {
+          listingType = 'Job';
+        } else if (listing.listing_type === 'CustomService') {
+          listingType = 'CustomService';
+        }
+
         return {
           id: listing.id,
           latitude: listing.latitude!,
@@ -712,7 +725,8 @@ export default function HomeScreen() {
           title: listing.title,
           price: price,
           type: 'listing' as const,
-          isJob: listing.marketplace_type === 'Job',
+          listingType: listingType,
+          photoUrl: photoUrl,
         };
       });
 
