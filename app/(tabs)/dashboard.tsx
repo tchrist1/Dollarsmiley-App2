@@ -168,31 +168,17 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <ResponsiveGrid minColumns={2} maxColumns={3} gap={spacing.md}>
             {isProvider && (
-              <>
-                <TouchableOpacity
-                  style={styles.actionCard}
-                  onPress={() => router.push('/provider/my-listings' as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.actionIconContainer}>
-                    <ClipboardList size={24} color={colors.primary} />
-                  </View>
-                  <Text style={styles.actionTitle}>My Listings</Text>
-                  <Text style={styles.actionDescription}>Manage services</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.actionCard}
-                  onPress={() => router.push('/create-listing' as any)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.actionIconContainer}>
-                    <PlusCircle size={24} color={colors.success} />
-                  </View>
-                  <Text style={styles.actionTitle}>Create Listing</Text>
-                  <Text style={styles.actionDescription}>Add a new service</Text>
-                </TouchableOpacity>
-              </>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => router.push('/create-listing' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionIconContainer}>
+                  <PlusCircle size={24} color={colors.success} />
+                </View>
+                <Text style={styles.actionTitle}>Create Listing</Text>
+                <Text style={styles.actionDescription}>Add a new service</Text>
+              </TouchableOpacity>
             )}
 
             <TouchableOpacity
@@ -206,6 +192,20 @@ export default function DashboardScreen() {
               <Text style={styles.actionTitle}>Post Job</Text>
               <Text style={styles.actionDescription}>Create a job post</Text>
             </TouchableOpacity>
+
+            {isProvider && (
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => router.push('/provider/my-listings' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.actionIconContainer}>
+                  <ClipboardList size={24} color={colors.primary} />
+                </View>
+                <Text style={styles.actionTitle}>My Listings</Text>
+                <Text style={styles.actionDescription}>Manage services</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={styles.actionCard}
@@ -264,7 +264,7 @@ export default function DashboardScreen() {
                 <Search size={24} color={colors.success} />
               </View>
               <Text style={styles.actionTitle}>Saved Searches</Text>
-              <Text style={styles.actionDescription}>Your searches</Text>
+              <Text style={styles.actionDescription}>Quickly rerun searches</Text>
             </TouchableOpacity>
           </ResponsiveGrid>
         </View>
