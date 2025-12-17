@@ -290,53 +290,91 @@ export default function HomeScreen() {
     });
   };
 
-  const normalizeServiceListing = (service: any): MarketplaceListing => ({
-    id: service.id,
-    marketplace_type: service.listing_type || 'Service',
-    title: service.title,
-    description: service.description,
-    category_id: service.category_id,
-    location: service.location || '',
-    latitude: service.latitude,
-    longitude: service.longitude,
-    photos: Array.isArray(service.photos) ? service.photos : (service.photos || []),
-    created_at: service.created_at,
-    base_price: service.base_price,
-    pricing_type: service.pricing_type,
-    provider_id: service.provider_id,
-    status: service.status,
-    listing_type: service.listing_type,
-    provider: service.profiles,
-    category: service.categories,
-    distance_miles: service.distance_miles,
-    view_count: service.view_count,
-  });
+  const normalizeServiceListing = (service: any): MarketplaceListing => {
+    let photos = [];
+    if (service.photos) {
+      if (Array.isArray(service.photos)) {
+        photos = service.photos;
+      } else if (typeof service.photos === 'string') {
+        try {
+          const parsed = JSON.parse(service.photos);
+          photos = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          photos = [];
+        }
+      }
+    }
 
-  const normalizeJob = (job: any): MarketplaceListing => ({
-    id: job.id,
-    marketplace_type: 'Job',
-    title: job.title,
-    description: job.description,
-    category_id: job.category_id,
-    location: job.location,
-    latitude: job.latitude,
-    longitude: job.longitude,
-    photos: Array.isArray(job.photos) ? job.photos : (job.photos || []),
-    created_at: job.created_at,
-    budget_min: job.budget_min,
-    budget_max: job.budget_max,
-    fixed_price: job.fixed_price,
-    pricing_type: job.pricing_type,
-    customer_id: job.customer_id,
-    status: job.status,
-    execution_date_start: job.execution_date_start,
-    execution_date_end: job.execution_date_end,
-    preferred_time: job.preferred_time,
-    customer: job.profiles,
-    category: job.categories,
-    distance_miles: job.distance_miles,
-    view_count: 0,
-  });
+    const latitude = service.latitude ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude) : null;
+    const longitude = service.longitude ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude) : null;
+
+    return {
+      id: service.id,
+      marketplace_type: service.listing_type || 'Service',
+      title: service.title,
+      description: service.description,
+      category_id: service.category_id,
+      location: service.location || '',
+      latitude,
+      longitude,
+      photos,
+      created_at: service.created_at,
+      base_price: service.base_price,
+      pricing_type: service.pricing_type,
+      provider_id: service.provider_id,
+      status: service.status,
+      listing_type: service.listing_type,
+      provider: service.profiles,
+      category: service.categories,
+      distance_miles: service.distance_miles,
+      view_count: service.view_count,
+    };
+  };
+
+  const normalizeJob = (job: any): MarketplaceListing => {
+    let photos = [];
+    if (job.photos) {
+      if (Array.isArray(job.photos)) {
+        photos = job.photos;
+      } else if (typeof job.photos === 'string') {
+        try {
+          const parsed = JSON.parse(job.photos);
+          photos = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          photos = [];
+        }
+      }
+    }
+
+    const latitude = job.latitude ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude) : null;
+    const longitude = job.longitude ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude) : null;
+
+    return {
+      id: job.id,
+      marketplace_type: 'Job',
+      title: job.title,
+      description: job.description,
+      category_id: job.category_id,
+      location: job.location,
+      latitude,
+      longitude,
+      photos,
+      created_at: job.created_at,
+      budget_min: job.budget_min,
+      budget_max: job.budget_max,
+      fixed_price: job.fixed_price,
+      pricing_type: job.pricing_type,
+      customer_id: job.customer_id,
+      status: job.status,
+      execution_date_start: job.execution_date_start,
+      execution_date_end: job.execution_date_end,
+      preferred_time: job.preferred_time,
+      customer: job.profiles,
+      category: job.categories,
+      distance_miles: job.distance_miles,
+      view_count: 0,
+    };
+  };
 
   const fetchListings = async (reset: boolean = false) => {
     if (reset) {
