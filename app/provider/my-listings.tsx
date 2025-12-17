@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { Button } from '@/components/Button';
-import { PlusCircle, Edit, Eye, TrendingUp, Star, MapPin, Calendar, DollarSign, Package, Power, PowerOff, MoreVertical } from 'lucide-react-native';
+import { PlusCircle, Edit, Eye, TrendingUp, Star, MapPin, Calendar, DollarSign, Package, Power, PowerOff, MoreVertical, Trash2 } from 'lucide-react-native';
 import { formatCurrency } from '@/lib/currency-utils';
 
 interface ServiceListing {
@@ -96,6 +96,37 @@ export default function MyListingsScreen() {
     } else {
       fetchListings();
     }
+  };
+
+  const deleteListing = async (listingId: string, listingTitle: string) => {
+    Alert.alert(
+      'Delete Listing',
+      `Are you sure you want to delete "${listingTitle}"? This action cannot be undone.`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('service_listings')
+              .delete()
+              .eq('id', listingId);
+
+            if (error) {
+              Alert.alert('Error', 'Failed to delete listing');
+              console.error('Error deleting listing:', error);
+            } else {
+              Alert.alert('Success', 'Listing deleted successfully');
+              fetchListings();
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -222,6 +253,14 @@ export default function MyListingsScreen() {
               activeOpacity={0.7}
             >
               <Eye size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => deleteListing(listing.id, listing.title)}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={16} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
@@ -547,6 +586,10 @@ const styles = StyleSheet.create({
   viewButton: {
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
+  },
+  deleteButton: {
+    paddingHorizontal: spacing.md,
+    backgroundColor: `${colors.error}10`,
   },
   loadingContainer: {
     flex: 1,
