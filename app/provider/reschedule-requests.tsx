@@ -48,7 +48,7 @@ export default function RescheduleRequestsScreen() {
   const [filter, setFilter] = useState<FilterType>('pending');
 
   useEffect(() => {
-    if (profile?.user_type !== 'Provider') {
+    if (profile?.user_type !== 'Provider' && profile?.user_type !== 'Hybrid') {
       router.back();
       return;
     }

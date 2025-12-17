@@ -172,7 +172,7 @@ export default function ProfileScreen() {
             </View>
           )}
 
-          {profile.user_type === 'Provider' && profile.total_reviews > 0 && (
+          {(profile.user_type === 'Provider' || profile.user_type === 'Hybrid') && profile.total_reviews > 0 && (
             <TouchableOpacity
               style={styles.ratingsSection}
               onPress={() => router.push(`/reviews/${profile.id}` as any)}

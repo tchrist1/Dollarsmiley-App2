@@ -104,7 +104,7 @@ export default function JobDetailScreen() {
 
       // Track job view for analytics
       if (profile) {
-        const viewerType = profile.user_type === 'Provider' ? 'provider' : 'customer';
+        const viewerType = profile.user_type === 'Provider' || profile.user_type === 'Hybrid' ? 'provider' : 'customer';
         trackJobView(String(id), profile.id, viewerType);
       } else {
         trackJobView(String(id), undefined, 'guest');

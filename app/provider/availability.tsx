@@ -29,7 +29,7 @@ export default function ProviderAvailabilityScreen() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (profile?.user_type !== 'Provider') {
+    if (profile?.user_type !== 'Provider' && profile?.user_type !== 'Hybrid') {
       Alert.alert('Access Denied', 'Only providers can manage availability');
       router.back();
       return;
