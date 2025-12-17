@@ -8,6 +8,7 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Mapbox from '@rnmapbox/maps';
@@ -25,6 +26,9 @@ import {
   TrendingUp,
   Layers,
   X,
+  Briefcase,
+  Package,
+  Wrench,
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { MAPBOX_CONFIG } from '@/config/native-modules';
@@ -38,6 +42,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: 'Service' | 'Job' | 'CustomService';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -46,6 +51,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  photoUrl?: string;
 }
 
 interface MapRegion {
@@ -209,40 +215,65 @@ export default function NativeInteractiveMapView({
   const renderMarkerContent = (marker: MapMarker) => {
     const isSelected = selectedMarker?.id === marker.id;
     const isProvider = marker.type === 'provider';
+    const listingType = marker.listingType;
+
+    const getMarkerColor = () => {
+      if (isProvider) return colors.success;
+      if (listingType === 'Job') return '#FF6B00';
+      if (listingType === 'CustomService') return '#9333EA';
+      return colors.primary;
+    };
+
+    const getMarkerIcon = () => {
+      if (isProvider) {
+        return <User size={20} color={isSelected ? colors.white : colors.success} strokeWidth={2.5} />;
+      }
+      if (listingType === 'Job') {
+        return <Briefcase size={16} color={isSelected ? colors.white : '#FF6B00'} strokeWidth={2.5} />;
+      }
+      if (listingType === 'CustomService') {
+        return <Wrench size={16} color={isSelected ? colors.white : '#9333EA'} strokeWidth={2.5} />;
+      }
+      return <Package size={16} color={isSelected ? colors.white : colors.primary} strokeWidth={2.5} />;
+    };
+
+    const markerColor = getMarkerColor();
 
     return (
-      <View
-        style={[
-          styles.markerContainer,
-          isProvider && styles.markerProviderContainer,
-          isSelected && styles.markerSelected,
-        ]}
-      >
+      <View style={styles.markerWrapper}>
+        {marker.photoUrl && !isProvider && (
+          <View style={styles.markerImageContainer}>
+            <Image
+              source={{ uri: marker.photoUrl }}
+              style={styles.markerImage}
+              resizeMode="cover"
+            />
+            <View style={[styles.markerImageBadge, { backgroundColor: markerColor }]}>
+              {getMarkerIcon()}
+            </View>
+          </View>
+        )}
         <View
           style={[
-            styles.markerContent,
-            isProvider && styles.markerProviderContent,
-            isSelected && (isProvider ? styles.markerContentProviderSelected : styles.markerContentSelected),
+            styles.markerContainer,
+            { borderColor: markerColor },
+            isProvider && styles.markerProviderContainer,
+            isSelected && { backgroundColor: markerColor, borderColor: colors.white },
           ]}
         >
-          {isProvider ? (
-            <User
-              size={20}
-              color={isSelected ? colors.white : colors.success}
-              strokeWidth={2.5}
-            />
-          ) : (
-            <MapPin
-              size={20}
-              color={isSelected ? colors.white : colors.primary}
-              fill={isSelected ? colors.white : 'transparent'}
-            />
-          )}
-          {isProvider && marker.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <BadgeCheck size={10} color={colors.white} fill={colors.success} />
-            </View>
-          )}
+          <View
+            style={[
+              styles.markerContent,
+              isProvider && styles.markerProviderContent,
+            ]}
+          >
+            {!marker.photoUrl && getMarkerIcon()}
+            {isProvider && marker.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <BadgeCheck size={10} color={colors.white} fill={colors.success} />
+              </View>
+            )}
+          </View>
         </View>
         {marker.price && !isProvider && (
           <View style={[styles.markerPrice, isSelected && styles.markerPriceSelected]}>
@@ -609,6 +640,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  markerWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.xs,
+    borderWidth: 2,
+    borderColor: colors.white,
+    ...shadows.lg,
+  },
+  markerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  markerImageBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
   },
   markerContainer: {
     alignItems: 'center',
