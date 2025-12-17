@@ -1,0 +1,58 @@
+Dollarsmiley Event Marketplace Service Category Schema
+===================================================
+
+Category: Event Planning & Coordination
+Description: Professional event planners who help clients design, coordinate, and manage their events seamlessly.
+Subcategories: Full-Service Event Planning, Wedding Planning, Corporate Event Management, Social & Community Events, Day-of Coordination
+
+Category: Venue & Space Rentals
+Description: Unique spaces and rental venues for weddings, parties, or corporate gatherings.
+Subcategories: Banquet Halls & Ballrooms, Outdoor Gardens & Parks, Private Homes & Airbnb Venues, Rooftop & Waterfront Spaces, Community & Convention Centers
+
+Category: Catering & Food Services
+Description: Culinary experts offering a variety of menu options and setups for any event.
+Subcategories: Full-Service Catering, Buffets & Food Stations, Beverage & Bartending, Specialty Desserts & Cakes, Food Trucks & Mobile Bars, Private Chefs, Cultural Cuisine
+
+Category: Entertainment & Music
+Description: Artists and performers who bring energy and life to every celebration.
+Subcategories: DJs & Live Bands, Emcees & Hosts, Dancers, Magicians & Comedians, Kids’ Entertainment, Photo Booth & 360 Booth Rentals
+
+Category: Décor, Design & Florals
+Description: Transform spaces with themed décor, flowers, lighting, and artistic styling.
+Subcategories: Floral Design & Arrangements, Balloon Décor & Arches, Backdrops & Draping, Table Styling & Centerpieces, Lighting Design
+
+Category: Rentals & Equipment Supply
+Description: Essential event rental equipment to bring any vision to life.
+Subcategories: Tables, Chairs & Linens, Tents, Stages & Flooring, Tableware, Glassware & Bars, Dance Floors & Lounge Furniture, Generators, Heaters & Restrooms
+
+Category: Photography, Videography & Production
+Description: Media professionals capturing and producing memorable event moments.
+Subcategories: Event Photography, Wedding & Portrait Videography, Drone Footage, Live Streaming Services, Graphic Design & Event Branding
+
+Category: Beauty, Style & Personal Services
+Description: Glam and personal care experts for brides, hosts, and guests.
+Subcategories: Makeup & Hair Artists, Braiding, Wardrobe & Fashion Stylists, Nail & Spa On-Site Services, Barber & Grooming Services
+
+Category: Kids & Family Party Services
+Description: Fun and engaging experiences for children’s events.
+Subcategories: Birthday Party Planners, Bouncy Castles & Inflatables, Character Entertainment, Craft & Activity Stations
+
+Category: Event Tech & Logistics
+Description: Professionals providing event setup, audio-visual, and safety support.
+Subcategories: AV Setup, Event Ticketing & Registration, Security & Crowd Control, Transport, Valet & Parking Management
+
+Category: Printing, Customization & Favors
+Description: Personalized items, gifts, and designs for event branding and keepsakes.
+Subcategories: Invitation Design & Printing, Party Favors & Gift Bags, Custom Merchandise, Signage, Labels & Banners
+
+Category: Handyman & Home Support Services
+Description: Professional handyman services to prepare, decorate, and restore event or home spaces.
+Subcategories: TV Mounting & Unmounting Services, Furniture Assembly & Installation, Picture, Art & Curtain Hanging, Moving Help & Event Setup, Fixture Repair & Light Installation
+
+Category: Delivery, Setup & Cleanup
+Description: On-site support for logistics, preparation, and teardown.
+Subcategories: Event Setup & Breakdown Crews, Cleaning & Sanitization Teams, Waste Management & Recycling, Linen & Dish Return Services
+
+Category: Specialty & Seasonal Services
+Description: Creative and niche services for themed or holiday-based celebrations.
+Subcategories: Holiday Party Setup, Cultural or Religious Ceremonies, Proposal & Engagement Setup, Festival Booth Design, Pop-Up & Brand Activation Events

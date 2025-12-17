@@ -1,0 +1,20 @@
+# Documentation files (not needed for duplication)
+*_COMPLETE.md
+*_SUMMARY.md
+*_GUIDE.md
+*_ROADMAP.md
+*_REFERENCE.md
+*_ANALYSIS.md
+DUPLICATION_FIXES.md
+START_HERE.md
+YOUR_NEXT_STEPS.md
+
+# Test files
+test-*.tsx
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Scripts
+scripts/

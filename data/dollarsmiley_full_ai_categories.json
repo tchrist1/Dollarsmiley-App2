@@ -1,0 +1,354 @@
+{
+  "categories": [
+    {
+      "category": "Event Planning & Coordination",
+      "subcategories": [
+        {
+          "name": "Full-Service Event Planning",
+          "image_prompt": "A professional event planner coordinating a luxury event layout with checklists, venue maps, and d\u00e9cor samples on a sleek table\u2014bright natural lighting, elegant workspace."
+        },
+        {
+          "name": "Wedding Planning",
+          "image_prompt": "A wedding planner reviewing floral arrangements and seating charts beside soft pastel d\u00e9cor, candles, and bridal inspiration boards\u2014romantic and modern."
+        },
+        {
+          "name": "Corporate Event Management",
+          "image_prompt": "A corporate event planner managing a conference setup with lanyards, signage, stage lighting plans, and digital tablets\u2014clean, modern, business-professional tone."
+        },
+        {
+          "name": "Social & Community Events",
+          "image_prompt": "A vibrant community event planner organizing colorful festival decorations, community booths, and activity charts\u2014friendly and cheerful atmosphere."
+        },
+        {
+          "name": "Day-of Coordination",
+          "image_prompt": "A day-of event coordinator with headset and clipboard managing event timelines, checking vendor schedules, and adjusting table settings\u2014dynamic and focused."
+        }
+      ]
+    },
+    {
+      "category": "Venue & Space Rentals",
+      "subcategories": [
+        {
+          "name": "Banquet Halls & Ballrooms",
+          "image_prompt": "A luxurious ballroom with chandeliers, polished floors, draped tables, and ambient lighting\u2014elegant and formal."
+        },
+        {
+          "name": "Outdoor Gardens & Parks",
+          "image_prompt": "A scenic outdoor garden event space with floral arches, greenery, and natural sunlight\u2014romantic open-air atmosphere."
+        },
+        {
+          "name": "Private Homes & Airbnb Venues",
+          "image_prompt": "A stylish modern home prepared for an event with minimalist d\u00e9cor, warm lighting, and clean staging."
+        },
+        {
+          "name": "Rooftop & Waterfront Spaces",
+          "image_prompt": "A rooftop event venue overlooking a city skyline with string lights, cocktail tables, and a sunset backdrop."
+        },
+        {
+          "name": "Community & Convention Centers",
+          "image_prompt": "A spacious convention center setup with exhibitor booths, banners, and professional lighting\u2014clean and organized."
+        }
+      ]
+    },
+    {
+      "category": "Catering & Food Services",
+      "subcategories": [
+        {
+          "name": "Full-Service Catering",
+          "image_prompt": "A catering team preparing gourmet dishes on polished buffet tables with stainless chafers and elegant plating."
+        },
+        {
+          "name": "Buffets & Food Stations",
+          "image_prompt": "A colorful buffet arrangement featuring multiple themed food stations with labels and decorative accents."
+        },
+        {
+          "name": "Beverage & Bartending",
+          "image_prompt": "A bartender crafting cocktails on a stylish bar counter with glassware, mixers, and ambient event lighting."
+        },
+        {
+          "name": "Specialty Desserts & Cakes",
+          "image_prompt": "A dessert table filled with artisanal cakes, pastries, and decorative sweets\u2014high detail."
+        },
+        {
+          "name": "Food Trucks & Mobile Bars",
+          "image_prompt": "A trendy food truck at an event with open service windows, chalkboard menus, and outdoor festive lighting."
+        },
+        {
+          "name": "Private Chefs",
+          "image_prompt": "A private chef preparing gourmet dishes in a modern kitchen with fresh ingredients and refined plating."
+        },
+        {
+          "name": "Cultural Cuisine",
+          "image_prompt": "A beautifully arranged ethnic cuisine table showcasing authentic dishes, spices, and cultural elements."
+        }
+      ]
+    },
+    {
+      "category": "Entertainment & Music",
+      "subcategories": [
+        {
+          "name": "DJs & Live Bands",
+          "image_prompt": "A DJ mixing music on a stage with LED lights, turntables, and energetic event lighting."
+        },
+        {
+          "name": "Emcees & Hosts",
+          "image_prompt": "A charismatic event host holding a microphone on a decorated stage with audience engagement."
+        },
+        {
+          "name": "Dancers",
+          "image_prompt": "Professional dancers performing in coordinated costumes on a well-lit event stage."
+        },
+        {
+          "name": "Magicians & Comedians",
+          "image_prompt": "A vibrant magic or comedy show setup with spotlight, props, and expressive performer."
+        },
+        {
+          "name": "Kids\u2019 Entertainment",
+          "image_prompt": "A cheerful children\u2019s entertainer with colorful props, balloons, and playful background."
+        },
+        {
+          "name": "Photo Booth & 360 Booth Rentals",
+          "image_prompt": "A modern 360 photo booth with LED ring lights, platform, and festive props."
+        }
+      ]
+    },
+    {
+      "category": "D\u00e9cor, Design & Florals",
+      "subcategories": [
+        {
+          "name": "Floral Design & Arrangements",
+          "image_prompt": "Elegant floral arrangements with roses, greenery, and premium vases\u2014studio-quality lighting."
+        },
+        {
+          "name": "Balloon D\u00e9cor & Arches",
+          "image_prompt": "A stylish balloon arch with coordinated colors, metallic balloons, and party backdrop."
+        },
+        {
+          "name": "Backdrops & Draping",
+          "image_prompt": "A professionally staged event backdrop with drapes, lighting, and themed decorations."
+        },
+        {
+          "name": "Table Styling & Centerpieces",
+          "image_prompt": "A decorated event table with centerpieces, tableware, linens, and candles\u2014luxury aesthetic."
+        },
+        {
+          "name": "Lighting Design",
+          "image_prompt": "Event lighting setup with uplights, string lights, and atmospheric glow enhancing venue d\u00e9cor."
+        }
+      ]
+    },
+    {
+      "category": "Rentals & Equipment Supply",
+      "subcategories": [
+        {
+          "name": "Tables, Chairs & Linens",
+          "image_prompt": "Neatly arranged event tables with chairs, linens, and coordinated d\u00e9cor accents."
+        },
+        {
+          "name": "Tents",
+          "image_prompt": "A large outdoor event tent with draping, lighting, and open sides\u2014elegant white fabric."
+        },
+        {
+          "name": "Stages & Flooring",
+          "image_prompt": "A modular event stage with lighting truss, speakers, and polished flooring."
+        },
+        {
+          "name": "Tableware, Glassware & Bars",
+          "image_prompt": "Premium tableware and glassware arranged for an upscale reception."
+        },
+        {
+          "name": "Dance Floors & Lounge Furniture",
+          "image_prompt": "A modern dance floor with LED accents and stylish lounge seating around it."
+        },
+        {
+          "name": "Generators, Heaters & Restrooms",
+          "image_prompt": "Professional event equipment setup including generators, heaters, and portable units."
+        }
+      ]
+    },
+    {
+      "category": "Photography, Videography & Production",
+      "subcategories": [
+        {
+          "name": "Event Photography",
+          "image_prompt": "A photographer capturing candid event moments with DSLR camera and soft lighting."
+        },
+        {
+          "name": "Wedding & Portrait Videography",
+          "image_prompt": "A videographer filming a wedding scene with gimbal and cinematic lighting."
+        },
+        {
+          "name": "Drone Footage",
+          "image_prompt": "A drone capturing aerial views of an outdoor event from above."
+        },
+        {
+          "name": "Live Streaming Services",
+          "image_prompt": "A streaming setup with cameras, monitors, and lighting for live broadcast."
+        },
+        {
+          "name": "Graphic Design & Event Branding",
+          "image_prompt": "Event branding designs including banners, invitations, and digital mockups."
+        }
+      ]
+    },
+    {
+      "category": "Beauty, Style & Personal Services",
+      "subcategories": [
+        {
+          "name": "Makeup & Hair Artists",
+          "image_prompt": "A makeup artist applying bridal makeup with high-quality tools and bright vanity lights."
+        },
+        {
+          "name": "Braiding",
+          "image_prompt": "A full-view close-up of a person’s head showcasing intricate, neatly styled braids from back and top angles, with clean parting lines, symmetrical braid patterns, and smooth hair texture—professional studio lighting, neutral background, sharp detail."
+        },
+        {
+          "name": "Wardrobe & Fashion Stylists",
+          "image_prompt": "A fashion stylist preparing outfits on a clothing rack with accessories and mood boards."
+        },
+        {
+          "name": "Nail & Spa On-Site Services",
+          "image_prompt": "A mobile spa setup with manicure tools, towels, and soothing d\u00e9cor."
+        },
+        {
+          "name": "Barber & Grooming Services",
+          "image_prompt": "A professional barber providing grooming services in a clean, modern setup."
+        }
+      ]
+    },
+    {
+      "category": "Kids & Family Party Services",
+      "subcategories": [
+        {
+          "name": "Birthday Party Planners",
+          "image_prompt": "A colorful birthday party layout with balloons, themed decorations, and a planner\u2019s table."
+        },
+        {
+          "name": "Bouncy Castles & Inflatables",
+          "image_prompt": "A vibrant inflatable bounce house at an outdoor kids\u2019 party."
+        },
+        {
+          "name": "Character Entertainment",
+          "image_prompt": "A costumed character entertaining children at a festive event."
+        },
+        {
+          "name": "Craft & Activity Stations",
+          "image_prompt": "Kids\u2019 activity station with craft supplies, colorful tables, and joyful setting."
+        }
+      ]
+    },
+    {
+      "category": "Event Tech & Logistics",
+      "subcategories": [
+        {
+          "name": "AV Setup",
+          "image_prompt": "Professional audio-visual setup with speakers, mixers, screens, and cables."
+        },
+        {
+          "name": "Event Ticketing & Registration",
+          "image_prompt": "Registration desk with tablets, badges, banners, and professional setup."
+        },
+        {
+          "name": "Security & Crowd Control",
+          "image_prompt": "Event security personnel with radios and designated entry barriers."
+        },
+        {
+          "name": "Transport, Valet & Parking Management",
+          "image_prompt": "Valet service station with signage, parking cones, and uniformed staff."
+        }
+      ]
+    },
+    {
+      "category": "Printing, Customization & Favors",
+      "subcategories": [
+        {
+          "name": "Invitation Design & Printing",
+          "image_prompt": "Elegant printed invitations with envelopes, ribbons, and branding elements."
+        },
+        {
+          "name": "Party Favors & Gift Bags",
+          "image_prompt": "A display of themed party favor bags and small customized gifts."
+        },
+        {
+          "name": "Custom Merchandise",
+          "image_prompt": "Custom-printed shirts, mugs, and accessories with event branding."
+        },
+        {
+          "name": "Signage, Labels & Banners",
+          "image_prompt": "Event signage and banners printed with vibrant colors and clean typography."
+        }
+      ]
+    },
+    {
+      "category": "Handyman & Home Support Services",
+      "subcategories": [
+        {
+          "name": "TV Mounting & Unmounting Services",
+          "image_prompt": "A technician mounting a flat-screen TV using tools and level on a clean wall."
+        },
+        {
+          "name": "Furniture Assembly & Installation",
+          "image_prompt": "Technician assembling furniture with tools on a neat workspace."
+        },
+        {
+          "name": "Picture, Art & Curtain Hanging",
+          "image_prompt": "A professional hanging artwork and curtains using level and measuring tools."
+        },
+        {
+          "name": "Moving Help & Event Setup",
+          "image_prompt": "Crew members carrying event equipment and setting up an event area."
+        },
+        {
+          "name": "Fixture Repair & Light Installation",
+          "image_prompt": "Handyman repairing fixtures and installing lights using proper tools."
+        }
+      ]
+    },
+    {
+      "category": "Delivery, Setup & Cleanup",
+      "subcategories": [
+        {
+          "name": "Event Setup & Breakdown Crews",
+          "image_prompt": "Team arranging tables, chairs, and d\u00e9cor during event setup."
+        },
+        {
+          "name": "Cleaning & Sanitization Teams",
+          "image_prompt": "Sanitization team cleaning event space with professional equipment."
+        },
+        {
+          "name": "Waste Management & Recycling",
+          "image_prompt": "Organized event waste and recycling stations with labeled bins."
+        },
+        {
+          "name": "Linen & Dish Return Services",
+          "image_prompt": "Stacked event linens and dish return setup with organized carts."
+        }
+      ]
+    },
+    {
+      "category": "Specialty & Seasonal Services",
+      "subcategories": [
+        {
+          "name": "Holiday Party Setup",
+          "image_prompt": "Festive holiday d\u00e9cor with wreaths, lights, themed displays, and warm ambiance."
+        },
+        {
+          "name": "Cultural or Religious Ceremonies",
+          "image_prompt": "Beautifully arranged cultural ceremony setup with symbolic items."
+        },
+        {
+          "name": "Proposal & Engagement Setup",
+          "image_prompt": "Romantic engagement setup with candles, floral arrangements, and signage."
+        },
+        {
+          "name": "Festival Booth Design",
+          "image_prompt": "Colorful event booth with signage, samples, and decorative elements."
+        },
+        {
+          "name": "Pop-Up & Brand Activation Events",
+          "image_prompt": "Modern branded pop-up event setup with banners, displays, and lighting."
+        }
+      ]
+    }
+  ]
+}

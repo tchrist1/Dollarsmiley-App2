@@ -1,0 +1,1082 @@
+openapi: 3.0.3
+info:
+  title: Dollarsmiley Marketplace API
+  description: |
+    Complete API documentation for the Dollarsmiley marketplace platform.
+
+    ## Features
+    - Service provider marketplace
+    - Job posting and quoting
+    - Booking management
+    - Payment processing with Stripe
+    - Real-time messaging
+    - Social features
+    - Reviews and ratings
+    - OAuth 2.0 authentication
+
+    ## Authentication
+    All authenticated endpoints require a Bearer token in the Authorization header.
+    Get your token from Supabase Auth after login.
+
+    ## Rate Limiting
+    - Anonymous: 100 requests/hour
+    - Authenticated: 1000 requests/hour
+    - Premium: 5000 requests/hour
+    - Admin: 10000 requests/hour
+
+    Rate limit headers are included in all responses:
+    - `X-RateLimit-Limit`: Maximum requests allowed
+    - `X-RateLimit-Remaining`: Requests remaining in window
+    - `X-RateLimit-Reset`: Unix timestamp when limit resets
+
+    ## Base URL
+    Production: `https://your-project.supabase.co/functions/v1`
+
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@dollarsmiley.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://your-project.supabase.co/functions/v1
+    description: Production server
+  - url: http://localhost:54321/functions/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User profile management
+  - name: Listings
+    description: Service listings management
+  - name: Jobs
+    description: Job posting and management
+  - name: Quotes
+    description: Quote submission and management
+  - name: Bookings
+    description: Booking management
+  - name: Payments
+    description: Payment processing
+  - name: Reviews
+    description: Reviews and ratings
+  - name: Messages
+    description: Real-time messaging
+  - name: Notifications
+    description: Notification management
+  - name: Social
+    description: Social features (feed, posts, follows)
+  - name: Calendar
+    description: Calendar and availability
+  - name: Admin
+    description: Admin endpoints
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from Supabase Auth
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: ERROR_CODE
+            message:
+              type: string
+              example: Error message
+            details:
+              type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        bio:
+          type: string
+        user_type:
+          type: string
+          enum: [customer, provider, both]
+        verification_status:
+          type: string
+          enum: [unverified, pending, verified, rejected]
+        rating:
+          type: number
+          format: float
+        total_reviews:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Listing:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+          format: float
+        category:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        provider:
+          $ref: '#/components/schemas/User'
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+        rating:
+          type: number
+          format: float
+        total_reviews:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        budget:
+          type: number
+          format: float
+        category:
+          type: object
+        customer:
+          $ref: '#/components/schemas/User'
+        location:
+          type: string
+        preferred_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [open, in_progress, completed, cancelled]
+        quotes_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Quote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        job:
+          $ref: '#/components/schemas/Job'
+        provider:
+          $ref: '#/components/schemas/User'
+        price:
+          type: number
+          format: float
+        message:
+          type: string
+        estimated_duration:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        created_at:
+          type: string
+          format: date-time
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        listing:
+          $ref: '#/components/schemas/Listing'
+        provider:
+          $ref: '#/components/schemas/User'
+        customer:
+          $ref: '#/components/schemas/User'
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, confirmed, in_progress, completed, cancelled]
+        total:
+          type: number
+          format: float
+        created_at:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking:
+          $ref: '#/components/schemas/Booking'
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        payment_method:
+          type: string
+        stripe_payment_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        booking:
+          $ref: '#/components/schemas/Booking'
+        reviewer:
+          $ref: '#/components/schemas/User'
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+        helpful_votes:
+          type: integer
+        response:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: string
+          format: uuid
+        sender:
+          $ref: '#/components/schemas/User'
+        content:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+        read_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author:
+          $ref: '#/components/schemas/User'
+        content:
+          type: string
+        media:
+          type: array
+          items:
+            type: string
+            format: uri
+        likes_count:
+          type: integer
+        comments_count:
+          type: integer
+        liked_by_user:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - full_name
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                full_name:
+                  type: string
+                user_type:
+                  type: string
+                  enum: [customer, provider, both]
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      session:
+                        type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user and get session token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                      session:
+                        type: object
+                        properties:
+                          access_token:
+                            type: string
+                          refresh_token:
+                            type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user
+      description: Get authenticated user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Users
+      summary: Update profile
+      description: Update authenticated user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                bio:
+                  type: string
+                avatar_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+
+  /listings:
+    get:
+      tags:
+        - Listings
+      summary: List listings
+      description: Get all service listings with filtering and pagination
+      security: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: min_price
+          in: query
+          schema:
+            type: number
+        - name: max_price
+          in: query
+          schema:
+            type: number
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: List of listings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Listing'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags:
+        - Listings
+      summary: Create listing
+      description: Create a new service listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - category_id
+                - price
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                category_id:
+                  type: string
+                  format: uuid
+                price:
+                  type: number
+                  format: float
+                duration_hours:
+                  type: number
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+      responses:
+        '201':
+          description: Listing created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Listing'
+
+  /listings/{listingId}:
+    get:
+      tags:
+        - Listings
+      summary: Get listing
+      description: Get listing details by ID
+      security: []
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Listing details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Listing'
+        '404':
+          description: Listing not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - Listings
+      summary: Update listing
+      description: Update listing details
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                price:
+                  type: number
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Listing updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Listing'
+
+    delete:
+      tags:
+        - Listings
+      summary: Delete listing
+      description: Delete a listing
+      parameters:
+        - name: listingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Listing deleted
+        '404':
+          description: Listing not found
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: List bookings
+      description: Get user's bookings
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, in_progress, completed, cancelled]
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [customer, provider]
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags:
+        - Bookings
+      summary: Create booking
+      description: Create a new booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - listing_id
+                - start_time
+                - end_time
+              properties:
+                listing_id:
+                  type: string
+                  format: uuid
+                start_time:
+                  type: string
+                  format: date-time
+                end_time:
+                  type: string
+                  format: date-time
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Booking'
+
+  /payments/create-intent:
+    post:
+      tags:
+        - Payments
+      summary: Create payment intent
+      description: Create a Stripe payment intent for booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - booking_id
+                - amount
+              properties:
+                booking_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: float
+                payment_method:
+                  type: string
+                  enum: [card, bank_transfer]
+      responses:
+        '200':
+          description: Payment intent created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      client_secret:
+                        type: string
+                      payment_intent_id:
+                        type: string
+
+  /reviews:
+    get:
+      tags:
+        - Reviews
+      summary: List reviews
+      description: Get reviews with filtering
+      security: []
+      parameters:
+        - name: provider_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: rating
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags:
+        - Reviews
+      summary: Create review
+      description: Submit a review for completed booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - booking_id
+                - rating
+              properties:
+                booking_id:
+                  type: string
+                  format: uuid
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Review'
+
+  /messages/conversations:
+    get:
+      tags:
+        - Messages
+      summary: List conversations
+      description: Get user's conversations
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        participants:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/User'
+                        last_message:
+                          $ref: '#/components/schemas/Message'
+                        unread_count:
+                          type: integer
+
+  /social/feed:
+    get:
+      tags:
+        - Social
+      summary: Get feed
+      description: Get social feed posts
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+            enum: [following, for_you]
+        - name: page
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Feed posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Post'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /social/posts:
+    post:
+      tags:
+        - Social
+      summary: Create post
+      description: Create a new social post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+                media:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                tags:
+                  type: array
+                  items:
+                    type: string
+                mentions:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Post'
+
+x-tagGroups:
+  - name: Core
+    tags:
+      - Authentication
+      - Users
+  - name: Marketplace
+    tags:
+      - Listings
+      - Jobs
+      - Quotes
+      - Bookings
+  - name: Transactions
+    tags:
+      - Payments
+      - Reviews
+  - name: Communication
+    tags:
+      - Messages
+      - Notifications
+  - name: Features
+    tags:
+      - Social
+      - Calendar
+  - name: Management
+    tags:
+      - Admin

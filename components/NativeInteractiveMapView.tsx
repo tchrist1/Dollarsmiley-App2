@@ -1,0 +1,933 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  Modal,
+  Pressable,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Mapbox from '@rnmapbox/maps';
+import {
+  MapPin,
+  Navigation,
+  Plus,
+  Minus,
+  Maximize2,
+  List,
+  User,
+  Star,
+  BadgeCheck,
+  Clock,
+  TrendingUp,
+  Layers,
+  X,
+} from 'lucide-react-native';
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
+import { MAPBOX_CONFIG } from '@/config/native-modules';
+
+Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
+
+interface MapMarker {
+  id: string;
+  latitude: number;
+  longitude: number;
+  title: string;
+  price?: number;
+  type?: 'listing' | 'provider';
+  subtitle?: string;
+  rating?: number;
+  isVerified?: boolean;
+  reviewCount?: number;
+  categories?: string[];
+  responseTime?: string;
+  completionRate?: number;
+  avatarUrl?: string;
+}
+
+interface MapRegion {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+interface NativeInteractiveMapViewProps {
+  markers: MapMarker[];
+  onMarkerPress?: (marker: MapMarker) => void;
+  initialRegion?: MapRegion;
+  style?: any;
+  showControls?: boolean;
+  onSwitchToList?: () => void;
+  showUserLocation?: boolean;
+  enableClustering?: boolean;
+}
+
+const MAP_STYLES = [
+  { id: 'streets', name: 'Streets', uri: 'mapbox://styles/mapbox/streets-v12' },
+  { id: 'satellite', name: 'Satellite', uri: 'mapbox://styles/mapbox/satellite-streets-v12' },
+  { id: 'dark', name: 'Dark', uri: 'mapbox://styles/mapbox/dark-v11' },
+  { id: 'light', name: 'Light', uri: 'mapbox://styles/mapbox/light-v11' },
+];
+
+const DEFAULT_COORDINATES = [-74.006, 40.7128];
+
+export default function NativeInteractiveMapView({
+  markers,
+  onMarkerPress,
+  initialRegion,
+  style,
+  showControls = true,
+  onSwitchToList,
+  showUserLocation = true,
+  enableClustering = true,
+}: NativeInteractiveMapViewProps) {
+  const insets = useSafeAreaInsets();
+  const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<Mapbox.MapView>(null);
+  const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [currentMapStyle, setCurrentMapStyle] = useState(MAP_STYLES[0]);
+  const [showStyleSelector, setShowStyleSelector] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(12);
+
+  const centerCoordinate = initialRegion
+    ? [initialRegion.longitude, initialRegion.latitude]
+    : markers.length > 0
+    ? [markers[0].longitude, markers[0].latitude]
+    : DEFAULT_COORDINATES;
+
+  useEffect(() => {
+    if (markers.length > 0 && cameraRef.current && mapLoaded) {
+      fitBoundsToMarkers();
+    }
+  }, [markers.length, mapLoaded]);
+
+  const fitBoundsToMarkers = () => {
+    if (markers.length === 0 || !cameraRef.current) return;
+
+    const coordinates = markers.map((m) => [m.longitude, m.latitude]);
+
+    if (coordinates.length === 1) {
+      cameraRef.current.setCamera({
+        centerCoordinate: coordinates[0] as [number, number],
+        zoomLevel: 14,
+        animationDuration: 1000,
+      });
+    } else {
+      const bounds = calculateBounds(markers);
+      cameraRef.current.fitBounds(
+        [bounds.ne[0], bounds.ne[1]],
+        [bounds.sw[0], bounds.sw[1]],
+        [80, 80, 80, 200],
+        1000
+      );
+    }
+  };
+
+  const calculateBounds = (points: MapMarker[]) => {
+    if (points.length === 0) {
+      return {
+        ne: centerCoordinate,
+        sw: centerCoordinate,
+      };
+    }
+
+    let minLat = points[0].latitude;
+    let maxLat = points[0].latitude;
+    let minLng = points[0].longitude;
+    let maxLng = points[0].longitude;
+
+    points.forEach((point) => {
+      minLat = Math.min(minLat, point.latitude);
+      maxLat = Math.max(maxLat, point.latitude);
+      minLng = Math.min(minLng, point.longitude);
+      maxLng = Math.max(maxLng, point.longitude);
+    });
+
+    return {
+      ne: [maxLng, maxLat],
+      sw: [minLng, minLat],
+    };
+  };
+
+  const handleMarkerPress = (marker: MapMarker) => {
+    setSelectedMarker(marker);
+    onMarkerPress?.(marker);
+
+    if (cameraRef.current) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [marker.longitude, marker.latitude],
+        zoomLevel: Math.max(zoomLevel, 15),
+        animationDuration: 500,
+      });
+    }
+  };
+
+  const handleZoomIn = () => {
+    if (cameraRef.current) {
+      const newZoom = Math.min(zoomLevel + 1, 20);
+      setZoomLevel(newZoom);
+      cameraRef.current.zoomTo(newZoom, 300);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (cameraRef.current) {
+      const newZoom = Math.max(zoomLevel - 1, 0);
+      setZoomLevel(newZoom);
+      cameraRef.current.zoomTo(newZoom, 300);
+    }
+  };
+
+  const handleRecenter = () => {
+    fitBoundsToMarkers();
+  };
+
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
+    const R = 3959;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    if (distance < 1) {
+      return `${(distance * 5280).toFixed(0)} ft`;
+    }
+    return `${distance.toFixed(1)} mi`;
+  };
+
+  const renderMarkerContent = (marker: MapMarker) => {
+    const isSelected = selectedMarker?.id === marker.id;
+    const isProvider = marker.type === 'provider';
+
+    return (
+      <View
+        style={[
+          styles.markerContainer,
+          isProvider && styles.markerProviderContainer,
+          isSelected && styles.markerSelected,
+        ]}
+      >
+        <View
+          style={[
+            styles.markerContent,
+            isProvider && styles.markerProviderContent,
+            isSelected && (isProvider ? styles.markerContentProviderSelected : styles.markerContentSelected),
+          ]}
+        >
+          {isProvider ? (
+            <User
+              size={20}
+              color={isSelected ? colors.white : colors.success}
+              strokeWidth={2.5}
+            />
+          ) : (
+            <MapPin
+              size={20}
+              color={isSelected ? colors.white : colors.primary}
+              fill={isSelected ? colors.white : 'transparent'}
+            />
+          )}
+          {isProvider && marker.isVerified && (
+            <View style={styles.verifiedBadge}>
+              <BadgeCheck size={10} color={colors.white} fill={colors.success} />
+            </View>
+          )}
+        </View>
+        {marker.price && !isProvider && (
+          <View style={[styles.markerPrice, isSelected && styles.markerPriceSelected]}>
+            <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
+              ${Math.round(marker.price).toLocaleString('en-US')}
+            </Text>
+          </View>
+        )}
+        {isProvider && marker.rating && (
+          <View style={[styles.markerRating, isSelected && styles.markerRatingSelected]}>
+            <Star size={8} color={colors.warning} fill={colors.warning} />
+            <Text style={styles.markerRatingText}>{marker.rating.toFixed(1)}</Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  if (!MAPBOX_CONFIG.accessToken) {
+    return (
+      <View style={[styles.container, styles.errorContainer, style]}>
+        <MapPin size={48} color={colors.error} />
+        <Text style={styles.errorText}>Mapbox Not Configured</Text>
+        <Text style={styles.errorSubtext}>
+          Add EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN to your .env file
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, style]}>
+      <Mapbox.MapView
+        ref={mapRef}
+        style={styles.map}
+        styleURL={currentMapStyle.uri}
+        logoEnabled={false}
+        attributionEnabled={true}
+        attributionPosition={{ bottom: 8, right: 8 }}
+        scaleBarEnabled={false}
+        compassEnabled={false}
+        onDidFinishLoadingMap={() => setMapLoaded(true)}
+        onCameraChanged={(state) => {
+          setZoomLevel(state.properties.zoom);
+        }}
+      >
+        <Mapbox.Camera
+          ref={cameraRef}
+          zoomLevel={initialRegion ? Math.log2(360 / initialRegion.longitudeDelta) : 12}
+          centerCoordinate={centerCoordinate as [number, number]}
+          animationMode="flyTo"
+          animationDuration={1000}
+        />
+
+        {showUserLocation && (
+          <Mapbox.UserLocation
+            visible={true}
+            showsUserHeadingIndicator={true}
+            minDisplacement={10}
+          />
+        )}
+
+        {markers.map((marker) => (
+          <Mapbox.MarkerView
+            key={marker.id}
+            id={marker.id}
+            coordinate={[marker.longitude, marker.latitude]}
+            anchor={{ x: 0.5, y: 1 }}
+            allowOverlap={true}
+            isSelected={selectedMarker?.id === marker.id}
+          >
+            <TouchableOpacity
+              onPress={() => handleMarkerPress(marker)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              style={{ padding: spacing.sm }}
+            >
+              {renderMarkerContent(marker)}
+            </TouchableOpacity>
+          </Mapbox.MarkerView>
+        ))}
+      </Mapbox.MapView>
+
+      {!mapLoaded && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading map...</Text>
+        </View>
+      )}
+
+      {mapLoaded && markers.length === 0 && (
+        <View style={styles.emptyStateOverlay}>
+          <MapPin size={48} color={colors.textLight} />
+          <Text style={styles.emptyStateTitle}>No Locations Available</Text>
+          <Text style={styles.emptyStateText}>
+            Listings don't have location data yet.{'\n'}Try using list or grid view.
+          </Text>
+        </View>
+      )}
+
+      {showControls && (
+        <View style={styles.controls}>
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={() => setShowStyleSelector(!showStyleSelector)}
+            activeOpacity={0.7}
+          >
+            <Layers size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleZoomIn} activeOpacity={0.7}>
+            <Plus size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleZoomOut} activeOpacity={0.7}>
+            <Minus size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.controlButton} onPress={handleRecenter} activeOpacity={0.7}>
+            <Maximize2 size={20} color={colors.text} />
+          </TouchableOpacity>
+          {onSwitchToList && (
+            <TouchableOpacity
+              style={[styles.controlButton, styles.controlButtonPrimary]}
+              onPress={onSwitchToList}
+              activeOpacity={0.7}
+            >
+              <List size={20} color={colors.white} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      <Modal
+        visible={showStyleSelector}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowStyleSelector(false)}
+        statusBarTranslucent
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowStyleSelector(false)}
+        >
+          <View
+            style={[
+              styles.styleSelectorModal,
+              {
+                top: insets.top + spacing.xl + spacing.lg + 60,
+                left: spacing.md,
+                right: spacing.md,
+              }
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.styleSelectorHeader}>
+              <View style={styles.styleSelectorTitleRow}>
+                <Layers size={20} color={colors.text} />
+                <Text style={styles.styleSelectorTitle}>Map Style</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowStyleSelector(false)}
+                style={styles.styleSelectorClose}
+                activeOpacity={0.7}
+              >
+                <X size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.styleSelectorContent}>
+              {MAP_STYLES.map((style) => (
+                <TouchableOpacity
+                  key={style.id}
+                  style={[
+                    styles.styleOptionCard,
+                    currentMapStyle.id === style.id && styles.styleOptionCardActive,
+                  ]}
+                  onPress={() => {
+                    setCurrentMapStyle(style);
+                    setShowStyleSelector(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.styleOptionCardText,
+                      currentMapStyle.id === style.id && styles.styleOptionCardTextActive,
+                    ]}
+                  >
+                    {style.name}
+                  </Text>
+                  {currentMapStyle.id === style.id && (
+                    <View style={styles.styleOptionCheckmark}>
+                      <Text style={styles.styleOptionCheckmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {selectedMarker && (
+        <View style={styles.markerInfo}>
+          <TouchableOpacity
+            style={[
+              styles.markerInfoCard,
+              selectedMarker.type === 'provider' && styles.markerInfoCardExpanded,
+            ]}
+            onPress={() => onMarkerPress?.(selectedMarker)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.markerInfoHeader}>
+              {selectedMarker.type === 'provider' ? (
+                <>
+                  <User size={18} color={colors.success} />
+                  {selectedMarker.isVerified && (
+                    <BadgeCheck size={16} color={colors.success} fill={colors.success} />
+                  )}
+                </>
+              ) : (
+                <MapPin size={18} color={colors.primary} />
+              )}
+              <Text style={styles.markerInfoTitle} numberOfLines={1}>
+                {selectedMarker.title}
+              </Text>
+            </View>
+
+            {selectedMarker.subtitle && (
+              <Text style={styles.markerInfoSubtitle} numberOfLines={1}>
+                {selectedMarker.subtitle}
+              </Text>
+            )}
+
+            {selectedMarker.type === 'provider' ? (
+              <>
+                {selectedMarker.rating !== undefined && (
+                  <View style={styles.providerRatingRow}>
+                    <View style={styles.providerRatingStars}>
+                      <Star size={16} color={colors.warning} fill={colors.warning} />
+                      <Text style={styles.providerRatingValue}>{selectedMarker.rating.toFixed(1)}</Text>
+                    </View>
+                    {selectedMarker.reviewCount !== undefined && (
+                      <Text style={styles.providerReviewCount}>
+                        ({selectedMarker.reviewCount} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                      </Text>
+                    )}
+                  </View>
+                )}
+
+                {selectedMarker.categories && selectedMarker.categories.length > 0 && (
+                  <View style={styles.providerCategories}>
+                    {selectedMarker.categories.slice(0, 3).map((category, index) => (
+                      <View key={index} style={styles.providerCategoryBadge}>
+                        <Text style={styles.providerCategoryText}>{category}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.providerStatsRow}>
+                  {selectedMarker.responseTime && (
+                    <View style={styles.providerStat}>
+                      <Clock size={14} color={colors.textSecondary} />
+                      <Text style={styles.providerStatText}>{selectedMarker.responseTime}</Text>
+                    </View>
+                  )}
+                  {selectedMarker.completionRate !== undefined && (
+                    <View style={styles.providerStat}>
+                      <TrendingUp size={14} color={colors.success} />
+                      <Text style={styles.providerStatText}>{selectedMarker.completionRate}%</Text>
+                    </View>
+                  )}
+                </View>
+              </>
+            ) : (
+              <View style={styles.markerInfoDetails}>
+                {selectedMarker.price && (
+                  <Text style={styles.markerInfoPrice}>${Math.round(selectedMarker.price).toLocaleString('en-US')}</Text>
+                )}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={(e) => {
+                setSelectedMarker(null);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={styles.statsBar}>
+        <View style={styles.statItem}>
+          <MapPin size={14} color={colors.white} />
+          <Text style={styles.statText}>{markers.length} locations</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statText}>Zoom: {zoomLevel.toFixed(1)}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  map: {
+    flex: 1,
+  },
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  errorText: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    textAlign: 'center',
+  },
+  errorSubtext: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+  },
+  emptyStateOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: spacing.xl,
+  },
+  emptyStateTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  emptyStateText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerProviderContainer: {
+    transform: [{ scale: 1.1 }],
+  },
+  markerSelected: {
+    transform: [{ scale: 1.3 }],
+  },
+  markerContent: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: colors.primary,
+    ...shadows.lg,
+  },
+  markerProviderContent: {
+    borderColor: colors.success,
+  },
+  markerContentSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.white,
+  },
+  markerContentProviderSelected: {
+    backgroundColor: colors.success,
+    borderColor: colors.white,
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  markerPrice: {
+    marginTop: 4,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.md,
+  },
+  markerPriceSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  markerPriceText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  markerPriceTextSelected: {
+    color: colors.white,
+  },
+  markerRating: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.md,
+  },
+  markerRatingSelected: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  markerRatingText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  controls: {
+    position: 'absolute',
+    right: spacing.md,
+    top: spacing.xxl + spacing.lg + 52 + spacing.sm,
+    gap: spacing.xs,
+  },
+  controlButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.lg,
+  },
+  controlButtonPrimary: {
+    backgroundColor: colors.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  styleSelectorModal: {
+    position: 'absolute',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.xl,
+    ...shadows.xl,
+    maxWidth: 400,
+  },
+  styleSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  styleSelectorTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  styleSelectorTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  styleSelectorClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+  },
+  styleSelectorContent: {
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  styleOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  styleOptionCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  styleOptionCardText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  styleOptionCardTextActive: {
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+  },
+  styleOptionCheckmark: {
+    width: 24,
+    height: 24,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  styleOptionCheckmarkText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.white,
+  },
+  markerInfo: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: spacing.md,
+    right: spacing.md,
+  },
+  markerInfoCard: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    ...shadows.lg,
+  },
+  markerInfoCardExpanded: {
+    paddingBottom: spacing.lg,
+  },
+  markerInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  markerInfoTitle: {
+    flex: 1,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+  },
+  markerInfoSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  markerInfoDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  markerInfoPrice: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: colors.textLight,
+    lineHeight: 24,
+  },
+  statsBar: {
+    position: 'absolute',
+    top: spacing.xxl + spacing.lg + 52,
+    left: '50%',
+    transform: [{ translateX: -100 }],
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    gap: spacing.sm,
+    ...shadows.lg,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  statText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.white,
+  },
+  statDivider: {
+    width: 1,
+    height: 12,
+    backgroundColor: colors.white,
+    opacity: 0.3,
+  },
+  providerRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  providerRatingStars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  providerRatingValue: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  providerReviewCount: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  providerCategories: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  providerCategoryBadge: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+  },
+  providerCategoryText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.primary,
+  },
+  providerStatsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  providerStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  providerStatText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+});

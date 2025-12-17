@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dollarsmiley API Documentation</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    .topbar {
+      display: none;
+    }
+
+    .swagger-ui .info {
+      margin: 50px 0;
+    }
+
+    .swagger-ui .info .title {
+      font-size: 36px;
+      color: #3b4151;
+    }
+
+    .custom-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .custom-header h1 {
+      margin: 0;
+      font-size: 32px;
+    }
+
+    .custom-header p {
+      margin: 10px 0 0 0;
+      opacity: 0.9;
+    }
+
+    .quick-links {
+      background: #f7f7f7;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .quick-link {
+      padding: 10px 20px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #3b4151;
+      transition: all 0.3s;
+    }
+
+    .quick-link:hover {
+      border-color: #667eea;
+      color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .footer {
+      background: #3b4151;
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+      margin-top: 50px;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Custom Swagger UI theme */
+    .swagger-ui .scheme-container {
+      background: #f7f7f7;
+      padding: 20px;
+      border-radius: 4px;
+    }
+
+    .swagger-ui .opblock-tag {
+      font-size: 24px;
+      font-weight: 600;
+      color: #3b4151;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+      margin: 30px 0 20px 0;
+    }
+
+    .swagger-ui .opblock.opblock-get {
+      border-color: #61affe;
+      background: rgba(97, 175, 254, 0.1);
+    }
+
+    .swagger-ui .opblock.opblock-post {
+      border-color: #49cc90;
+      background: rgba(73, 204, 144, 0.1);
+    }
+
+    .swagger-ui .opblock.opblock-put {
+      border-color: #fca130;
+      background: rgba(252, 161, 48, 0.1);
+    }
+
+    .swagger-ui .opblock.opblock-patch {
+      border-color: #50e3c2;
+      background: rgba(80, 227, 194, 0.1);
+    }
+
+    .swagger-ui .opblock.opblock-delete {
+      border-color: #f93e3e;
+      background: rgba(249, 62, 62, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="custom-header">
+    <h1>🎯 Dollarsmiley API Documentation</h1>
+    <p>Complete REST API documentation for the marketplace platform</p>
+  </div>
+
+  <div class="quick-links">
+    <a href="#/Authentication" class="quick-link">🔐 Authentication</a>
+    <a href="#/Users" class="quick-link">👤 Users</a>
+    <a href="#/Listings" class="quick-link">📋 Listings</a>
+    <a href="#/Bookings" class="quick-link">📅 Bookings</a>
+    <a href="#/Payments" class="quick-link">💳 Payments</a>
+    <a href="#/Reviews" class="quick-link">⭐ Reviews</a>
+    <a href="#/Messages" class="quick-link">💬 Messages</a>
+    <a href="#/Social" class="quick-link">🌐 Social</a>
+  </div>
+
+  <div id="swagger-ui"></div>
+
+  <div class="footer">
+    <h3>Dollarsmiley Marketplace API</h3>
+    <p>Version 1.0.0 | <a href="https://dollarsmiley.com">Website</a> | <a href="mailto:support@dollarsmiley.com">Support</a></p>
+    <p style="margin-top: 20px; opacity: 0.7;">
+      Rate Limits: Anonymous (100/hr) | Authenticated (1000/hr) | Premium (5000/hr)
+    </p>
+  </div>
+
+  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = function() {
+      const ui = SwaggerUIBundle({
+        url: './openapi.yaml',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIStandalonePreset
+        ],
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+        ],
+        layout: 'BaseLayout',
+        defaultModelsExpandDepth: 1,
+        defaultModelExpandDepth: 1,
+        docExpansion: 'list',
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        tryItOutEnabled: true,
+        persistAuthorization: true,
+        displayRequestDuration: true,
+        validatorUrl: null,
+      });
+
+      window.ui = ui;
+    };
+  </script>
+</body>
+</html>
