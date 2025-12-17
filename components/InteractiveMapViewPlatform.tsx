@@ -10,6 +10,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: 'Service' | 'CustomService' | 'Job';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;

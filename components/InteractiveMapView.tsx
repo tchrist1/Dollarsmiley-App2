@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { MapPin, Navigation, Plus, Minus, Maximize2, List, User, Star, BadgeCheck, Clock, TrendingUp, Award, MessageCircle } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
+import { MapMarkerPin, MarkerType } from './MapMarkerPin';
 
 interface MapMarker {
   id: string;
@@ -18,6 +19,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: MarkerType;
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -312,60 +314,67 @@ export default function InteractiveMapView({
           const isSelected = selectedMarker?.id === marker.id;
           const isProvider = marker.type === 'provider';
 
-          return (
-            <TouchableOpacity
-              key={marker.id}
-              style={[
-                styles.markerContainer,
-                {
-                  left: position.x - 20,
-                  top: position.y - 40,
-                },
-              ]}
-              onPress={() => handleMarkerPress(marker)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            >
-              <View style={[
-                styles.marker,
-                isProvider && styles.markerProvider,
-                isSelected && (isProvider ? styles.markerProviderSelected : styles.markerSelected)
-              ]}>
-                {isProvider ? (
+          if (isProvider) {
+            return (
+              <TouchableOpacity
+                key={marker.id}
+                style={[
+                  styles.markerContainer,
+                  {
+                    left: position.x - 20,
+                    top: position.y - 40,
+                  },
+                ]}
+                onPress={() => handleMarkerPress(marker)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+              >
+                <View style={[
+                  styles.marker,
+                  styles.markerProvider,
+                  isSelected && styles.markerProviderSelected
+                ]}>
                   <User
                     size={24}
                     color={isSelected ? colors.white : colors.success}
                     strokeWidth={2.5}
                   />
-                ) : (
-                  <MapPin
-                    size={24}
-                    color={isSelected ? colors.white : colors.primary}
-                    fill={isSelected ? colors.primary : colors.white}
-                  />
-                )}
-                {isProvider && marker.isVerified && (
-                  <View style={styles.verifiedBadge}>
-                    <BadgeCheck size={12} color={colors.white} fill={colors.success} />
+                  {marker.isVerified && (
+                    <View style={styles.verifiedBadge}>
+                      <BadgeCheck size={12} color={colors.white} fill={colors.success} />
+                    </View>
+                  )}
+                </View>
+                {marker.rating && (
+                  <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
+                    <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
+                    <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
+                      {marker.rating.toFixed(1)}
+                    </Text>
                   </View>
                 )}
-              </View>
-              {marker.price && !isProvider && (
-                <View style={[styles.markerPriceTag, isSelected && styles.markerPriceTagSelected]}>
-                  <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
-                    ${Math.round(marker.price).toLocaleString('en-US')}
-                  </Text>
-                </View>
-              )}
-              {isProvider && marker.rating && (
-                <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
-                  <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
-                  <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
-                    {marker.rating.toFixed(1)}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            );
+          }
+
+          return (
+            <View
+              key={marker.id}
+              style={[
+                styles.markerContainer,
+                {
+                  left: position.x - 24,
+                  top: position.y - 60,
+                },
+              ]}
+            >
+              <MapMarkerPin
+                type={marker.listingType || 'Service'}
+                price={marker.price}
+                isSelected={isSelected}
+                onPress={() => handleMarkerPress(marker)}
+              />
+            </View>
           );
         })}
 

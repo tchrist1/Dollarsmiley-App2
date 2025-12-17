@@ -95,8 +95,20 @@ export default function JobDetailScreen() {
       setJob(data as any);
       if (data.photos) {
         try {
-          const parsedPhotos = typeof data.photos === 'string' ? JSON.parse(data.photos) : data.photos;
-          setPhotos(Array.isArray(parsedPhotos) ? parsedPhotos : []);
+          let parsedPhotos: string[] = [];
+          if (Array.isArray(data.photos)) {
+            parsedPhotos = data.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
+          } else if (typeof data.photos === 'string') {
+            try {
+              const parsed = JSON.parse(data.photos);
+              parsedPhotos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
+            } catch (e) {
+              if (data.photos.trim() !== '') {
+                parsedPhotos = [data.photos];
+              }
+            }
+          }
+          setPhotos(parsedPhotos);
         } catch (e) {
           setPhotos([]);
         }

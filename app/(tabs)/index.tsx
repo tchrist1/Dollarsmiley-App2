@@ -697,14 +697,25 @@ export default function HomeScreen() {
     }
 
     const listingMarkers = listings
-      .filter((listing) => listing.latitude && listing.longitude)
+      .filter((listing) => {
+        const hasCoords = listing.latitude != null && listing.longitude != null;
+        if (!hasCoords) {
+          console.log('Listing missing coordinates:', listing.id, listing.title);
+        }
+        return hasCoords;
+      })
       .map((listing) => {
         let price = 0;
+        let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
+
         if (listing.marketplace_type === 'Job') {
           price = listing.fixed_price || listing.budget_min || 0;
+          listingType = 'Job';
         } else {
           price = listing.base_price || 0;
+          listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
         }
+
         return {
           id: listing.id,
           latitude: listing.latitude!,
@@ -712,11 +723,15 @@ export default function HomeScreen() {
           title: listing.title,
           price: price,
           type: 'listing' as const,
-          isJob: listing.marketplace_type === 'Job',
+          listingType: listingType,
         };
       });
 
     console.log('Listing markers:', listingMarkers.length, 'out of', listings.length, 'total listings');
+    console.log('Markers by type:', listingMarkers.reduce((acc: any, m: any) => {
+      acc[m.listingType] = (acc[m.listingType] || 0) + 1;
+      return acc;
+    }, {}));
     return listingMarkers;
   };
 
@@ -952,8 +967,21 @@ export default function HomeScreen() {
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
 
-    const photos = Array.isArray(listing.photos) ? listing.photos :
-                   (typeof listing.photos === 'string' && listing.photos ? [listing.photos] : []);
+    let photos: string[] = [];
+    if (listing.photos) {
+      if (Array.isArray(listing.photos)) {
+        photos = listing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
+      } else if (typeof listing.photos === 'string') {
+        try {
+          const parsed = JSON.parse(listing.photos);
+          photos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
+        } catch (e) {
+          if (listing.photos.trim() !== '') {
+            photos = [listing.photos];
+          }
+        }
+      }
+    }
     const mainImage = photos.length > 0 ? photos[0] : null;
 
     let priceText = '';
@@ -984,12 +1012,18 @@ export default function HomeScreen() {
         activeOpacity={0.7}
         onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
       >
-        {mainImage && (
+        {mainImage ? (
           <Image
             source={{ uri: mainImage }}
             style={styles.gridCardImage}
             resizeMode="cover"
           />
+        ) : (
+          <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
+            <Text style={styles.gridCardImagePlaceholderText}>
+              {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+            </Text>
+          </View>
         )}
         {isJob && (
           <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
@@ -1070,36 +1104,60 @@ export default function HomeScreen() {
             data={item.data}
             renderItem={({ item: carouselItem }) => {
               const carouselListing = carouselItem as any;
-              const carouselMainImage = carouselListing.photos && carouselListing.photos.length > 0 ? carouselListing.photos[0] : null;
+
+              let carouselPhotos: string[] = [];
+              if (carouselListing.photos) {
+                if (Array.isArray(carouselListing.photos)) {
+                  carouselPhotos = carouselListing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
+                } else if (typeof carouselListing.photos === 'string') {
+                  try {
+                    const parsed = JSON.parse(carouselListing.photos);
+                    carouselPhotos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
+                  } catch (e) {
+                    if (carouselListing.photos.trim() !== '') {
+                      carouselPhotos = [carouselListing.photos];
+                    }
+                  }
+                }
+              }
+              const carouselMainImage = carouselPhotos.length > 0 ? carouselPhotos[0] : null;
+              const isJob = carouselListing.marketplace_type === 'Job';
+
               return (
                 <TouchableOpacity
                   style={styles.embeddedCarouselCard}
-                  onPress={() => router.push(`/listing/${carouselItem.id}`)}
+                  onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}` : `/listing/${carouselItem.id}`)}
                   activeOpacity={0.7}
                 >
-                  {carouselMainImage && (
+                  {carouselMainImage ? (
                     <Image
                       source={{ uri: carouselMainImage }}
                       style={styles.embeddedCarouselCardImage}
                       resizeMode="cover"
                     />
+                  ) : (
+                    <View style={[styles.embeddedCarouselCardImage, styles.embeddedCarouselCardImagePlaceholder]}>
+                      <Text style={styles.embeddedCarouselCardImagePlaceholderText}>
+                        {isJob ? '💼' : carouselListing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+                      </Text>
+                    </View>
                   )}
                   <View style={styles.embeddedCarouselCardContent}>
                     <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
                       {carouselItem.title}
                     </Text>
                     <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
-                      {carouselListing.profiles?.full_name || 'Provider'}
+                      {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
                     </Text>
                     <View style={styles.embeddedCarouselCardFooter}>
                       <Text style={styles.embeddedCarouselCardPrice}>
-                        {formatCurrency(carouselItem.base_price)}
+                        {formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0)}
                       </Text>
-                      {carouselListing.rating_average > 0 && (
+                      {(carouselListing.rating_average || carouselListing.provider?.rating_average) > 0 && (
                         <View style={styles.embeddedCarouselCardRating}>
                           <Star size={12} color={colors.warning} fill={colors.warning} />
                           <Text style={styles.embeddedCarouselCardRatingText}>
-                            {carouselListing.rating_average?.toFixed(1) || 'N/A'}
+                            {(carouselListing.rating_average || carouselListing.provider?.rating_average)?.toFixed(1) || 'N/A'}
                           </Text>
                         </View>
                       )}
@@ -1851,6 +1909,15 @@ const styles = StyleSheet.create({
   gridCardImage: {
     width: '100%',
     height: 120,
+    backgroundColor: colors.surface,
+  },
+  gridCardImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  gridCardImagePlaceholderText: {
+    fontSize: 48,
   },
   gridCardContent: {
     padding: spacing.md,
@@ -2103,6 +2170,15 @@ const styles = StyleSheet.create({
   embeddedCarouselCardImage: {
     width: '100%',
     height: 120,
+    backgroundColor: colors.surface,
+  },
+  embeddedCarouselCardImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  embeddedCarouselCardImagePlaceholderText: {
+    fontSize: 48,
   },
   embeddedCarouselCardContent: {
     padding: spacing.md,

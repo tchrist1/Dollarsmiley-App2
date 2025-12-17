@@ -249,7 +249,21 @@ export default function ListingDetailScreen() {
     );
   }
 
-  const photos = Array.isArray(listing.photos) ? listing.photos : (listing.photos ? [listing.photos] : []);
+  let photos: string[] = [];
+  if (listing.photos) {
+    if (Array.isArray(listing.photos)) {
+      photos = listing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
+    } else if (typeof listing.photos === 'string') {
+      try {
+        const parsed = JSON.parse(listing.photos);
+        photos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
+      } catch (e) {
+        if (listing.photos.trim() !== '') {
+          photos = [listing.photos];
+        }
+      }
+    }
+  }
   const tags = listing.tags || [];
 
   return (

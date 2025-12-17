@@ -25,9 +25,12 @@ import {
   TrendingUp,
   Layers,
   X,
+  Briefcase,
+  Sparkles,
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { MAPBOX_CONFIG } from '@/config/native-modules';
+import { formatCurrency } from '@/lib/currency-utils';
 
 Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
 
@@ -38,6 +41,7 @@ interface MapMarker {
   title: string;
   price?: number;
   type?: 'listing' | 'provider';
+  listingType?: 'Service' | 'CustomService' | 'Job';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -206,55 +210,103 @@ export default function NativeInteractiveMapView({
     return `${distance.toFixed(1)} mi`;
   };
 
+  const getMarkerConfig = (listingType?: 'Service' | 'CustomService' | 'Job') => {
+    switch (listingType) {
+      case 'Service':
+        return {
+          bubbleColor: '#10B981',
+          icon: MapPin,
+        };
+      case 'CustomService':
+        return {
+          bubbleColor: '#8B5CF6',
+          icon: Sparkles,
+        };
+      case 'Job':
+        return {
+          bubbleColor: '#F59E0B',
+          icon: Briefcase,
+        };
+      default:
+        return {
+          bubbleColor: '#10B981',
+          icon: MapPin,
+        };
+    }
+  };
+
   const renderMarkerContent = (marker: MapMarker) => {
     const isSelected = selectedMarker?.id === marker.id;
     const isProvider = marker.type === 'provider';
+
+    if (isProvider) {
+      return (
+        <View
+          style={[
+            styles.markerContainer,
+            styles.markerProviderContainer,
+            isSelected && styles.markerSelected,
+          ]}
+        >
+          <View
+            style={[
+              styles.markerContent,
+              styles.markerProviderContent,
+              isSelected && styles.markerContentProviderSelected,
+            ]}
+          >
+            <User
+              size={20}
+              color={isSelected ? colors.white : colors.success}
+              strokeWidth={2.5}
+            />
+            {marker.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <BadgeCheck size={10} color={colors.white} fill={colors.success} />
+              </View>
+            )}
+          </View>
+          {marker.rating && (
+            <View style={[styles.markerPrice, isSelected && styles.markerPriceSelected]}>
+              <Star size={8} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
+              <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
+                {marker.rating.toFixed(1)}
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    const config = getMarkerConfig(marker.listingType);
+    const Icon = config.icon;
 
     return (
       <View
         style={[
           styles.markerContainer,
-          isProvider && styles.markerProviderContainer,
           isSelected && styles.markerSelected,
         ]}
       >
         <View
           style={[
             styles.markerContent,
-            isProvider && styles.markerProviderContent,
-            isSelected && (isProvider ? styles.markerContentProviderSelected : styles.markerContentSelected),
+            { borderColor: config.bubbleColor, backgroundColor: isSelected ? config.bubbleColor : colors.white },
+            isSelected && styles.markerContentSelected,
           ]}
         >
-          {isProvider ? (
-            <User
-              size={20}
-              color={isSelected ? colors.white : colors.success}
-              strokeWidth={2.5}
-            />
-          ) : (
-            <MapPin
-              size={20}
-              color={isSelected ? colors.white : colors.primary}
-              fill={isSelected ? colors.white : 'transparent'}
-            />
-          )}
-          {isProvider && marker.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <BadgeCheck size={10} color={colors.white} fill={colors.success} />
-            </View>
-          )}
+          <Icon
+            size={20}
+            color={isSelected ? colors.white : config.bubbleColor}
+            strokeWidth={2.5}
+          />
         </View>
-        {marker.price && !isProvider && (
-          <View style={[styles.markerPrice, isSelected && styles.markerPriceSelected]}>
-            <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
-              ${Math.round(marker.price).toLocaleString('en-US')}
+        <View style={[styles.markerPointer, { borderTopColor: config.bubbleColor }]} />
+        {marker.price && (
+          <View style={[styles.markerPrice, { borderColor: config.bubbleColor, backgroundColor: isSelected ? config.bubbleColor : colors.white }, isSelected && styles.markerPriceSelected]}>
+            <Text style={[styles.markerPriceText, { color: isSelected ? colors.white : config.bubbleColor }, isSelected && styles.markerPriceTextSelected]}>
+              {formatCurrency(marker.price)}
             </Text>
-          </View>
-        )}
-        {isProvider && marker.rating && (
-          <View style={[styles.markerRating, isSelected && styles.markerRatingSelected]}>
-            <Star size={8} color={colors.warning} fill={colors.warning} />
-            <Text style={styles.markerRatingText}>{marker.rating.toFixed(1)}</Text>
           </View>
         )}
       </View>
@@ -630,6 +682,18 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.primary,
     ...shadows.lg,
+  },
+  markerPointer: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -1,
   },
   markerProviderContent: {
     borderColor: colors.success,
