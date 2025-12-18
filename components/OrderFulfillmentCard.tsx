@@ -106,11 +106,14 @@ export default function OrderFulfillmentCard({ booking, onUpdate }: Props) {
                   <Text style={styles.itemDetail}>${Math.round(item.unit_price).toLocaleString('en-US')}</Text>
                 </View>
                 {item.custom_options && Object.keys(item.custom_options).length > 0 && (
-                  <Text style={styles.itemOptions}>
-                    Options: {Object.entries(item.custom_options)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join(', ')}
-                  </Text>
+                  <View style={styles.optionsContainer}>
+                    <Text style={styles.optionsLabel}>Selections:</Text>
+                    {Object.entries(item.custom_options).map(([key, value], optIndex) => (
+                      <Text key={optIndex} style={styles.itemOptions}>
+                        • {key}: {value}
+                      </Text>
+                    ))}
+                  </View>
                 )}
               </View>
             ))}
@@ -293,10 +296,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
+  optionsContainer: {
+    marginTop: 4,
+  },
+  optionsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 2,
+  },
   itemOptions: {
     fontSize: 12,
-    color: '#007AFF',
-    marginTop: 4,
+    color: '#666',
+    lineHeight: 16,
   },
   addressContainer: {
     backgroundColor: '#F9F9F9',

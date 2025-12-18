@@ -560,7 +560,7 @@ export default function CreateListingScreen() {
                       fulfillmentType.includes('DropOff') && styles.fulfillmentTextActive,
                     ]}
                   >
-                    Drop Off
+                    Drop-Off
                   </Text>
                 </TouchableOpacity>
 
@@ -587,20 +587,25 @@ export default function CreateListingScreen() {
             {fulfillmentType.includes('Shipping') && (
               <>
                 <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Item Specifications</Text>
+                  <Text style={styles.sectionLabel}>Shipping Specifications</Text>
+                  <Text style={styles.helperText}>
+                    Provide package details for accurate shipping cost calculation
+                  </Text>
                   <Input
-                    label="Weight (oz)"
+                    label="Item Weight (ounces)"
                     placeholder="16"
                     value={itemWeight}
                     onChangeText={setItemWeight}
                     keyboardType="numeric"
                     error={errors.itemWeight}
+                    helperText="Total weight of packaged item in ounces (oz). Example: 1 pound = 16 oz"
                   />
 
+                  <Text style={styles.dimensionsLabel}>Package Dimensions (inches)</Text>
                   <View style={styles.row}>
                     <View style={styles.thirdWidth}>
                       <Input
-                        label="Length (in)"
+                        label="Length"
                         placeholder="10"
                         value={itemLength}
                         onChangeText={setItemLength}
@@ -609,7 +614,7 @@ export default function CreateListingScreen() {
                     </View>
                     <View style={styles.thirdWidth}>
                       <Input
-                        label="Width (in)"
+                        label="Width"
                         placeholder="8"
                         value={itemWidth}
                         onChangeText={setItemWidth}
@@ -618,7 +623,7 @@ export default function CreateListingScreen() {
                     </View>
                     <View style={styles.thirdWidth}>
                       <Input
-                        label="Height (in)"
+                        label="Height"
                         placeholder="6"
                         value={itemHeight}
                         onChangeText={setItemHeight}
@@ -627,18 +632,21 @@ export default function CreateListingScreen() {
                       />
                     </View>
                   </View>
+                  <Text style={styles.dimensionsHelperText}>
+                    Measure the box or package in inches (in). Length × Width × Height
+                  </Text>
                 </View>
               </>
             )}
 
             <Input
-              label="Fulfillment Window (days)"
+              label="Fulfillment Timeline (business days)"
               placeholder="7"
               value={fulfillmentWindow}
               onChangeText={setFulfillmentWindow}
               keyboardType="numeric"
               error={errors.fulfillmentWindow}
-              helperText="How many days to complete and deliver the service"
+              helperText="Number of business days from order confirmation to when the completed item is ready for delivery (excludes shipping time)"
             />
           </>
         )}
@@ -767,6 +775,18 @@ const styles = StyleSheet.create({
   priceHelperText: {
     fontSize: fontSize.sm,
     color: colors.info,
+    marginTop: spacing.xs,
+  },
+  dimensionsLabel: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+  },
+  dimensionsHelperText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
     marginTop: spacing.xs,
   },
   listingTypeContainer: {

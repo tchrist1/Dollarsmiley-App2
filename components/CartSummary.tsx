@@ -126,16 +126,19 @@ export default function CartSummary() {
 
               {item.custom_options &&
                 Object.keys(item.custom_options).length > 0 && (
-                  <Text style={styles.itemOptions}>
-                    {Object.entries(item.custom_options)
-                      .map(([key, value]) => `${key}: ${value}`)
-                      .join(', ')}
-                  </Text>
+                  <View style={styles.optionsContainer}>
+                    <Text style={styles.optionsLabel}>Selections:</Text>
+                    {Object.entries(item.custom_options).map(([key, value], index) => (
+                      <Text key={index} style={styles.itemOptions}>
+                        • {key}: {value}
+                      </Text>
+                    ))}
+                  </View>
                 )}
 
               {item.selected_vas && item.selected_vas.length > 0 && (
                 <Text style={styles.itemVAS}>
-                  + {item.selected_vas.length} add-on
+                  + {item.selected_vas.length} extra service
                   {item.selected_vas.length > 1 ? 's' : ''}
                 </Text>
               )}
@@ -184,7 +187,7 @@ export default function CartSummary() {
 
           {breakdown.vasTotal > 0 && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Add-ons</Text>
+              <Text style={styles.summaryLabel}>Extra Services</Text>
               <Text style={styles.summaryValue}>
                 ${Math.round(breakdown.vasTotal).toLocaleString('en-US')}
               </Text>
@@ -322,10 +325,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
+  optionsContainer: {
+    marginBottom: 4,
+  },
+  optionsLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 2,
+  },
   itemOptions: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 2,
+    lineHeight: 16,
   },
   itemVAS: {
     fontSize: 12,

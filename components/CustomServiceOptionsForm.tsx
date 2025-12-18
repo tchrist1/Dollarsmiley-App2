@@ -179,23 +179,29 @@ export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
             {isExpanded && (
               <View style={styles.optionBody}>
                 <Text style={styles.label}>Option Type</Text>
+                <Text style={styles.helperText}>
+                  Category for this option (e.g., Size, Color, Material)
+                </Text>
                 <TextInput
                   style={styles.input}
                   value={option.option_type}
                   onChangeText={(text) =>
                     updateOption(optionIndex, 'option_type', text)
                   }
-                  placeholder="Size, Color, Material, etc."
+                  placeholder="e.g., Size"
                 />
 
-                <Text style={styles.label}>Display Name</Text>
+                <Text style={styles.label}>Customer-Facing Label</Text>
+                <Text style={styles.helperText}>
+                  This is what customers will see when selecting this option
+                </Text>
                 <TextInput
                   style={styles.input}
                   value={option.option_name}
                   onChangeText={(text) =>
                     updateOption(optionIndex, 'option_name', text)
                   }
-                  placeholder="Select Size"
+                  placeholder="e.g., Select Size"
                 />
 
                 <View style={styles.checkboxRow}>
@@ -212,10 +218,20 @@ export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
                       ]}
                     />
                   </TouchableOpacity>
-                  <Text style={styles.checkboxLabel}>Required</Text>
+                  <Text style={styles.checkboxLabel}>
+                    Required (customers must select this option)
+                  </Text>
                 </View>
 
                 <Text style={styles.label}>Option Values</Text>
+                <Text style={styles.helperText}>
+                  Add choices for this option. Price modifier adds to your base price.
+                </Text>
+                <View style={styles.valueHeaderRow}>
+                  <Text style={styles.valueHeaderText}>Choice Name</Text>
+                  <Text style={styles.priceHeaderText}>Price Adjustment</Text>
+                  <View style={{ width: 28 }} />
+                </View>
                 {option.option_values.map((value, valueIndex) => (
                   <View key={valueIndex} style={styles.valueRow}>
                     <TextInput
@@ -224,22 +240,25 @@ export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
                       onChangeText={(text) =>
                         updateOptionValue(optionIndex, valueIndex, 'value', text)
                       }
-                      placeholder="Value name"
+                      placeholder="e.g., Small"
                     />
-                    <TextInput
-                      style={[styles.input, styles.priceInput]}
-                      value={value.price_modifier.toString()}
-                      onChangeText={(text) =>
-                        updateOptionValue(
-                          optionIndex,
-                          valueIndex,
-                          'price_modifier',
-                          text
-                        )
-                      }
-                      keyboardType="numeric"
-                      placeholder="0"
-                    />
+                    <View style={styles.priceInputContainer}>
+                      <Text style={styles.currencySymbol}>$</Text>
+                      <TextInput
+                        style={[styles.input, styles.priceInput]}
+                        value={value.price_modifier.toString()}
+                        onChangeText={(text) =>
+                          updateOptionValue(
+                            optionIndex,
+                            valueIndex,
+                            'price_modifier',
+                            text
+                          )
+                        }
+                        keyboardType="numeric"
+                        placeholder="0"
+                      />
+                    </View>
                     <TouchableOpacity
                       onPress={() => removeOptionValue(optionIndex, valueIndex)}
                     >
@@ -354,8 +373,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 8,
+    marginBottom: 4,
     marginTop: 12,
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 16,
   },
   input: {
     backgroundColor: '#F9F9F9',
@@ -393,6 +418,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#000',
   },
+  valueHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  valueHeaderText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginRight: 8,
+  },
+  priceHeaderText: {
+    width: 110,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginRight: 8,
+  },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,9 +448,27 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 0,
   },
-  priceInput: {
-    width: 80,
+  priceInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9F9F9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     marginRight: 8,
+    paddingLeft: 8,
+    width: 110,
+  },
+  currencySymbol: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 4,
+  },
+  priceInput: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     marginBottom: 0,
   },
   addValueButton: {
