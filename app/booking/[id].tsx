@@ -20,7 +20,10 @@ import OrderFulfillmentCard from '@/components/OrderFulfillmentCard';
 import OrderCommunicationThread from '@/components/OrderCommunicationThread';
 import CommunicationPanel from '@/components/CommunicationPanel';
 import CommunicationHistory from '@/components/CommunicationHistory';
+import ConsultationRequestCard from '@/components/ConsultationRequestCard';
+import PriceAdjustmentCard from '@/components/PriceAdjustmentCard';
 import { syncBookingToCalendar } from '@/lib/calendar';
+import { CustomServicePayments } from '@/lib/custom-service-payments';
 import { formatCurrency } from '@/lib/currency-utils';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import {
@@ -36,6 +39,7 @@ import {
   XCircle,
   AlertCircle,
   Package,
+  Shield,
 } from 'lucide-react-native';
 
 interface Booking {
@@ -53,6 +57,11 @@ interface Booking {
   customer_id: string;
   provider_id: string;
   calendar_event_id?: string;
+  order_type?: string;
+  production_order_id?: string;
+  consultation_required?: boolean;
+  consultation_requested?: boolean;
+  escrow_amount?: number;
   customer: {
     full_name: string;
     rating_average: number;
@@ -66,12 +75,36 @@ interface Booking {
   };
 }
 
+interface Consultation {
+  id: string;
+  status: string;
+  requested_by: string;
+  started_at?: string;
+  completed_at?: string;
+  waived_at?: string;
+  timeout_at?: string;
+}
+
+interface PriceAdjustment {
+  id: string;
+  original_price: number;
+  adjusted_price: number;
+  adjustment_amount: number;
+  adjustment_type: 'increase' | 'decrease';
+  justification: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired';
+  response_deadline?: string;
+}
+
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams();
   const { profile } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [consultation, setConsultation] = useState<Consultation | null>(null);
+  const [priceAdjustment, setPriceAdjustment] = useState<PriceAdjustment | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [consultationLoading, setConsultationLoading] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
 
   useEffect(() => {
@@ -98,6 +131,33 @@ export default function BookingDetailScreen() {
 
     if (data && !error) {
       setBooking(data as any);
+
+      if (data.production_order_id || data.order_type === 'CustomService') {
+        const orderIdToUse = data.production_order_id || data.id;
+
+        const { data: consultationData } = await supabase
+          .from('custom_service_consultations')
+          .select('*')
+          .eq('production_order_id', orderIdToUse)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (consultationData) {
+          setConsultation(consultationData);
+        }
+
+        const { data: adjustmentData } = await supabase
+          .from('price_adjustments')
+          .select('*')
+          .eq('production_order_id', orderIdToUse)
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (adjustmentData) {
+          setPriceAdjustment(adjustmentData);
+        }
+      }
     }
 
     setLoading(false);
@@ -284,6 +344,70 @@ export default function BookingDetailScreen() {
     if (!error) {
       setBooking({ ...booking, calendar_event_id: eventId });
     }
+  };
+
+  const handleStartConsultation = async () => {
+    if (!consultation) return;
+    setConsultationLoading(true);
+
+    const { error } = await supabase
+      .from('custom_service_consultations')
+      .update({
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+      })
+      .eq('id', consultation.id);
+
+    if (!error) {
+      router.push(`/call/video?orderId=${booking?.production_order_id || booking?.id}&consultationId=${consultation.id}` as any);
+    }
+
+    setConsultationLoading(false);
+    fetchBookingDetails();
+  };
+
+  const handleCompleteConsultation = async () => {
+    if (!consultation) return;
+    setConsultationLoading(true);
+
+    const result = await CustomServicePayments.completeConsultation(consultation.id);
+
+    if (result.success) {
+      Alert.alert('Success', 'Consultation completed successfully');
+      fetchBookingDetails();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to complete consultation');
+    }
+
+    setConsultationLoading(false);
+  };
+
+  const handleWaiveConsultation = async () => {
+    if (!booking || !profile?.id) return;
+
+    Alert.alert(
+      'Waive Consultation',
+      'Are you sure you want to waive the consultation requirement?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Waive',
+          onPress: async () => {
+            setConsultationLoading(true);
+            const orderIdToUse = booking.production_order_id || booking.id;
+            const result = await CustomServicePayments.waiveConsultation(orderIdToUse, profile.id);
+
+            if (result.success) {
+              Alert.alert('Success', 'Consultation requirement waived');
+              fetchBookingDetails();
+            } else {
+              Alert.alert('Error', result.error || 'Failed to waive consultation');
+            }
+            setConsultationLoading(false);
+          },
+        },
+      ]
+    );
   };
 
   const parseBookingDateTime = (dateStr: string, timeStr: string) => {
@@ -516,6 +640,51 @@ export default function BookingDetailScreen() {
             </View>
           </View>
         </View>
+
+        {(booking.order_type === 'CustomService' || booking.production_order_id) && booking.escrow_amount && (
+          <View style={styles.escrowSection}>
+            <View style={styles.escrowHeader}>
+              <Shield size={20} color={colors.success} />
+              <Text style={styles.escrowTitle}>Payment Protected</Text>
+            </View>
+            <Text style={styles.escrowDescription}>
+              Your payment is held securely in escrow until the order is complete
+            </Text>
+            <View style={styles.escrowPriceRow}>
+              <Text style={styles.escrowPriceLabel}>Escrow Amount</Text>
+              <Text style={styles.escrowPriceValue}>{formatCurrency(booking.escrow_amount)}</Text>
+            </View>
+          </View>
+        )}
+
+        {consultation && (booking.consultation_required || booking.consultation_requested) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Consultation</Text>
+            <ConsultationRequestCard
+              consultation={consultation}
+              isProvider={isProvider}
+              onStartConsultation={handleStartConsultation}
+              onCompleteConsultation={handleCompleteConsultation}
+              onWaiveConsultation={handleWaiveConsultation}
+              onOpenChat={handleMessage}
+              loading={consultationLoading}
+            />
+          </View>
+        )}
+
+        {(booking.order_type === 'CustomService' || booking.production_order_id) && (
+          <View style={styles.section}>
+            <PriceAdjustmentCard
+              adjustment={priceAdjustment || undefined}
+              isProvider={isProvider}
+              orderId={booking.production_order_id || booking.id}
+              currentPrice={booking.escrow_amount || booking.price}
+              canRequestAdjustment={isProvider && !priceAdjustment}
+              onAdjustmentCreated={fetchBookingDetails}
+              onAdjustmentResolved={fetchBookingDetails}
+            />
+          </View>
+        )}
 
         {(booking.status === 'Accepted' || booking.status === 'InProgress' || booking.status === 'Completed') && booking && (
           <>
@@ -845,5 +1014,42 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.success,
+  },
+  escrowSection: {
+    backgroundColor: colors.success + '10',
+    padding: spacing.lg,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.success + '30',
+  },
+  escrowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  escrowTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.success,
+  },
+  escrowDescription: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  escrowPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  escrowPriceLabel: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+  },
+  escrowPriceValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
 });
