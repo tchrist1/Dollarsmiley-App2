@@ -397,3 +397,79 @@ export interface MarketplaceListing {
   distance_miles?: number;
   view_count?: number;
 }
+
+export type ProductionOrderStatus =
+  | 'inquiry'
+  | 'procurement_started'
+  | 'price_proposed'
+  | 'price_approved'
+  | 'order_received'
+  | 'consultation'
+  | 'proofing'
+  | 'approved'
+  | 'in_production'
+  | 'quality_check'
+  | 'completed'
+  | 'cancelled';
+
+export type RefundPolicy = 'fully_refundable' | 'partially_refundable' | 'non_refundable';
+
+export interface ProductionOrder {
+  id: string;
+  booking_id?: string;
+  customer_id: string;
+  provider_id: string;
+  product_type: string;
+  requirements: Record<string, any>;
+  materials?: Record<string, any>;
+  status: ProductionOrderStatus;
+  payment_intent_id?: string;
+  authorization_amount?: number;
+  proposed_price?: number;
+  final_price?: number;
+  price_change_reason?: string;
+  customer_price_approved_at?: string;
+  order_received_at?: string;
+  payment_captured_at?: string;
+  authorization_expires_at?: string;
+  price_changes: Array<{
+    timestamp: string;
+    old_proposed_price?: number;
+    new_proposed_price?: number;
+    old_final_price?: number;
+    new_final_price?: number;
+    reason?: string;
+    status: string;
+  }>;
+  refund_policy?: RefundPolicy;
+  cancellation_reason?: string;
+  estimated_completion_date?: string;
+  actual_completion_date?: string;
+  production_notes?: string;
+  cost_breakdown?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Proof {
+  id: string;
+  production_order_id: string;
+  version_number: number;
+  proof_images: string[];
+  design_files: string[];
+  provider_notes?: string;
+  customer_feedback?: string;
+  change_requests: any[];
+  status: 'pending' | 'approved' | 'rejected' | 'revision_requested';
+  approved_at?: string;
+  created_at: string;
+}
+
+export interface ProductionTimelineEvent {
+  id: string;
+  production_order_id: string;
+  event_type: string;
+  description?: string;
+  metadata: Record<string, any>;
+  created_at: string;
+}
