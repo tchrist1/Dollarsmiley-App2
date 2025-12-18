@@ -17,6 +17,7 @@ import { CustomServicePayments } from '@/lib/custom-service-payments';
 import { formatCurrency } from '@/lib/currency-utils';
 import ConsultationRequestCard from '@/components/ConsultationRequestCard';
 import PriceAdjustmentCard from '@/components/PriceAdjustmentCard';
+import DeliveryConfirmationCard from '@/components/DeliveryConfirmationCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import {
   ArrowLeft,
@@ -50,6 +51,8 @@ interface OrderDetail {
   price_adjustment_used: boolean;
   provider_response_deadline?: string;
   customer_response_deadline?: string;
+  tracking_number?: string;
+  shipping_carrier?: string;
   created_at: string;
   provider_id: string;
   customer_id: string;
@@ -382,6 +385,20 @@ export default function OrderDetailScreen() {
               currentPrice={price}
               canRequestAdjustment={false}
               onAdjustmentResolved={fetchOrderDetails}
+            />
+          </View>
+        )}
+
+        {isCustomer && ['shipped', 'ready_for_delivery', 'completed'].includes(order.status) && (
+          <View style={styles.section}>
+            <DeliveryConfirmationCard
+              orderId={order.id}
+              customerId={profile?.id || ''}
+              orderStatus={order.status}
+              trackingNumber={order.tracking_number}
+              shippingCarrier={order.shipping_carrier}
+              onConfirmDelivery={fetchOrderDetails}
+              onReportIssue={() => router.push(`/refund/request/${order.id}` as any)}
             />
           </View>
         )}
