@@ -58,11 +58,7 @@ export default function ShipmentTrackingScreen() {
 
       setShipment(shipmentData);
 
-      const tracking = await ShippingService.trackShipment(
-        shipmentData.id,
-        shipmentData.tracking_number,
-        shipmentData.carrier
-      );
+      const tracking = await ShippingService.trackShipment(shipmentData.id);
 
       if (tracking) {
         setTrackingEvents(tracking.events || []);

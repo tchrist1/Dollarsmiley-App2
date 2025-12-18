@@ -1,4 +1,12 @@
 import { supabase } from './supabase';
+import {
+  notifyCustomServiceOrderReceived,
+  notifyProductionStarted,
+  notifyProofSubmitted,
+  notifyOrderReadyForDelivery,
+  notifyShipmentCreated,
+  notifyEscrowReleased,
+} from './marketplace-notifications';
 
 export interface ProductionOrder {
   id: string;
@@ -239,6 +247,12 @@ export class ProductionManagement {
     estimatedCompletionDays?: number
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      const { data: order } = await supabase
+        .from('production_orders')
+        .select('title, customer_id, provider:profiles!production_orders_provider_id_fkey(full_name)')
+        .eq('id', orderId)
+        .single();
+
       const updateData: Record<string, any> = {
         status: 'in_production',
         production_started_at: new Date().toISOString(),
@@ -262,6 +276,16 @@ export class ProductionManagement {
         estimated_days: estimatedCompletionDays,
       });
 
+      if (order) {
+        await notifyProductionStarted(
+          order.customer_id,
+          orderId,
+          order.title || 'Custom Order',
+          (order.provider as any)?.full_name || 'Provider',
+          estimatedCompletionDays
+        );
+      }
+
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -276,6 +300,12 @@ export class ProductionManagement {
     notes?: string
   ): Promise<{ success: boolean; proofId?: string; error?: string }> {
     try {
+      const { data: order } = await supabase
+        .from('production_orders')
+        .select('title, customer_id, provider:profiles!production_orders_provider_id_fkey(full_name)')
+        .eq('id', orderId)
+        .single();
+
       const { data: existingProofs } = await supabase
         .from('production_proofs')
         .select('version_number')
@@ -315,6 +345,16 @@ export class ProductionManagement {
         version: nextVersion,
       });
 
+      if (order) {
+        await notifyProofSubmitted(
+          order.customer_id,
+          orderId,
+          order.title || 'Custom Order',
+          (order.provider as any)?.full_name || 'Provider',
+          nextVersion
+        );
+      }
+
       return { success: true, proofId: proof.id };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -343,6 +383,12 @@ export class ProductionManagement {
     providerId: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      const { data: order } = await supabase
+        .from('production_orders')
+        .select('title, customer_id, provider:profiles!production_orders_provider_id_fkey(full_name)')
+        .eq('id', orderId)
+        .single();
+
       const { error } = await supabase
         .from('production_orders')
         .update({
@@ -355,6 +401,15 @@ export class ProductionManagement {
       if (error) throw error;
 
       await this.logTimelineEvent(orderId, 'ready_for_delivery', providerId, {});
+
+      if (order) {
+        await notifyOrderReadyForDelivery(
+          order.customer_id,
+          orderId,
+          order.title || 'Custom Order',
+          (order.provider as any)?.full_name || 'Provider'
+        );
+      }
 
       return { success: true };
     } catch (error: any) {
@@ -369,6 +424,12 @@ export class ProductionManagement {
     carrier?: string
   ): Promise<{ success: boolean; error?: string }> {
     try {
+      const { data: order } = await supabase
+        .from('production_orders')
+        .select('title, customer_id')
+        .eq('id', orderId)
+        .single();
+
       const { error } = await supabase
         .from('production_orders')
         .update({
@@ -386,6 +447,15 @@ export class ProductionManagement {
         tracking_number: trackingNumber,
         carrier,
       });
+
+      if (order && trackingNumber) {
+        await notifyShipmentCreated(
+          order.customer_id,
+          orderId,
+          trackingNumber,
+          carrier || 'Unknown Carrier'
+        );
+      }
 
       return { success: true };
     } catch (error: any) {

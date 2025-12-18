@@ -28,6 +28,9 @@ import {
   Star,
   ArrowLeft,
   Filter,
+  Package,
+  Truck,
+  RefreshCw,
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
@@ -78,11 +81,15 @@ export default function ProviderDashboardScreen() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
   const [pendingRescheduleCount, setPendingRescheduleCount] = useState(0);
+  const [pendingProductionCount, setPendingProductionCount] = useState(0);
+  const [activeShipmentsCount, setActiveShipmentsCount] = useState(0);
+  const [pendingRefundsCount, setPendingRefundsCount] = useState(0);
 
   useEffect(() => {
     if (profile) {
       fetchDashboardData();
       fetchPendingRescheduleCount();
+      fetchProductionOrdersCounts();
     }
   }, [profile, filter, statusFilter]);
 
@@ -202,7 +209,6 @@ export default function ProviderDashboardScreen() {
     if (!profile) return;
 
     try {
-      // First fetch booking IDs for this provider
       const { data: bookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('id')
@@ -217,7 +223,6 @@ export default function ProviderDashboardScreen() {
 
       const bookingIds = bookings.map(b => b.id);
 
-      // Then count pending reschedule requests for those bookings
       const { count, error } = await supabase
         .from('reschedule_requests')
         .select('*', { count: 'exact', head: true })
@@ -228,6 +233,48 @@ export default function ProviderDashboardScreen() {
       setPendingRescheduleCount(count || 0);
     } catch (error) {
       console.error('Error fetching reschedule count:', error);
+    }
+  };
+
+  const fetchProductionOrdersCounts = async () => {
+    if (!profile) return;
+
+    try {
+      const { count: productionCount } = await supabase
+        .from('production_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('provider_id', profile.id)
+        .in('status', ['pending_order_received', 'order_received', 'in_production', 'pending_approval']);
+
+      setPendingProductionCount(productionCount || 0);
+
+      const { count: shipmentsCount } = await supabase
+        .from('production_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('provider_id', profile.id)
+        .in('status', ['ready_for_delivery', 'shipped']);
+
+      setActiveShipmentsCount(shipmentsCount || 0);
+
+      const { data: orders } = await supabase
+        .from('production_orders')
+        .select('id')
+        .eq('provider_id', profile.id);
+
+      if (orders && orders.length > 0) {
+        const orderIds = orders.map(o => o.id);
+        const { count: refundsCount } = await supabase
+          .from('refund_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'pending')
+          .in('production_order_id', orderIds);
+
+        setPendingRefundsCount(refundsCount || 0);
+      } else {
+        setPendingRefundsCount(0);
+      }
+    } catch (error) {
+      console.error('Error fetching production counts:', error);
     }
   };
 
@@ -501,6 +548,66 @@ export default function ProviderDashboardScreen() {
               {pendingRescheduleCount > 0
                 ? `${pendingRescheduleCount} pending`
                 : 'No pending requests'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => router.push('/provider/production')}
+          >
+            <View style={styles.quickActionIcon}>
+              <Package size={24} color={colors.info} />
+              {pendingProductionCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{pendingProductionCount}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.quickActionTitle}>Custom Orders</Text>
+            <Text style={styles.quickActionText}>
+              {pendingProductionCount > 0
+                ? `${pendingProductionCount} active`
+                : 'Production orders'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => router.push('/provider/shipment')}
+          >
+            <View style={styles.quickActionIcon}>
+              <Truck size={24} color={colors.success} />
+              {activeShipmentsCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{activeShipmentsCount}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.quickActionTitle}>Shipments</Text>
+            <Text style={styles.quickActionText}>
+              {activeShipmentsCount > 0
+                ? `${activeShipmentsCount} active`
+                : 'Track deliveries'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionCard}
+            onPress={() => router.push('/provider/refunds')}
+          >
+            <View style={styles.quickActionIcon}>
+              <RefreshCw size={24} color={colors.error} />
+              {pendingRefundsCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>{pendingRefundsCount}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.quickActionTitle}>Refund Requests</Text>
+            <Text style={styles.quickActionText}>
+              {pendingRefundsCount > 0
+                ? `${pendingRefundsCount} pending`
+                : 'Review requests'}
             </Text>
           </TouchableOpacity>
         </View>

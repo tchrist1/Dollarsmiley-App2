@@ -2,6 +2,12 @@ import { supabase } from './supabase';
 
 export type NotificationType =
   | 'custom_service_order_received'
+  | 'production_started'
+  | 'proof_submitted'
+  | 'proof_approved'
+  | 'proof_revision_requested'
+  | 'order_ready_for_delivery'
+  | 'escrow_released'
   | 'shipment_created'
   | 'shipment_in_transit'
   | 'shipment_out_for_delivery'
@@ -341,6 +347,150 @@ export async function notifyEarlyPayoutRejected(
       payout_schedule_id: scheduleId,
       amount,
       reason,
+    },
+    sendEmail: true,
+    priority: 'normal',
+  });
+}
+
+/**
+ * Production Order Notifications
+ */
+export async function notifyProductionStarted(
+  customerId: string,
+  orderId: string,
+  orderTitle: string,
+  providerName: string,
+  estimatedDays?: number
+): Promise<void> {
+  const estimateText = estimatedDays
+    ? ` Estimated completion in ${estimatedDays} days.`
+    : '';
+
+  await createNotification({
+    userId: customerId,
+    type: 'production_started',
+    title: 'Production Started',
+    message: `${providerName} has started working on "${orderTitle}".${estimateText}`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      provider_name: providerName,
+      estimated_days: estimatedDays,
+    },
+    sendEmail: true,
+    priority: 'normal',
+  });
+}
+
+export async function notifyProofSubmitted(
+  customerId: string,
+  orderId: string,
+  orderTitle: string,
+  providerName: string,
+  versionNumber: number
+): Promise<void> {
+  await createNotification({
+    userId: customerId,
+    type: 'proof_submitted',
+    title: 'Proof Ready for Review',
+    message: `${providerName} submitted proof v${versionNumber} for "${orderTitle}". Please review and approve.`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      provider_name: providerName,
+      version: versionNumber,
+    },
+    sendEmail: true,
+    sendSMS: true,
+    priority: 'high',
+  });
+}
+
+export async function notifyProofApproved(
+  providerId: string,
+  orderId: string,
+  orderTitle: string,
+  customerName: string
+): Promise<void> {
+  await createNotification({
+    userId: providerId,
+    type: 'proof_approved',
+    title: 'Proof Approved',
+    message: `${customerName} approved the proof for "${orderTitle}". You can now proceed with delivery.`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      customer_name: customerName,
+    },
+    sendEmail: true,
+    priority: 'normal',
+  });
+}
+
+export async function notifyProofRevisionRequested(
+  providerId: string,
+  orderId: string,
+  orderTitle: string,
+  customerName: string,
+  feedback: string
+): Promise<void> {
+  await createNotification({
+    userId: providerId,
+    type: 'proof_revision_requested',
+    title: 'Revision Requested',
+    message: `${customerName} requested revisions for "${orderTitle}": ${feedback.slice(0, 100)}${feedback.length > 100 ? '...' : ''}`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      customer_name: customerName,
+      feedback,
+    },
+    sendEmail: true,
+    sendSMS: true,
+    priority: 'high',
+  });
+}
+
+export async function notifyOrderReadyForDelivery(
+  customerId: string,
+  orderId: string,
+  orderTitle: string,
+  providerName: string
+): Promise<void> {
+  await createNotification({
+    userId: customerId,
+    type: 'order_ready_for_delivery',
+    title: 'Order Ready',
+    message: `Your order "${orderTitle}" from ${providerName} is ready for delivery/pickup!`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      provider_name: providerName,
+    },
+    sendEmail: true,
+    sendSMS: true,
+    priority: 'high',
+  });
+}
+
+export async function notifyEscrowReleased(
+  providerId: string,
+  orderId: string,
+  orderTitle: string,
+  amount: number
+): Promise<void> {
+  const formattedAmount = formatCurrency(amount);
+
+  await createNotification({
+    userId: providerId,
+    type: 'escrow_released',
+    title: 'Payment Released',
+    message: `${formattedAmount} has been released to your account for "${orderTitle}"`,
+    data: {
+      order_id: orderId,
+      order_title: orderTitle,
+      amount,
     },
     sendEmail: true,
     priority: 'normal',
