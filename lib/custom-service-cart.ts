@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { PersonalizationService } from './personalization';
+import { PersonalizationSubmission, PersonalizationSnapshot } from '../types/database';
 
 export interface CartItem {
   id: string;
@@ -15,13 +17,20 @@ export interface CartItem {
     options_total: number;
     vas_total: number;
     estimated_shipping: number;
+    personalization_total?: number;
   };
+  personalization_snapshot_id?: string;
+  has_personalization?: boolean;
   created_at: string;
 }
 
 export interface NormalizedCartItem extends CartItem {
   unit_index?: number;
   parent_cart_item_id?: string;
+}
+
+export interface CartItemWithPersonalization extends CartItem {
+  personalization_snapshot?: PersonalizationSnapshot;
 }
 
 export class CustomServiceCart {
@@ -356,6 +365,155 @@ export class CustomServiceCart {
       return {
         migrated,
         errors: [error.message || 'Migration failed'],
+      };
+    }
+  }
+
+  static async addToCartWithPersonalization(
+    userId: string,
+    listingId: string,
+    providerId: string,
+    customOptions: Record<string, any>,
+    selectedVas: any[],
+    personalizations: Partial<PersonalizationSubmission>[],
+    fulfillmentOptionId?: string,
+    shippingAddressId?: string,
+    priceSnapshot?: any
+  ): Promise<{ success: boolean; cartItemId?: string; snapshotId?: string; error?: string }> {
+    try {
+      const { data: cartItem, error: cartError } = await supabase
+        .from('cart_items')
+        .insert({
+          user_id: userId,
+          listing_id: listingId,
+          listing_type: 'CustomService',
+          quantity: 1,
+          custom_options: customOptions,
+          selected_vas: selectedVas,
+          fulfillment_option_id: fulfillmentOptionId,
+          shipping_address_id: shippingAddressId,
+          price_snapshot: priceSnapshot || {
+            base_price: 0,
+            options_total: 0,
+            vas_total: 0,
+            estimated_shipping: 0,
+            personalization_total: 0,
+          },
+          has_personalization: personalizations.length > 0,
+        })
+        .select('id')
+        .single();
+
+      if (cartError) throw cartError;
+
+      const cartItemId = cartItem.id;
+      let snapshotId: string | undefined;
+
+      if (personalizations.length > 0) {
+        for (const personalization of personalizations) {
+          await PersonalizationService.createSubmission(userId, listingId, {
+            ...personalization,
+            cart_item_id: cartItemId,
+          });
+        }
+
+        snapshotId = await PersonalizationService.createSnapshot(
+          cartItemId,
+          userId,
+          listingId,
+          providerId
+        );
+      }
+
+      return {
+        success: true,
+        cartItemId,
+        snapshotId,
+      };
+    } catch (error: any) {
+      console.error('Error adding to cart with personalization:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to add item to cart',
+      };
+    }
+  }
+
+  static async getCartItemsWithPersonalization(userId: string): Promise<CartItemWithPersonalization[]> {
+    try {
+      const { data: cartItems, error } = await supabase
+        .from('cart_items')
+        .select(`
+          *,
+          personalization_snapshots (*)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (cartItems || []).map((item: any) => ({
+        ...item,
+        personalization_snapshot: item.personalization_snapshots?.[0] || undefined,
+      }));
+    } catch (error) {
+      console.error('Error getting cart items with personalization:', error);
+      return [];
+    }
+  }
+
+  static async transferPersonalizationToOrder(
+    cartItemId: string,
+    bookingId: string,
+    productionOrderId?: string
+  ): Promise<boolean> {
+    try {
+      return await PersonalizationService.transferToOrder(
+        cartItemId,
+        bookingId,
+        productionOrderId
+      );
+    } catch (error) {
+      console.error('Error transferring personalization to order:', error);
+      return false;
+    }
+  }
+
+  static async getPersonalizationSummary(cartItemId: string): Promise<{
+    hasPersonalization: boolean;
+    snapshot?: PersonalizationSnapshot;
+    priceImpact: number;
+  }> {
+    try {
+      const { data: cartItem } = await supabase
+        .from('cart_items')
+        .select('personalization_snapshot_id, has_personalization')
+        .eq('id', cartItemId)
+        .single();
+
+      if (!cartItem?.personalization_snapshot_id) {
+        return {
+          hasPersonalization: false,
+          priceImpact: 0,
+        };
+      }
+
+      const { data: snapshot } = await supabase
+        .from('personalization_snapshots')
+        .select('*')
+        .eq('id', cartItem.personalization_snapshot_id)
+        .single();
+
+      return {
+        hasPersonalization: true,
+        snapshot: snapshot || undefined,
+        priceImpact: snapshot?.total_price_impact || 0,
+      };
+    } catch (error) {
+      console.error('Error getting personalization summary:', error);
+      return {
+        hasPersonalization: false,
+        priceImpact: 0,
       };
     }
   }

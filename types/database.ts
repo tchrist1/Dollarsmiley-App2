@@ -474,3 +474,262 @@ export interface ProductionTimelineEvent {
   metadata: Record<string, any>;
   created_at: string;
 }
+
+export type PersonalizationType =
+  | 'text'
+  | 'image_upload'
+  | 'image_selection'
+  | 'font_selection'
+  | 'color_selection'
+  | 'placement_selection'
+  | 'template_selection'
+  | 'combined';
+
+export type LivePreviewMode = 'enabled' | 'constrained' | 'downgraded' | 'disabled';
+
+export type PersonalizationLockStage = 'add_to_cart' | 'checkout' | 'order_received' | 'proof_approved';
+
+export type PersonalizationValidationStatus = 'pending' | 'valid' | 'invalid' | 'needs_review';
+
+export interface PersonalizationFont {
+  id: string;
+  name: string;
+  family: string;
+  category: 'serif' | 'sans-serif' | 'display' | 'handwriting' | 'monospace';
+  preview_url?: string;
+  font_file_url?: string;
+  is_system_font: boolean;
+  provider_id?: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PersonalizationColorPalette {
+  id: string;
+  provider_id: string;
+  name: string;
+  colors: Array<{
+    hex: string;
+    name: string;
+    category?: string;
+  }>;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalizationTextConfig {
+  enabled: boolean;
+  max_length: number;
+  min_length: number;
+  allowed_characters: string;
+  multiline: boolean;
+  max_lines: number;
+  placeholder: string;
+  validation_regex?: string;
+}
+
+export interface PersonalizationImageUploadConfig {
+  enabled: boolean;
+  max_file_size_mb: number;
+  allowed_formats: string[];
+  min_resolution: { width: number; height: number };
+  max_uploads: number;
+  require_high_res: boolean;
+}
+
+export interface PersonalizationFontConfig {
+  enabled: boolean;
+  allowed_font_ids: string[];
+  allow_all_system_fonts: boolean;
+  default_font_id?: string;
+  allow_size_selection: boolean;
+  min_size: number;
+  max_size: number;
+  default_size: number;
+}
+
+export interface PersonalizationColorConfig {
+  enabled: boolean;
+  palette_id?: string;
+  allow_custom_colors: boolean;
+  default_color: string;
+}
+
+export interface PersonalizationPriceImpact {
+  type: 'none' | 'fixed' | 'percentage' | 'per_character' | 'per_image';
+  fixed_amount: number;
+  percentage: number;
+  per_character: number;
+  per_image: number;
+}
+
+export interface PersonalizationConfig {
+  id: string;
+  listing_id: string;
+  custom_option_id?: string;
+  is_enabled: boolean;
+  is_required: boolean;
+  personalization_type: PersonalizationType;
+  config_settings: Record<string, any>;
+  text_config: PersonalizationTextConfig;
+  image_upload_config: PersonalizationImageUploadConfig;
+  font_config: PersonalizationFontConfig;
+  color_config: PersonalizationColorConfig;
+  live_preview_mode: LivePreviewMode;
+  price_impact: PersonalizationPriceImpact;
+  lock_after_stage: PersonalizationLockStage;
+  display_order: number;
+  help_text?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalizationTemplate {
+  id: string;
+  listing_id: string;
+  provider_id: string;
+  name: string;
+  description?: string;
+  thumbnail_url?: string;
+  preview_image_url?: string;
+  canvas_config: {
+    width: number;
+    height: number;
+    background_color: string;
+    background_image_url?: string;
+  };
+  placement_zones: Array<{
+    id: string;
+    type: 'text' | 'image';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    constraints?: Record<string, any>;
+  }>;
+  constraints: {
+    allow_zone_resize: boolean;
+    allow_zone_move: boolean;
+    enforce_safe_area: boolean;
+    safe_area_margin: number;
+  };
+  is_default: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalizationImagePreset {
+  id: string;
+  listing_id: string;
+  provider_id: string;
+  config_id?: string;
+  name: string;
+  description?: string;
+  image_url: string;
+  thumbnail_url?: string;
+  category?: string;
+  tags: string[];
+  price_modifier: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PersonalizationSubmission {
+  id: string;
+  customer_id: string;
+  listing_id: string;
+  config_id?: string;
+  cart_item_id?: string;
+  booking_id?: string;
+  production_order_id?: string;
+  submission_type: PersonalizationType;
+  text_value?: string;
+  image_data?: {
+    uploaded_url?: string;
+    preset_id?: string;
+    original_filename?: string;
+    file_size?: number;
+    dimensions?: { width: number; height: number };
+  };
+  font_data?: {
+    font_id: string;
+    font_family: string;
+    font_size: number;
+    font_weight?: string;
+    font_style?: string;
+  };
+  color_data?: {
+    hex: string;
+    rgba?: string;
+    palette_color_id?: string;
+  };
+  placement_data?: {
+    zone_id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation?: number;
+    scale?: number;
+  };
+  template_data?: {
+    template_id: string;
+    customizations?: Record<string, any>;
+  };
+  preview_render_url?: string;
+  calculated_price_impact: number;
+  validation_status: PersonalizationValidationStatus;
+  validation_errors: string[];
+  is_locked: boolean;
+  locked_at?: string;
+  locked_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonalizationSnapshot {
+  id: string;
+  cart_item_id?: string;
+  booking_id?: string;
+  production_order_id?: string;
+  customer_id: string;
+  listing_id: string;
+  provider_id: string;
+  snapshot_data: PersonalizationSubmission[];
+  config_snapshot: PersonalizationConfig[];
+  uploaded_images: Array<{
+    url: string;
+    permanent_url?: string;
+    hash?: string;
+  }>;
+  preview_renders: Array<{
+    render_url: string;
+    created_at: string;
+  }>;
+  total_price_impact: number;
+  snapshot_version: number;
+  created_at: string;
+  finalized_at?: string;
+}
+
+export interface PersonalizationReusableSetup {
+  id: string;
+  customer_id: string;
+  listing_id?: string;
+  name: string;
+  description?: string;
+  setup_data: PersonalizationSubmission[];
+  source_snapshot_id?: string;
+  source_booking_id?: string;
+  use_count: number;
+  last_used_at?: string;
+  is_favorite: boolean;
+  created_at: string;
+  updated_at: string;
+}
