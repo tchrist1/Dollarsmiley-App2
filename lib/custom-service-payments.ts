@@ -1114,6 +1114,194 @@ export class CustomServicePayments {
       status: 'captured_in_escrow',
     };
   }
+
+  static async setListingProofingRequirement(
+    listingId: string,
+    providerId: string,
+    proofingRequired: boolean,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    listingId?: string;
+    proofingRequired?: boolean;
+    previousValue?: boolean;
+    changed?: boolean;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('set_listing_proofing_requirement', {
+        p_listing_id: listingId,
+        p_provider_id: providerId,
+        p_proofing_required: proofingRequired,
+        p_reason: reason,
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to update proofing requirement',
+        };
+      }
+
+      return {
+        success: true,
+        listingId: data?.listing_id,
+        proofingRequired: data?.proofing_required,
+        previousValue: data?.previous_value,
+        changed: data?.changed,
+      };
+    } catch (error: any) {
+      console.error('Error setting listing proofing requirement:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to update proofing requirement',
+      };
+    }
+  }
+
+  static async batchUpdateListingProofing(
+    listingIds: string[],
+    providerId: string,
+    proofingRequired: boolean,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    updatedCount?: number;
+    totalRequested?: number;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('batch_update_listing_proofing', {
+        p_listing_ids: listingIds,
+        p_provider_id: providerId,
+        p_proofing_required: proofingRequired,
+        p_reason: reason,
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to batch update proofing',
+        };
+      }
+
+      return {
+        success: true,
+        updatedCount: data?.updated_count,
+        totalRequested: data?.total_requested,
+      };
+    } catch (error: any) {
+      console.error('Error batch updating listing proofing:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to batch update proofing',
+      };
+    }
+  }
+
+  static async getListingProofingStatus(listingId: string): Promise<{
+    listingId?: string;
+    listingType?: string;
+    proofingRequired?: boolean;
+    proofingUpdatedAt?: string;
+    proofingUpdatedBy?: string;
+    isCustomService?: boolean;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('get_listing_proofing_status', {
+        p_listing_id: listingId,
+      });
+
+      if (error) throw error;
+
+      return {
+        listingId: data?.listing_id,
+        listingType: data?.listing_type,
+        proofingRequired: data?.proofing_required,
+        proofingUpdatedAt: data?.proofing_updated_at,
+        proofingUpdatedBy: data?.proofing_updated_by,
+        isCustomService: data?.is_custom_service,
+      };
+    } catch (error: any) {
+      console.error('Error getting listing proofing status:', error);
+      return {
+        error: error.message || 'Failed to get proofing status',
+      };
+    }
+  }
+
+  static async canProceedWithoutProof(productionOrderId: string): Promise<{
+    canProceed?: boolean;
+    reason?: string;
+    proofingRequired?: boolean;
+    hasPersonalizationSnapshot?: boolean;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('can_proceed_without_proof', {
+        p_production_order_id: productionOrderId,
+      });
+
+      if (error) throw error;
+
+      return {
+        canProceed: data?.can_proceed,
+        reason: data?.reason,
+        proofingRequired: data?.proofing_required,
+        hasPersonalizationSnapshot: data?.has_personalization_snapshot,
+      };
+    } catch (error: any) {
+      console.error('Error checking if can proceed without proof:', error);
+      return {
+        error: error.message || 'Failed to check proof requirement',
+      };
+    }
+  }
+
+  static async markOrderProofingBypassed(
+    productionOrderId: string,
+    reason?: string
+  ): Promise<{
+    success: boolean;
+    productionOrderId?: string;
+    proofingBypassed?: boolean;
+    currentStatus?: string;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('mark_order_proofing_bypassed', {
+        p_production_order_id: productionOrderId,
+        p_reason: reason,
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to mark order as proofing bypassed',
+        };
+      }
+
+      return {
+        success: true,
+        productionOrderId: data?.production_order_id,
+        proofingBypassed: data?.proofing_bypassed,
+        currentStatus: data?.current_status,
+      };
+    } catch (error: any) {
+      console.error('Error marking order proofing bypassed:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to mark order as proofing bypassed',
+      };
+    }
+  }
 }
 
 export default CustomServicePayments;
