@@ -808,7 +808,7 @@ export class CustomServicePayments {
 
       if (timeoutType === 'provider_response') {
         action =
-          'Provider did not respond within 48 hours. Provider may proceed at original price or cancel.';
+          'Provider did not respond within 48 hours. Customer may proceed at original price or cancel for full refund.';
       } else {
         action =
           'Customer did not respond within 72 hours. Provider may proceed at original price or cancel.';
@@ -841,11 +841,142 @@ export class CustomServicePayments {
     }
   }
 
+  static async getCustomerTimeoutOptions(
+    productionOrderId: string,
+    customerId: string
+  ): Promise<{
+    hasTimedOutConsultation?: boolean;
+    customerCanDecide?: boolean;
+    canProceed?: boolean;
+    canCancel?: boolean;
+    originalPrice?: number;
+    refundAmount?: number;
+    timeoutAt?: string;
+    currentStatus?: string;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('get_customer_timeout_options', {
+        p_production_order_id: productionOrderId,
+        p_customer_id: customerId,
+      });
+
+      if (error) throw error;
+
+      return {
+        hasTimedOutConsultation: data?.has_timed_out_consultation,
+        customerCanDecide: data?.customer_can_decide,
+        canProceed: data?.can_proceed,
+        canCancel: data?.can_cancel,
+        originalPrice: data?.original_price,
+        refundAmount: data?.refund_amount,
+        timeoutAt: data?.timeout_at,
+        currentStatus: data?.current_status,
+      };
+    } catch (error: any) {
+      console.error('Error getting customer timeout options:', error);
+      return {
+        error: error.message || 'Failed to get timeout options',
+      };
+    }
+  }
+
+  static async customerProceedAfterTimeout(
+    productionOrderId: string,
+    customerId: string
+  ): Promise<{ success: boolean; status?: string; message?: string; error?: string }> {
+    try {
+      const { data, error } = await supabase.rpc('customer_proceed_after_timeout', {
+        p_production_order_id: productionOrderId,
+        p_customer_id: customerId,
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to proceed with order',
+        };
+      }
+
+      return {
+        success: true,
+        status: data?.status,
+        message: data?.message,
+      };
+    } catch (error: any) {
+      console.error('Error proceeding after timeout:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to proceed with order',
+      };
+    }
+  }
+
+  static async customerCancelAfterTimeout(
+    productionOrderId: string,
+    customerId: string
+  ): Promise<{
+    success: boolean;
+    status?: string;
+    refundAmount?: number;
+    paymentIntentId?: string;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('customer_cancel_after_timeout', {
+        p_production_order_id: productionOrderId,
+        p_customer_id: customerId,
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        return {
+          success: false,
+          error: data?.error || 'Failed to cancel order',
+        };
+      }
+
+      if (data.payment_intent_id) {
+        const refundResult = await this.refundEscrow(
+          productionOrderId,
+          'Customer cancelled after provider consultation timeout',
+          data.refund_amount
+        );
+
+        if (!refundResult.success) {
+          return {
+            success: false,
+            error: refundResult.error || 'Failed to process refund',
+          };
+        }
+      }
+
+      return {
+        success: true,
+        status: data?.status,
+        refundAmount: data?.refund_amount,
+        paymentIntentId: data?.payment_intent_id,
+        message: data?.message || 'Order cancelled and refund processed',
+      };
+    } catch (error: any) {
+      console.error('Error cancelling after timeout:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to cancel order',
+      };
+    }
+  }
+
   static async getOrderStatus(productionOrderId: string): Promise<{
     order?: any;
     consultation?: any;
     pendingAdjustment?: any;
     timeouts?: any[];
+    customerCanDecide?: boolean;
     error?: string;
   }> {
     try {
@@ -876,13 +1007,17 @@ export class CustomServicePayments {
         .from('consultation_timeouts')
         .select('*')
         .eq('production_order_id', productionOrderId)
-        .is('expired_at', null);
+        .order('created_at', { ascending: false });
+
+      const customerCanDecide =
+        consultation?.status === 'timed_out' && consultation?.customer_can_decide === true;
 
       return {
         order,
         consultation,
         pendingAdjustment,
         timeouts: timeouts || [],
+        customerCanDecide,
       };
     } catch (error: any) {
       console.error('Error getting order status:', error);
