@@ -195,6 +195,7 @@ export class ProductionManagement {
         updateData.shipped_at = new Date().toISOString();
       } else if (newStatus === 'completed') {
         updateData.delivered_at = new Date().toISOString();
+        updateData.completion_source = 'manual';
       }
 
       const { error: updateError } = await supabase

@@ -129,6 +129,7 @@ export class CustomProductsService {
     const updateData: any = {
       status: 'completed',
       actual_completion_date: new Date().toISOString(),
+      completion_source: 'manual',
       updated_at: new Date().toISOString(),
     };
 

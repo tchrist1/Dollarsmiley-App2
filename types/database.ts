@@ -445,6 +445,7 @@ export interface ProductionOrder {
   cancellation_reason?: string;
   estimated_completion_date?: string;
   actual_completion_date?: string;
+  completion_source?: 'manual' | 'automatic';
   production_notes?: string;
   cost_breakdown?: Record<string, any>;
   created_at: string;
