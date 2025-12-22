@@ -14,7 +14,7 @@ import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles } from 'lucide-react-native';
+import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users } from 'lucide-react-native';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -47,6 +47,7 @@ export default function CreateListingScreen() {
   const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [tags, setTags] = useState('');
 
+  const [requiresFulfilment, setRequiresFulfilment] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<string[]>([]);
   const [itemWeight, setItemWeight] = useState('');
   const [itemLength, setItemLength] = useState('');
@@ -69,6 +70,7 @@ export default function CreateListingScreen() {
       tags.trim() !== '' ||
       listingType !== 'Service' ||
       priceType !== 'hourly' ||
+      requiresFulfilment !== false ||
       fulfillmentType.length > 0 ||
       itemWeight !== '' ||
       itemLength !== '' ||
@@ -94,6 +96,7 @@ export default function CreateListingScreen() {
     setPhotos([]);
     setAvailableDays([]);
     setTags('');
+    setRequiresFulfilment(false);
     setFulfillmentType([]);
     setItemWeight('');
     setItemLength('');
@@ -142,15 +145,20 @@ export default function CreateListingScreen() {
     }
     if (availableDays.length === 0) newErrors.availability = 'Select at least one available day';
 
-    if (listingType === 'CustomService') {
-      if (fulfillmentType.includes('Shipping')) {
-        if (!itemWeight || isNaN(Number(itemWeight))) {
-          newErrors.itemWeight = 'Valid weight is required for shipping';
-        }
-        if (!itemLength || !itemWidth || !itemHeight) {
-          newErrors.dimensions = 'All dimensions are required for shipping';
-        }
+    if (requiresFulfilment && fulfillmentType.length === 0) {
+      newErrors.fulfillment = 'Select at least one fulfillment method when fulfillment is required';
+    }
+
+    if (requiresFulfilment && fulfillmentType.includes('Shipping')) {
+      if (!itemWeight || isNaN(Number(itemWeight))) {
+        newErrors.itemWeight = 'Valid weight is required for shipping';
       }
+      if (!itemLength || !itemWidth || !itemHeight) {
+        newErrors.dimensions = 'All dimensions are required for shipping';
+      }
+    }
+
+    if (listingType === 'CustomService') {
       if (!fulfillmentWindow || isNaN(Number(fulfillmentWindow))) {
         newErrors.fulfillmentWindow = 'Valid fulfillment window is required';
       }
@@ -200,9 +208,10 @@ export default function CreateListingScreen() {
       tags: tagsList,
       is_active: true,
       listing_type: listingType,
+      requires_fulfilment: requiresFulfilment,
     };
 
-    if (listingType === 'CustomService') {
+    if (requiresFulfilment && fulfillmentType.includes('Shipping')) {
       listingData.item_weight_oz = itemWeight ? Number(itemWeight) : null;
       if (itemLength && itemWidth && itemHeight) {
         listingData.item_dimensions = {
@@ -211,6 +220,9 @@ export default function CreateListingScreen() {
           height: Number(itemHeight),
         };
       }
+    }
+
+    if (listingType === 'CustomService') {
       listingData.fulfillment_window_days = Number(fulfillmentWindow);
     }
 
@@ -229,7 +241,7 @@ export default function CreateListingScreen() {
 
     setListingId(data.id);
 
-    if (listingType === 'CustomService' && fulfillmentType.length > 0) {
+    if (requiresFulfilment && fulfillmentType.length > 0) {
       const fulfillmentOptions = fulfillmentType.map(type => ({
         listing_id: data.id,
         fulfillment_type: type,
@@ -523,44 +535,122 @@ export default function CreateListingScreen() {
           helperText="Separate tags with commas"
         />
 
-        {listingType === 'CustomService' && (
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.fulfilmentToggleContainer}
+            onPress={() => {
+              setRequiresFulfilment(!requiresFulfilment);
+              if (requiresFulfilment) {
+                setFulfillmentType([]);
+                setItemWeight('');
+                setItemLength('');
+                setItemWidth('');
+                setItemHeight('');
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.fulfilmentToggleLeft}>
+              <Package size={20} color={colors.primary} />
+              <View style={styles.fulfilmentToggleTextContainer}>
+                <Text style={styles.fulfilmentToggleLabel}>Requires Fulfilment</Text>
+                <Text style={styles.fulfilmentToggleDescription}>
+                  Enable if this service requires physical delivery, pickup, or shipping
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.toggleSwitch,
+              requiresFulfilment && styles.toggleSwitchActive
+            ]}>
+              <View style={[
+                styles.toggleThumb,
+                requiresFulfilment && styles.toggleThumbActive
+              ]} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {requiresFulfilment && (
           <>
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Fulfillment Options</Text>
-              <View style={styles.fulfillmentContainer}>
+              <Text style={styles.sectionLabel}>Fulfillment Methods</Text>
+              <Text style={styles.helperText}>
+                Select at least one method for how the service will be fulfilled
+              </Text>
+              {errors.fulfillment && (
+                <Text style={styles.errorText}>{errors.fulfillment}</Text>
+              )}
+              <View style={styles.fulfillmentGrid}>
                 <TouchableOpacity
                   style={[
                     styles.fulfillmentOption,
-                    fulfillmentType.includes('Pickup') && styles.fulfillmentOptionActive,
+                    fulfillmentType.includes('PickupByCustomer') && styles.fulfillmentOptionActive,
                   ]}
-                  onPress={() => toggleFulfillmentType('Pickup')}
+                  onPress={() => toggleFulfillmentType('PickupByCustomer')}
                 >
-                  <Package size={24} color={fulfillmentType.includes('Pickup') ? '#FFF' : '#666'} />
+                  <Package size={20} color={fulfillmentType.includes('PickupByCustomer') ? colors.white : colors.textSecondary} />
                   <Text
                     style={[
                       styles.fulfillmentText,
-                      fulfillmentType.includes('Pickup') && styles.fulfillmentTextActive,
+                      fulfillmentType.includes('PickupByCustomer') && styles.fulfillmentTextActive,
                     ]}
                   >
-                    Pickup
+                    Pick-up by Customer
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[
                     styles.fulfillmentOption,
-                    fulfillmentType.includes('DropOff') && styles.fulfillmentOptionActive,
+                    fulfillmentType.includes('DropOffByProvider') && styles.fulfillmentOptionActive,
                   ]}
-                  onPress={() => toggleFulfillmentType('DropOff')}
+                  onPress={() => toggleFulfillmentType('DropOffByProvider')}
                 >
-                  <Package size={24} color={fulfillmentType.includes('DropOff') ? '#FFF' : '#666'} />
+                  <Truck size={20} color={fulfillmentType.includes('DropOffByProvider') ? colors.white : colors.textSecondary} />
                   <Text
                     style={[
                       styles.fulfillmentText,
-                      fulfillmentType.includes('DropOff') && styles.fulfillmentTextActive,
+                      fulfillmentType.includes('DropOffByProvider') && styles.fulfillmentTextActive,
                     ]}
                   >
-                    Drop-Off
+                    Drop-off by Provider
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.fulfillmentOption,
+                    fulfillmentType.includes('PickupAndDropOffByCustomer') && styles.fulfillmentOptionActive,
+                  ]}
+                  onPress={() => toggleFulfillmentType('PickupAndDropOffByCustomer')}
+                >
+                  <ArrowLeftRight size={20} color={fulfillmentType.includes('PickupAndDropOffByCustomer') ? colors.white : colors.textSecondary} />
+                  <Text
+                    style={[
+                      styles.fulfillmentText,
+                      fulfillmentType.includes('PickupAndDropOffByCustomer') && styles.fulfillmentTextActive,
+                    ]}
+                  >
+                    Pick-up & Drop-off by Customer
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.fulfillmentOption,
+                    fulfillmentType.includes('PickupAndDropOffByProvider') && styles.fulfillmentOptionActive,
+                  ]}
+                  onPress={() => toggleFulfillmentType('PickupAndDropOffByProvider')}
+                >
+                  <Users size={20} color={fulfillmentType.includes('PickupAndDropOffByProvider') ? colors.white : colors.textSecondary} />
+                  <Text
+                    style={[
+                      styles.fulfillmentText,
+                      fulfillmentType.includes('PickupAndDropOffByProvider') && styles.fulfillmentTextActive,
+                    ]}
+                  >
+                    Pick-up & Drop-off by Provider
                   </Text>
                 </TouchableOpacity>
 
@@ -571,7 +661,7 @@ export default function CreateListingScreen() {
                   ]}
                   onPress={() => toggleFulfillmentType('Shipping')}
                 >
-                  <Truck size={24} color={fulfillmentType.includes('Shipping') ? '#FFF' : '#666'} />
+                  <Package size={20} color={fulfillmentType.includes('Shipping') ? colors.white : colors.textSecondary} />
                   <Text
                     style={[
                       styles.fulfillmentText,
@@ -585,70 +675,70 @@ export default function CreateListingScreen() {
             </View>
 
             {fulfillmentType.includes('Shipping') && (
-              <>
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Shipping Specifications</Text>
-                  <Text style={styles.helperText}>
-                    Provide package details for accurate shipping cost calculation
-                  </Text>
-                  <Input
-                    label="Item Weight (ounces)"
-                    placeholder="16"
-                    value={itemWeight}
-                    onChangeText={setItemWeight}
-                    keyboardType="numeric"
-                    error={errors.itemWeight}
-                    helperText="Total weight of packaged item in ounces (oz). Example: 1 pound = 16 oz"
-                  />
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Shipping Specifications</Text>
+                <Text style={styles.helperText}>
+                  Provide package details for accurate shipping cost calculation
+                </Text>
+                <Input
+                  label="Item Weight (ounces)"
+                  placeholder="16"
+                  value={itemWeight}
+                  onChangeText={setItemWeight}
+                  keyboardType="numeric"
+                  error={errors.itemWeight}
+                  helperText="Total weight of packaged item in ounces (oz). Example: 1 pound = 16 oz"
+                />
 
-                  <Text style={styles.dimensionsLabel}>Package Dimensions (inches)</Text>
-                  <View style={styles.row}>
-                    <View style={styles.thirdWidth}>
-                      <Input
-                        label="Length"
-                        placeholder="10"
-                        value={itemLength}
-                        onChangeText={setItemLength}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    <View style={styles.thirdWidth}>
-                      <Input
-                        label="Width"
-                        placeholder="8"
-                        value={itemWidth}
-                        onChangeText={setItemWidth}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    <View style={styles.thirdWidth}>
-                      <Input
-                        label="Height"
-                        placeholder="6"
-                        value={itemHeight}
-                        onChangeText={setItemHeight}
-                        keyboardType="numeric"
-                        error={errors.dimensions}
-                      />
-                    </View>
+                <Text style={styles.dimensionsLabel}>Package Dimensions (inches)</Text>
+                <View style={styles.row}>
+                  <View style={styles.thirdWidth}>
+                    <Input
+                      label="Length"
+                      placeholder="10"
+                      value={itemLength}
+                      onChangeText={setItemLength}
+                      keyboardType="numeric"
+                    />
                   </View>
-                  <Text style={styles.dimensionsHelperText}>
-                    Measure the box or package in inches (in). Length × Width × Height
-                  </Text>
+                  <View style={styles.thirdWidth}>
+                    <Input
+                      label="Width"
+                      placeholder="8"
+                      value={itemWidth}
+                      onChangeText={setItemWidth}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.thirdWidth}>
+                    <Input
+                      label="Height"
+                      placeholder="6"
+                      value={itemHeight}
+                      onChangeText={setItemHeight}
+                      keyboardType="numeric"
+                      error={errors.dimensions}
+                    />
+                  </View>
                 </View>
-              </>
+                <Text style={styles.dimensionsHelperText}>
+                  Measure the box or package in inches (in). Length × Width × Height
+                </Text>
+              </View>
             )}
-
-            <Input
-              label="Fulfillment Timeline (business days)"
-              placeholder="7"
-              value={fulfillmentWindow}
-              onChangeText={setFulfillmentWindow}
-              keyboardType="numeric"
-              error={errors.fulfillmentWindow}
-              helperText="Number of business days from order confirmation to when the completed item is ready for delivery (excludes shipping time)"
-            />
           </>
+        )}
+
+        {listingType === 'CustomService' && (
+          <Input
+            label="Fulfillment Timeline (business days)"
+            placeholder="7"
+            value={fulfillmentWindow}
+            onChangeText={setFulfillmentWindow}
+            keyboardType="numeric"
+            error={errors.fulfillmentWindow}
+            helperText="Number of business days from order confirmation to when the completed item is ready for delivery (excludes shipping time)"
+          />
         )}
 
         <Text style={styles.smsOptInText}>
@@ -819,28 +909,93 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
   },
-  fulfillmentOption: {
+  fulfilmentToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fulfilmentToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     flex: 1,
+  },
+  fulfilmentToggleTextContainer: {
+    flex: 1,
+  },
+  fulfilmentToggleLabel: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  fulfilmentToggleDescription: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  toggleSwitch: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.border,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleSwitchActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleThumbActive: {
+    transform: [{ translateX: 20 }],
+  },
+  fulfillmentGrid: {
+    gap: spacing.sm,
+  },
+  fulfillmentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    alignItems: 'center',
   },
   fulfillmentOptionActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primary,
   },
   fulfillmentText: {
-    fontSize: fontSize.xs,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text,
-    marginTop: spacing.xs,
+    flex: 1,
   },
   fulfillmentTextActive: {
     color: colors.white,
+  },
+  errorText: {
+    fontSize: fontSize.sm,
+    color: colors.error,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
   smsOptInText: {
     fontSize: 11,
