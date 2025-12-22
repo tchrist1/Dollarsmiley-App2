@@ -14,7 +14,7 @@ import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users } from 'lucide-react-native';
+import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText } from 'lucide-react-native';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -55,6 +55,10 @@ export default function CreateListingScreen() {
   const [itemHeight, setItemHeight] = useState('');
   const [fulfillmentWindow, setFulfillmentWindow] = useState('7');
 
+  const [requiresAgreement, setRequiresAgreement] = useState(false);
+  const [requiresDamageDeposit, setRequiresDamageDeposit] = useState(false);
+  const [damageDepositAmount, setDamageDepositAmount] = useState('');
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const hasFormData = () => {
@@ -76,7 +80,10 @@ export default function CreateListingScreen() {
       itemLength !== '' ||
       itemWidth !== '' ||
       itemHeight !== '' ||
-      fulfillmentWindow !== '7'
+      fulfillmentWindow !== '7' ||
+      requiresAgreement !== false ||
+      requiresDamageDeposit !== false ||
+      damageDepositAmount !== ''
     );
   };
 
@@ -103,6 +110,9 @@ export default function CreateListingScreen() {
     setItemWidth('');
     setItemHeight('');
     setFulfillmentWindow('7');
+    setRequiresAgreement(false);
+    setRequiresDamageDeposit(false);
+    setDamageDepositAmount('');
     setErrors({});
   };
 
@@ -158,6 +168,14 @@ export default function CreateListingScreen() {
       }
     }
 
+    if (requiresDamageDeposit) {
+      if (!damageDepositAmount || isNaN(Number(damageDepositAmount))) {
+        newErrors.damageDeposit = 'Valid deposit amount is required';
+      } else if (Number(damageDepositAmount) <= 0) {
+        newErrors.damageDeposit = 'Deposit amount must be greater than 0';
+      }
+    }
+
     if (listingType === 'CustomService') {
       if (!fulfillmentWindow || isNaN(Number(fulfillmentWindow))) {
         newErrors.fulfillmentWindow = 'Valid fulfillment window is required';
@@ -209,6 +227,9 @@ export default function CreateListingScreen() {
       is_active: true,
       listing_type: listingType,
       requires_fulfilment: requiresFulfilment,
+      requires_agreement: requiresAgreement,
+      requires_damage_deposit: requiresDamageDeposit,
+      damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
     };
 
     if (requiresFulfilment && fulfillmentType.includes('Shipping')) {
@@ -571,8 +592,80 @@ export default function CreateListingScreen() {
           </TouchableOpacity>
         </View>
 
-        {requiresFulfilment && (
+        {requiresFulfilment && listingType === 'Service' && (
           <>
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.fulfilmentToggleContainer}
+                onPress={() => setRequiresAgreement(!requiresAgreement)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.fulfilmentToggleLeft}>
+                  <Package size={20} color={colors.primary} />
+                  <View style={styles.fulfilmentToggleTextContainer}>
+                    <Text style={styles.fulfilmentToggleLabel}>Require Service Agreement</Text>
+                    <Text style={styles.fulfilmentToggleDescription}>
+                      Customer must accept platform agreement at checkout
+                    </Text>
+                  </View>
+                </View>
+                <View style={[
+                  styles.toggleSwitch,
+                  requiresAgreement && styles.toggleSwitchActive
+                ]}>
+                  <View style={[
+                    styles.toggleThumb,
+                    requiresAgreement && styles.toggleThumbActive
+                  ]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.fulfilmentToggleContainer}
+                onPress={() => {
+                  setRequiresDamageDeposit(!requiresDamageDeposit);
+                  if (requiresDamageDeposit) {
+                    setDamageDepositAmount('');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.fulfilmentToggleLeft}>
+                  <DollarSign size={20} color={colors.primary} />
+                  <View style={styles.fulfilmentToggleTextContainer}>
+                    <Text style={styles.fulfilmentToggleLabel}>Require Damage Deposit</Text>
+                    <Text style={styles.fulfilmentToggleDescription}>
+                      Refundable deposit to cover potential damages
+                    </Text>
+                  </View>
+                </View>
+                <View style={[
+                  styles.toggleSwitch,
+                  requiresDamageDeposit && styles.toggleSwitchActive
+                ]}>
+                  <View style={[
+                    styles.toggleThumb,
+                    requiresDamageDeposit && styles.toggleThumbActive
+                  ]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {requiresDamageDeposit && (
+              <Input
+                label="Damage Deposit Amount"
+                placeholder="0"
+                value={damageDepositAmount}
+                onChangeText={setDamageDepositAmount}
+                keyboardType="numeric"
+                leftIcon={<DollarSign size={20} color={colors.textSecondary} />}
+                error={errors.damageDeposit}
+                helperText="Refundable amount held to cover potential damages. Will be automatically released if no damage is reported within 48 hours."
+              />
+            )}
+
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Fulfillment Methods</Text>
               <Text style={styles.helperText}>
