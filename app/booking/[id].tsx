@@ -40,6 +40,8 @@ import {
   AlertCircle,
   Package,
   Shield,
+  Car,
+  Navigation,
 } from 'lucide-react-native';
 
 interface Booking {
@@ -764,6 +766,26 @@ export default function BookingDetailScreen() {
           </View>
         )}
 
+        {(booking.status === 'Accepted' || booking.status === 'InProgress') && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.tripTrackingCard}
+              onPress={() => router.push(`/booking/${booking.id}/trip` as any)}
+            >
+              <View style={styles.tripTrackingIcon}>
+                <Car size={24} color={colors.primary} />
+              </View>
+              <View style={styles.tripTrackingContent}>
+                <Text style={styles.tripTrackingTitle}>Trip Tracking</Text>
+                <Text style={styles.tripTrackingSubtitle}>
+                  Track live movements and update trip status
+                </Text>
+              </View>
+              <Navigation size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {isProvider && booking.status === 'InProgress' && (
           <View style={styles.actionSection}>
             <Button
@@ -1051,5 +1073,34 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
     color: colors.text,
+  },
+  tripTrackingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
+    gap: spacing.md,
+  },
+  tripTrackingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tripTrackingContent: {
+    flex: 1,
+  },
+  tripTrackingTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xxs,
+  },
+  tripTrackingSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
 });
