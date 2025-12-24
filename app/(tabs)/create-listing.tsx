@@ -592,80 +592,8 @@ export default function CreateListingScreen() {
           </TouchableOpacity>
         </View>
 
-        {requiresFulfilment && listingType === 'Service' && (
+        {requiresFulfilment && (
           <>
-            <View style={styles.section}>
-              <TouchableOpacity
-                style={styles.fulfilmentToggleContainer}
-                onPress={() => setRequiresAgreement(!requiresAgreement)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.fulfilmentToggleLeft}>
-                  <Package size={20} color={colors.primary} />
-                  <View style={styles.fulfilmentToggleTextContainer}>
-                    <Text style={styles.fulfilmentToggleLabel}>Require Service Agreement</Text>
-                    <Text style={styles.fulfilmentToggleDescription}>
-                      Customer must accept platform agreement at checkout
-                    </Text>
-                  </View>
-                </View>
-                <View style={[
-                  styles.toggleSwitch,
-                  requiresAgreement && styles.toggleSwitchActive
-                ]}>
-                  <View style={[
-                    styles.toggleThumb,
-                    requiresAgreement && styles.toggleThumbActive
-                  ]} />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.section}>
-              <TouchableOpacity
-                style={styles.fulfilmentToggleContainer}
-                onPress={() => {
-                  setRequiresDamageDeposit(!requiresDamageDeposit);
-                  if (requiresDamageDeposit) {
-                    setDamageDepositAmount('');
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.fulfilmentToggleLeft}>
-                  <DollarSign size={20} color={colors.primary} />
-                  <View style={styles.fulfilmentToggleTextContainer}>
-                    <Text style={styles.fulfilmentToggleLabel}>Require Damage Deposit</Text>
-                    <Text style={styles.fulfilmentToggleDescription}>
-                      Refundable deposit to cover potential damages
-                    </Text>
-                  </View>
-                </View>
-                <View style={[
-                  styles.toggleSwitch,
-                  requiresDamageDeposit && styles.toggleSwitchActive
-                ]}>
-                  <View style={[
-                    styles.toggleThumb,
-                    requiresDamageDeposit && styles.toggleThumbActive
-                  ]} />
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {requiresDamageDeposit && (
-              <Input
-                label="Damage Deposit Amount"
-                placeholder="0"
-                value={damageDepositAmount}
-                onChangeText={setDamageDepositAmount}
-                keyboardType="numeric"
-                leftIcon={<DollarSign size={20} color={colors.textSecondary} />}
-                error={errors.damageDeposit}
-                helperText="Refundable amount held to cover potential damages. Will be automatically released if no damage is reported within 48 hours."
-              />
-            )}
-
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Fulfillment Methods</Text>
               <Text style={styles.helperText}>
@@ -818,6 +746,78 @@ export default function CreateListingScreen() {
                   Measure the box or package in inches (in). Length × Width × Height
                 </Text>
               </View>
+            )}
+
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.fulfilmentToggleContainer}
+                onPress={() => setRequiresAgreement(!requiresAgreement)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.fulfilmentToggleLeft}>
+                  <FileText size={20} color={colors.primary} />
+                  <View style={styles.fulfilmentToggleTextContainer}>
+                    <Text style={styles.fulfilmentToggleLabel}>Require Service Agreement</Text>
+                    <Text style={styles.fulfilmentToggleDescription}>
+                      Customer must accept platform agreement at checkout
+                    </Text>
+                  </View>
+                </View>
+                <View style={[
+                  styles.toggleSwitch,
+                  requiresAgreement && styles.toggleSwitchActive
+                ]}>
+                  <View style={[
+                    styles.toggleThumb,
+                    requiresAgreement && styles.toggleThumbActive
+                  ]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.fulfilmentToggleContainer}
+                onPress={() => {
+                  setRequiresDamageDeposit(!requiresDamageDeposit);
+                  if (requiresDamageDeposit) {
+                    setDamageDepositAmount('');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.fulfilmentToggleLeft}>
+                  <DollarSign size={20} color={colors.primary} />
+                  <View style={styles.fulfilmentToggleTextContainer}>
+                    <Text style={styles.fulfilmentToggleLabel}>Require Damage Deposit</Text>
+                    <Text style={styles.fulfilmentToggleDescription}>
+                      Refundable deposit to cover potential damages
+                    </Text>
+                  </View>
+                </View>
+                <View style={[
+                  styles.toggleSwitch,
+                  requiresDamageDeposit && styles.toggleSwitchActive
+                ]}>
+                  <View style={[
+                    styles.toggleThumb,
+                    requiresDamageDeposit && styles.toggleThumbActive
+                  ]} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {requiresDamageDeposit && (
+              <Input
+                label="Damage Deposit Amount"
+                placeholder="0"
+                value={damageDepositAmount}
+                onChangeText={setDamageDepositAmount}
+                keyboardType="numeric"
+                leftIcon={<DollarSign size={20} color={colors.textSecondary} />}
+                error={errors.damageDeposit}
+                helperText="Refundable amount held to cover potential damages. Will be automatically released if no damage is reported within 48 hours."
+              />
             )}
           </>
         )}
