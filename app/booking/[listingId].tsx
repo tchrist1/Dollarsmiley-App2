@@ -19,7 +19,14 @@ import { Button } from '@/components/Button';
 import { StripePaymentSheet } from '@/components/StripePaymentSheet';
 import { PaymentConfirmation } from '@/components/PaymentConfirmation';
 import DepositPaymentOption from '@/components/DepositPaymentOption';
-import { ArrowLeft, Clock, MapPin, DollarSign, CreditCard, CheckCircle, Shield, Info, Wallet } from 'lucide-react-native';
+import { ArrowLeft, Clock, MapPin, DollarSign, CreditCard, CheckCircle, Shield, Info, Wallet, AlertTriangle, Package } from 'lucide-react-native';
+import {
+  checkInventoryAvailability,
+  createInventoryLock,
+  upgradeLockToHard,
+  releaseInventoryLock,
+  InventoryAvailability,
+} from '@/lib/inventory-locking';
 import { formatCurrency } from '@/lib/currency-utils';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
@@ -46,12 +53,24 @@ export default function BookingScreen() {
   const [processing, setProcessing] = useState(false);
   const [paymentIntentId, setPaymentIntentId] = useState<string>('');
   const [clientSecret, setClientSecret] = useState<string>('');
+  const [inventoryAvailability, setInventoryAvailability] = useState<InventoryAvailability | null>(null);
+  const [softLockId, setSoftLockId] = useState<string | null>(null);
+  const [checkingInventory, setCheckingInventory] = useState(false);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (listingId) {
       fetchListingDetails();
     }
   }, [listingId]);
+
+  useEffect(() => {
+    return () => {
+      if (softLockId) {
+        releaseInventoryLock(softLockId).catch(console.error);
+      }
+    };
+  }, [softLockId]);
 
   const fetchListingDetails = async () => {
     const { data: listingData, error } = await supabase
@@ -93,11 +112,81 @@ export default function BookingScreen() {
 
   const canProceedToPayment = selectedDate && selectedTime && location.trim();
 
-  const handleProceedToPayment = () => {
+  const checkAndLockInventory = async (): Promise<boolean> => {
+    if (!listing || !profile || !selectedDate) return true;
+
+    const inventoryMode = (listing as any).inventory_mode;
+    if (!inventoryMode || inventoryMode === 'none') {
+      return true;
+    }
+
+    setCheckingInventory(true);
+    setInventoryError(null);
+
+    try {
+      const startDate = selectedDate;
+      const endDate = new Date(selectedDate);
+      endDate.setDate(endDate.getDate() + 1);
+
+      const availability = await checkInventoryAvailability(
+        listing.id,
+        1,
+        startDate.toISOString(),
+        endDate.toISOString()
+      );
+
+      setInventoryAvailability(availability);
+
+      if (!availability.available) {
+        setInventoryError(
+          availability.reason ||
+            'This item is not available for the selected date. Please choose a different date.'
+        );
+        return false;
+      }
+
+      if (softLockId) {
+        await releaseInventoryLock(softLockId);
+      }
+
+      const lockResult = await createInventoryLock(
+        listing.id,
+        1,
+        'soft',
+        profile.id,
+        {
+          pickupAt: startDate.toISOString(),
+          dropoffAt: endDate.toISOString(),
+        }
+      );
+
+      if (lockResult.success && lockResult.lock_id) {
+        setSoftLockId(lockResult.lock_id);
+        return true;
+      } else {
+        setInventoryError(lockResult.error || 'Unable to reserve this item. It may have just been booked by someone else.');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking inventory:', error);
+      setInventoryError('Unable to check availability. Please try again.');
+      return false;
+    } finally {
+      setCheckingInventory(false);
+    }
+  };
+
+  const handleProceedToPayment = async () => {
     if (!canProceedToPayment) {
       Alert.alert('Missing Information', 'Please select a date, time, and confirm the location');
       return;
     }
+
+    const inventoryOk = await checkAndLockInventory();
+    if (!inventoryOk) {
+      return;
+    }
+
     setStep('payment');
   };
 
@@ -146,6 +235,11 @@ export default function BookingScreen() {
 
       setBookingId(bookingData.id);
 
+      if (softLockId) {
+        await upgradeLockToHard(softLockId, bookingData.id);
+        setSoftLockId(null);
+      }
+
       if (paymentMethod === 'stripe') {
         const apiUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/${paymentType === 'deposit' ? 'create-deposit-payment' : 'create-payment-intent'}`;
         const { data: session } = await supabase.auth.getSession();
@@ -179,7 +273,7 @@ export default function BookingScreen() {
       } else if (paymentMethod === 'wallet') {
         const { data: walletData } = await supabase
           .from('wallets')
-          .select('available_balance')
+          .select('id, available_balance')
           .eq('user_id', profile.id)
           .single();
 
@@ -320,15 +414,32 @@ export default function BookingScreen() {
         />
       </View>
 
+      {inventoryError && (
+        <View style={styles.inventoryError}>
+          <AlertTriangle size={18} color="#EF4444" />
+          <Text style={styles.inventoryErrorText}>{inventoryError}</Text>
+        </View>
+      )}
+
+      {inventoryAvailability && inventoryAvailability.available && (
+        <View style={styles.inventorySuccess}>
+          <Package size={18} color={colors.success} />
+          <Text style={styles.inventorySuccessText}>
+            {inventoryAvailability.available_quantity} unit{inventoryAvailability.available_quantity !== 1 ? 's' : ''} available
+          </Text>
+        </View>
+      )}
+
       <Text style={styles.smsOptInText}>
         I agree to receive SMS alerts about jobs, bookings, and account updates. Msg & data rates may apply. Reply STOP to opt out.
       </Text>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg }]}>
         <Button
-          title="Continue to Payment"
+          title={checkingInventory ? "Checking Availability..." : "Continue to Payment"}
           onPress={handleProceedToPayment}
-          disabled={!canProceedToPayment}
+          disabled={!canProceedToPayment || checkingInventory}
+          loading={checkingInventory}
         />
       </View>
     </ScrollView>
@@ -961,5 +1072,37 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.md,
     textAlign: 'left',
+  },
+  inventoryError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+  },
+  inventoryErrorText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: '#EF4444',
+    lineHeight: 18,
+  },
+  inventorySuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.success + '15',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+  },
+  inventorySuccessText: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: colors.success,
+    fontWeight: fontWeight.medium,
   },
 });

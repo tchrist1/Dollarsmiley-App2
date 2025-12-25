@@ -14,7 +14,7 @@ import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText } from 'lucide-react-native';
+import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock } from 'lucide-react-native';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -59,6 +59,12 @@ export default function CreateListingScreen() {
   const [requiresDamageDeposit, setRequiresDamageDeposit] = useState(false);
   const [damageDepositAmount, setDamageDepositAmount] = useState('');
 
+  const [inventoryMode, setInventoryMode] = useState<'none' | 'quantity' | 'rental'>('none');
+  const [stockQuantity, setStockQuantity] = useState('');
+  const [lowStockThreshold, setLowStockThreshold] = useState('');
+  const [rentalPricingModel, setRentalPricingModel] = useState<'flat' | 'per_day' | 'per_hour'>('per_day');
+  const [turnaroundHours, setTurnaroundHours] = useState('2');
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const hasFormData = () => {
@@ -83,7 +89,10 @@ export default function CreateListingScreen() {
       fulfillmentWindow !== '' ||
       requiresAgreement !== false ||
       requiresDamageDeposit !== false ||
-      damageDepositAmount !== ''
+      damageDepositAmount !== '' ||
+      inventoryMode !== 'none' ||
+      stockQuantity !== '' ||
+      lowStockThreshold !== ''
     );
   };
 
@@ -113,6 +122,11 @@ export default function CreateListingScreen() {
     setRequiresAgreement(false);
     setRequiresDamageDeposit(false);
     setDamageDepositAmount('');
+    setInventoryMode('none');
+    setStockQuantity('');
+    setLowStockThreshold('');
+    setRentalPricingModel('per_day');
+    setTurnaroundHours('2');
     setErrors({});
   };
 
@@ -184,6 +198,14 @@ export default function CreateListingScreen() {
       }
     }
 
+    if (inventoryMode !== 'none') {
+      if (!stockQuantity || isNaN(Number(stockQuantity))) {
+        newErrors.stockQuantity = 'Valid quantity is required';
+      } else if (Number(stockQuantity) < 1) {
+        newErrors.stockQuantity = 'Quantity must be at least 1';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -232,7 +254,18 @@ export default function CreateListingScreen() {
       requires_agreement: requiresAgreement,
       requires_damage_deposit: requiresDamageDeposit,
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
+      inventory_mode: inventoryMode,
     };
+
+    if (inventoryMode !== 'none') {
+      listingData.stock_quantity = Number(stockQuantity);
+      listingData.low_stock_threshold = lowStockThreshold ? Number(lowStockThreshold) : null;
+    }
+
+    if (inventoryMode === 'rental') {
+      listingData.rental_pricing_model = rentalPricingModel;
+      listingData.turnaround_buffer_hours = Number(turnaroundHours) || 2;
+    }
 
     if (requiresFulfilment) {
       listingData.fulfillment_window_days = Number(fulfillmentWindow);
@@ -834,6 +867,181 @@ export default function CreateListingScreen() {
           </>
         )}
 
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Inventory Mode</Text>
+          <Text style={styles.helperText}>
+            Track stock levels and prevent overbooking
+          </Text>
+          <View style={styles.inventoryModeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.inventoryModeOption,
+                inventoryMode === 'none' && styles.inventoryModeOptionActive,
+              ]}
+              onPress={() => {
+                setInventoryMode('none');
+                setStockQuantity('');
+                setLowStockThreshold('');
+              }}
+            >
+              <Text
+                style={[
+                  styles.inventoryModeText,
+                  inventoryMode === 'none' && styles.inventoryModeTextActive,
+                ]}
+              >
+                None
+              </Text>
+              <Text style={[
+                styles.inventoryModeDesc,
+                inventoryMode === 'none' && styles.inventoryModeDescActive,
+              ]}>
+                No stock tracking
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.inventoryModeOption,
+                inventoryMode === 'quantity' && styles.inventoryModeOptionActive,
+              ]}
+              onPress={() => setInventoryMode('quantity')}
+            >
+              <Boxes size={18} color={inventoryMode === 'quantity' ? colors.white : colors.textSecondary} />
+              <Text
+                style={[
+                  styles.inventoryModeText,
+                  inventoryMode === 'quantity' && styles.inventoryModeTextActive,
+                ]}
+              >
+                Quantity
+              </Text>
+              <Text style={[
+                styles.inventoryModeDesc,
+                inventoryMode === 'quantity' && styles.inventoryModeDescActive,
+              ]}>
+                Track available units
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.inventoryModeOption,
+                inventoryMode === 'rental' && styles.inventoryModeOptionActive,
+              ]}
+              onPress={() => setInventoryMode('rental')}
+            >
+              <CalendarClock size={18} color={inventoryMode === 'rental' ? colors.white : colors.textSecondary} />
+              <Text
+                style={[
+                  styles.inventoryModeText,
+                  inventoryMode === 'rental' && styles.inventoryModeTextActive,
+                ]}
+              >
+                Rental
+              </Text>
+              <Text style={[
+                styles.inventoryModeDesc,
+                inventoryMode === 'rental' && styles.inventoryModeDescActive,
+              ]}>
+                Time-based availability
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {inventoryMode !== 'none' && (
+          <View style={styles.section}>
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Input
+                  label="Stock Quantity"
+                  placeholder="1"
+                  value={stockQuantity}
+                  onChangeText={setStockQuantity}
+                  keyboardType="numeric"
+                  error={errors.stockQuantity}
+                />
+              </View>
+              <View style={styles.halfWidth}>
+                <Input
+                  label="Low Stock Alert"
+                  placeholder="Optional"
+                  value={lowStockThreshold}
+                  onChangeText={setLowStockThreshold}
+                  keyboardType="numeric"
+                  helperText="Alert when below"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {inventoryMode === 'rental' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Rental Pricing</Text>
+            <View style={styles.rentalPricingContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.rentalPricingOption,
+                  rentalPricingModel === 'flat' && styles.rentalPricingOptionActive,
+                ]}
+                onPress={() => setRentalPricingModel('flat')}
+              >
+                <Text
+                  style={[
+                    styles.rentalPricingText,
+                    rentalPricingModel === 'flat' && styles.rentalPricingTextActive,
+                  ]}
+                >
+                  Flat Rate
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.rentalPricingOption,
+                  rentalPricingModel === 'per_day' && styles.rentalPricingOptionActive,
+                ]}
+                onPress={() => setRentalPricingModel('per_day')}
+              >
+                <Text
+                  style={[
+                    styles.rentalPricingText,
+                    rentalPricingModel === 'per_day' && styles.rentalPricingTextActive,
+                  ]}
+                >
+                  Per Day
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.rentalPricingOption,
+                  rentalPricingModel === 'per_hour' && styles.rentalPricingOptionActive,
+                ]}
+                onPress={() => setRentalPricingModel('per_hour')}
+              >
+                <Text
+                  style={[
+                    styles.rentalPricingText,
+                    rentalPricingModel === 'per_hour' && styles.rentalPricingTextActive,
+                  ]}
+                >
+                  Per Hour
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <Input
+              label="Turnaround Time (hours)"
+              placeholder="2"
+              value={turnaroundHours}
+              onChangeText={setTurnaroundHours}
+              keyboardType="numeric"
+              helperText="Buffer time between rentals for prep/cleaning"
+            />
+          </View>
+        )}
+
         <Text style={styles.smsOptInText}>
           I agree to receive SMS alerts about jobs, bookings, and account updates. Msg & data rates may apply. Reply STOP to opt out.
         </Text>
@@ -1161,5 +1369,68 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
     fontStyle: 'italic',
+  },
+  inventoryModeContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  inventoryModeOption: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  inventoryModeOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  inventoryModeText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+  },
+  inventoryModeTextActive: {
+    color: colors.white,
+  },
+  inventoryModeDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  inventoryModeDescActive: {
+    color: colors.white,
+    opacity: 0.9,
+  },
+  rentalPricingContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  rentalPricingOption: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+  },
+  rentalPricingOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  rentalPricingText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  rentalPricingTextActive: {
+    color: colors.white,
   },
 });
