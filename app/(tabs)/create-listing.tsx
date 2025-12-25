@@ -53,7 +53,7 @@ export default function CreateListingScreen() {
   const [itemLength, setItemLength] = useState('');
   const [itemWidth, setItemWidth] = useState('');
   const [itemHeight, setItemHeight] = useState('');
-  const [fulfillmentWindow, setFulfillmentWindow] = useState('7');
+  const [fulfillmentWindow, setFulfillmentWindow] = useState('');
 
   const [requiresAgreement, setRequiresAgreement] = useState(false);
   const [requiresDamageDeposit, setRequiresDamageDeposit] = useState(false);
@@ -80,7 +80,7 @@ export default function CreateListingScreen() {
       itemLength !== '' ||
       itemWidth !== '' ||
       itemHeight !== '' ||
-      fulfillmentWindow !== '7' ||
+      fulfillmentWindow !== '' ||
       requiresAgreement !== false ||
       requiresDamageDeposit !== false ||
       damageDepositAmount !== ''
@@ -109,7 +109,7 @@ export default function CreateListingScreen() {
     setItemLength('');
     setItemWidth('');
     setItemHeight('');
-    setFulfillmentWindow('7');
+    setFulfillmentWindow('');
     setRequiresAgreement(false);
     setRequiresDamageDeposit(false);
     setDamageDepositAmount('');
@@ -155,16 +155,24 @@ export default function CreateListingScreen() {
     }
     if (availableDays.length === 0) newErrors.availability = 'Select at least one available day';
 
-    if (requiresFulfilment && fulfillmentType.length === 0) {
-      newErrors.fulfillment = 'Select at least one fulfillment method when fulfillment is required';
-    }
-
-    if (requiresFulfilment && fulfillmentType.includes('Shipping')) {
-      if (!itemWeight || isNaN(Number(itemWeight))) {
-        newErrors.itemWeight = 'Valid weight is required for shipping';
+    if (requiresFulfilment) {
+      if (!fulfillmentWindow || isNaN(Number(fulfillmentWindow))) {
+        newErrors.fulfillmentWindow = 'Valid fulfillment timeline is required when fulfillment is enabled';
+      } else if (Number(fulfillmentWindow) < 1) {
+        newErrors.fulfillmentWindow = 'Fulfillment timeline must be at least 1 business day';
       }
-      if (!itemLength || !itemWidth || !itemHeight) {
-        newErrors.dimensions = 'All dimensions are required for shipping';
+
+      if (fulfillmentType.length === 0) {
+        newErrors.fulfillment = 'Select at least one fulfillment method when fulfillment is required';
+      }
+
+      if (fulfillmentType.includes('Shipping')) {
+        if (!itemWeight || isNaN(Number(itemWeight))) {
+          newErrors.itemWeight = 'Valid weight is required for shipping';
+        }
+        if (!itemLength || !itemWidth || !itemHeight) {
+          newErrors.dimensions = 'All dimensions are required for shipping';
+        }
       }
     }
 
@@ -173,12 +181,6 @@ export default function CreateListingScreen() {
         newErrors.damageDeposit = 'Valid deposit amount is required';
       } else if (Number(damageDepositAmount) <= 0) {
         newErrors.damageDeposit = 'Deposit amount must be greater than 0';
-      }
-    }
-
-    if (listingType === 'CustomService') {
-      if (!fulfillmentWindow || isNaN(Number(fulfillmentWindow))) {
-        newErrors.fulfillmentWindow = 'Valid fulfillment window is required';
       }
     }
 
@@ -232,19 +234,19 @@ export default function CreateListingScreen() {
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
     };
 
-    if (requiresFulfilment && fulfillmentType.includes('Shipping')) {
-      listingData.item_weight_oz = itemWeight ? Number(itemWeight) : null;
-      if (itemLength && itemWidth && itemHeight) {
-        listingData.item_dimensions = {
-          length: Number(itemLength),
-          width: Number(itemWidth),
-          height: Number(itemHeight),
-        };
-      }
-    }
-
-    if (listingType === 'CustomService') {
+    if (requiresFulfilment) {
       listingData.fulfillment_window_days = Number(fulfillmentWindow);
+
+      if (fulfillmentType.includes('Shipping')) {
+        listingData.item_weight_oz = itemWeight ? Number(itemWeight) : null;
+        if (itemLength && itemWidth && itemHeight) {
+          listingData.item_dimensions = {
+            length: Number(itemLength),
+            width: Number(itemWidth),
+            height: Number(itemHeight),
+          };
+        }
+      }
     }
 
     const { data, error } = await supabase
@@ -594,6 +596,16 @@ export default function CreateListingScreen() {
 
         {requiresFulfilment && (
           <>
+            <Input
+              label="Fulfillment Timeline (business days)"
+              placeholder="7"
+              value={fulfillmentWindow}
+              onChangeText={setFulfillmentWindow}
+              keyboardType="numeric"
+              error={errors.fulfillmentWindow}
+              helperText="Number of business days from order confirmation to when the service will be ready for delivery or pickup"
+            />
+
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Fulfillment Methods</Text>
               <Text style={styles.helperText}>
@@ -820,18 +832,6 @@ export default function CreateListingScreen() {
               />
             )}
           </>
-        )}
-
-        {listingType === 'CustomService' && (
-          <Input
-            label="Fulfillment Timeline (business days)"
-            placeholder="7"
-            value={fulfillmentWindow}
-            onChangeText={setFulfillmentWindow}
-            keyboardType="numeric"
-            error={errors.fulfillmentWindow}
-            helperText="Number of business days from order confirmation to when the completed item is ready for delivery (excludes shipping time)"
-          />
         )}
 
         <Text style={styles.smsOptInText}>
