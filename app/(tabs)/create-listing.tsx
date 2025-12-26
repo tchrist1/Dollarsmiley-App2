@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Ale
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAiAssist, meetsAiThreshold } from '@/hooks/useAiAssist';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
@@ -22,17 +23,10 @@ export default function CreateListingScreen() {
   const [loading, setLoading] = useState(false);
   const [listingId, setListingId] = useState<string | null>(null);
 
-  const [aiAssistEnabled, setAiAssistEnabled] = useState(true);
+  const { aiAssistEnabled, toggleAiAssist } = useAiAssist();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-
-  const meetsAiThreshold = (text: string): boolean => {
-    const trimmed = text.trim();
-    const wordCount = trimmed.split(/\s+/).filter(word => word.length > 0).length;
-    const charCount = trimmed.replace(/\s/g, '').length;
-    return wordCount >= 2 || charCount >= 12;
-  };
 
   const canUseAi = aiAssistEnabled && meetsAiThreshold(title);
   const [categoryId, setCategoryId] = useState('');
@@ -376,7 +370,7 @@ export default function CreateListingScreen() {
           </View>
           <TouchableOpacity
             style={[styles.toggleButton, aiAssistEnabled && styles.toggleButtonActive]}
-            onPress={() => setAiAssistEnabled(!aiAssistEnabled)}
+            onPress={toggleAiAssist}
           >
             <View style={[styles.toggleCircle, aiAssistEnabled && styles.toggleCircleActive]} />
           </TouchableOpacity>
@@ -580,6 +574,14 @@ export default function CreateListingScreen() {
           photos={photos}
           onPhotosChange={setPhotos}
           maxPhotos={5}
+          aiAssistEnabled={aiAssistEnabled}
+          onAiImageAssist={() => {
+            Alert.alert(
+              'AI Image Assist',
+              'AI Image generation is coming soon. For now, please upload photos manually.',
+              [{ text: 'OK' }]
+            );
+          }}
         />
 
         <AvailabilityCalendar

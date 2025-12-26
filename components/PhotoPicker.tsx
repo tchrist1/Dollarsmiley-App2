@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Pla
 import * as ImagePicker from 'expo-image-picker';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
-import { Camera, X, Star, GripVertical } from 'lucide-react-native';
+import { Camera, X, Star, GripVertical, Sparkles } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
 interface PhotoPickerProps {
@@ -13,6 +13,8 @@ interface PhotoPickerProps {
   onPhotosChange: (photos: string[]) => void;
   maxPhotos?: number;
   error?: string;
+  aiAssistEnabled?: boolean;
+  onAiImageAssist?: () => void;
 }
 
 interface DraggablePhotoProps {
@@ -117,7 +119,9 @@ export function PhotoPicker({
   photos,
   onPhotosChange,
   maxPhotos = 5,
-  error
+  error,
+  aiAssistEnabled = false,
+  onAiImageAssist,
 }: PhotoPickerProps) {
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
@@ -240,6 +244,30 @@ export function PhotoPicker({
             {photos.length}/{maxPhotos}
           </Text>
         </TouchableOpacity>
+
+        {onAiImageAssist && (
+          <TouchableOpacity
+            style={[
+              styles.aiImageButton,
+              !aiAssistEnabled && styles.aiImageButtonDisabled,
+            ]}
+            onPress={aiAssistEnabled ? onAiImageAssist : undefined}
+            activeOpacity={aiAssistEnabled ? 0.7 : 1}
+          >
+            <Sparkles size={28} color={aiAssistEnabled ? colors.primary : colors.textLight} />
+            <Text style={[
+              styles.aiImageButtonText,
+              !aiAssistEnabled && styles.aiImageButtonTextDisabled,
+            ]}>
+              AI Image Assist
+            </Text>
+            {!aiAssistEnabled && (
+              <Text style={styles.aiImageDisabledHint}>
+                Enable AI Assist
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {photos.map((photo, index) => (
           <DraggablePhoto
@@ -398,5 +426,37 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  aiImageButton: {
+    width: 120,
+    height: 120,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}08`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  aiImageButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  aiImageButtonText: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    marginTop: spacing.xs,
+    fontWeight: fontWeight.medium,
+    textAlign: 'center',
+  },
+  aiImageButtonTextDisabled: {
+    color: colors.textLight,
+  },
+  aiImageDisabledHint: {
+    fontSize: 9,
+    color: colors.textLight,
+    marginTop: 2,
+    textAlign: 'center',
   },
 });

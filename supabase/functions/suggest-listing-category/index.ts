@@ -112,6 +112,30 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user } } = await supabase.auth.getUser(token);
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("ai_assist_enabled")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile && profile.ai_assist_enabled === false) {
+          return new Response(
+            JSON.stringify({ error: "AI Assist is disabled. Enable it in Settings to use AI features." }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        }
+      }
+    }
+
     const { title, description } = await req.json();
 
     if (!title && !description) {

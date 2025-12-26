@@ -34,6 +34,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("ai_assist_enabled")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile && profile.ai_assist_enabled === false) {
+      return new Response(
+        JSON.stringify({ error: "AI Assist is disabled. Enable it in Settings to use AI features." }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const body = await req.json();
     const { prompt, maxTokens = 500 } = body;
 

@@ -42,6 +42,7 @@ export interface Profile {
   verification_status?: 'Unverified' | 'Pending' | 'Verified' | 'Rejected';
   verified_at?: string;
   admin_mode?: boolean;
+  ai_assist_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
