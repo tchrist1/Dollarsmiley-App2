@@ -60,7 +60,8 @@ export default function CreateListingScreen() {
   const [damageDepositAmount, setDamageDepositAmount] = useState('');
   const [proofingRequired, setProofingRequired] = useState(false);
 
-  const [inventoryMode, setInventoryMode] = useState<'none' | 'quantity' | 'rental'>('none');
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [inventoryMode, setInventoryMode] = useState<'quantity' | 'rental'>('quantity');
   const [stockQuantity, setStockQuantity] = useState('');
   const [lowStockThreshold, setLowStockThreshold] = useState('');
   const [rentalPricingModel, setRentalPricingModel] = useState<'flat' | 'per_day' | 'per_hour'>('per_day');
@@ -92,7 +93,7 @@ export default function CreateListingScreen() {
       requiresDamageDeposit !== false ||
       damageDepositAmount !== '' ||
       proofingRequired !== false ||
-      inventoryMode !== 'none' ||
+      inventoryEnabled !== false ||
       stockQuantity !== '' ||
       lowStockThreshold !== ''
     );
@@ -125,7 +126,8 @@ export default function CreateListingScreen() {
     setRequiresDamageDeposit(false);
     setDamageDepositAmount('');
     setProofingRequired(false);
-    setInventoryMode('none');
+    setInventoryEnabled(false);
+    setInventoryMode('quantity');
     setStockQuantity('');
     setLowStockThreshold('');
     setRentalPricingModel('per_day');
@@ -201,9 +203,9 @@ export default function CreateListingScreen() {
       }
     }
 
-    if (inventoryMode !== 'none') {
+    if (inventoryEnabled) {
       if (!stockQuantity || isNaN(Number(stockQuantity))) {
-        newErrors.stockQuantity = 'Valid quantity is required';
+        newErrors.stockQuantity = 'Valid quantity is required when inventory is enabled';
       } else if (Number(stockQuantity) < 1) {
         newErrors.stockQuantity = 'Quantity must be at least 1';
       }
@@ -258,15 +260,15 @@ export default function CreateListingScreen() {
       requires_damage_deposit: requiresDamageDeposit,
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
       proofing_required: listingType === 'CustomService' ? proofingRequired : false,
-      inventory_mode: inventoryMode,
+      inventory_mode: inventoryEnabled ? inventoryMode : 'none',
     };
 
-    if (inventoryMode !== 'none') {
+    if (inventoryEnabled) {
       listingData.stock_quantity = Number(stockQuantity);
       listingData.low_stock_threshold = lowStockThreshold ? Number(lowStockThreshold) : null;
     }
 
-    if (inventoryMode === 'rental') {
+    if (inventoryEnabled && inventoryMode === 'rental') {
       listingData.rental_pricing_model = rentalPricingModel;
       listingData.turnaround_buffer_hours = Number(turnaroundHours) || 2;
     }
@@ -800,89 +802,94 @@ export default function CreateListingScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Inventory Mode</Text>
-          <Text style={styles.helperText}>
-            Track stock levels and prevent overbooking
-          </Text>
-          <View style={styles.inventoryModeContainer}>
-            <TouchableOpacity
-              style={[
-                styles.inventoryModeOption,
-                inventoryMode === 'none' && styles.inventoryModeOptionActive,
-              ]}
-              onPress={() => {
-                setInventoryMode('none');
+          <TouchableOpacity
+            style={styles.fulfilmentToggleContainer}
+            onPress={() => {
+              setInventoryEnabled(!inventoryEnabled);
+              if (inventoryEnabled) {
                 setStockQuantity('');
                 setLowStockThreshold('');
-              }}
-            >
-              <Text
-                style={[
-                  styles.inventoryModeText,
-                  inventoryMode === 'none' && styles.inventoryModeTextActive,
-                ]}
-              >
-                None
-              </Text>
-              <Text style={[
-                styles.inventoryModeDesc,
-                inventoryMode === 'none' && styles.inventoryModeDescActive,
-              ]}>
-                No stock tracking
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.inventoryModeOption,
-                inventoryMode === 'quantity' && styles.inventoryModeOptionActive,
-              ]}
-              onPress={() => setInventoryMode('quantity')}
-            >
-              <Boxes size={18} color={inventoryMode === 'quantity' ? colors.white : colors.textSecondary} />
-              <Text
-                style={[
-                  styles.inventoryModeText,
-                  inventoryMode === 'quantity' && styles.inventoryModeTextActive,
-                ]}
-              >
-                Quantity
-              </Text>
-              <Text style={[
-                styles.inventoryModeDesc,
-                inventoryMode === 'quantity' && styles.inventoryModeDescActive,
-              ]}>
-                Track available units
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.inventoryModeOption,
-                inventoryMode === 'rental' && styles.inventoryModeOptionActive,
-              ]}
-              onPress={() => setInventoryMode('rental')}
-            >
-              <CalendarClock size={18} color={inventoryMode === 'rental' ? colors.white : colors.textSecondary} />
-              <Text
-                style={[
-                  styles.inventoryModeText,
-                  inventoryMode === 'rental' && styles.inventoryModeTextActive,
-                ]}
-              >
-                Rental
-              </Text>
-              <Text style={[
-                styles.inventoryModeDesc,
-                inventoryMode === 'rental' && styles.inventoryModeDescActive,
-              ]}>
-                Time-based availability
-              </Text>
-            </TouchableOpacity>
-          </View>
+              }
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.fulfilmentToggleLeft}>
+              <Boxes size={20} color={colors.primary} />
+              <View style={styles.fulfilmentToggleTextContainer}>
+                <Text style={styles.fulfilmentToggleLabel}>Enable Inventory</Text>
+                <Text style={styles.fulfilmentToggleDescription}>
+                  Track availability and prevent overbooking for quantity-based or rental services
+                </Text>
+              </View>
+            </View>
+            <View style={[
+              styles.toggleSwitch,
+              inventoryEnabled && styles.toggleSwitchActive
+            ]}>
+              <View style={[
+                styles.toggleThumb,
+                inventoryEnabled && styles.toggleThumbActive
+              ]} />
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {inventoryMode !== 'none' && (
+        {inventoryEnabled && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Inventory Type</Text>
+            <View style={styles.inventoryModeContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.inventoryModeOption,
+                  inventoryMode === 'quantity' && styles.inventoryModeOptionActive,
+                ]}
+                onPress={() => setInventoryMode('quantity')}
+              >
+                <Boxes size={18} color={inventoryMode === 'quantity' ? colors.white : colors.textSecondary} />
+                <Text
+                  style={[
+                    styles.inventoryModeText,
+                    inventoryMode === 'quantity' && styles.inventoryModeTextActive,
+                  ]}
+                >
+                  Quantity
+                </Text>
+                <Text style={[
+                  styles.inventoryModeDesc,
+                  inventoryMode === 'quantity' && styles.inventoryModeDescActive,
+                ]}>
+                  Track available units
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.inventoryModeOption,
+                  inventoryMode === 'rental' && styles.inventoryModeOptionActive,
+                ]}
+                onPress={() => setInventoryMode('rental')}
+              >
+                <CalendarClock size={18} color={inventoryMode === 'rental' ? colors.white : colors.textSecondary} />
+                <Text
+                  style={[
+                    styles.inventoryModeText,
+                    inventoryMode === 'rental' && styles.inventoryModeTextActive,
+                  ]}
+                >
+                  Rental
+                </Text>
+                <Text style={[
+                  styles.inventoryModeDesc,
+                  inventoryMode === 'rental' && styles.inventoryModeDescActive,
+                ]}>
+                  Time-based availability with pickup & drop-off
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {inventoryEnabled && (
           <View style={styles.section}>
             <View style={styles.row}>
               <View style={styles.halfWidth}>
@@ -909,7 +916,7 @@ export default function CreateListingScreen() {
           </View>
         )}
 
-        {inventoryMode === 'rental' && (
+        {inventoryEnabled && inventoryMode === 'rental' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Rental Pricing</Text>
             <View style={styles.rentalPricingContainer}>
