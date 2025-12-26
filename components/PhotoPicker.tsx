@@ -259,7 +259,7 @@ export function PhotoPicker({
               styles.aiImageButtonText,
               !aiAssistEnabled && styles.aiImageButtonTextDisabled,
             ]}>
-              AI Image Assist
+              AI Photo Assist
             </Text>
             {!aiAssistEnabled && (
               <Text style={styles.aiImageDisabledHint}>

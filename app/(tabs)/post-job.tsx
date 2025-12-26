@@ -525,8 +525,8 @@ export default function PostJobScreen() {
           aiAssistEnabled={aiAssistEnabled}
           onAiImageAssist={() => {
             Alert.alert(
-              'AI Image Assist',
-              'AI Image generation is coming soon. For now, please upload photos manually.',
+              'AI Photo Assist',
+              'AI Photo Assist is coming soon. For now, please upload photos manually.',
               [{ text: 'OK' }]
             );
           }}
