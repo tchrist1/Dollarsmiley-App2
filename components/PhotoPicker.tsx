@@ -8,6 +8,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 
 interface PhotoPickerProps {
   label?: string;
+  helperText?: string;
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
   maxPhotos?: number;
@@ -112,6 +113,7 @@ function DraggablePhoto({ photo, index, isFeatured, onRemove, onMove, totalPhoto
 
 export function PhotoPicker({
   label,
+  helperText,
   photos,
   onPhotosChange,
   maxPhotos = 5,
@@ -253,7 +255,7 @@ export function PhotoPicker({
       </ScrollView>
       {error && <Text style={styles.error}>{error}</Text>}
       <Text style={styles.helperText}>
-        You can add up to {maxPhotos} photos at once. The first photo will be the main display image.
+        {helperText || `You can add up to ${maxPhotos} photos at once. The first photo will be the main display image.`}
       </Text>
     </View>
   );

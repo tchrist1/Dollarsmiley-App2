@@ -523,7 +523,8 @@ export default function PostJobScreen() {
         )}
 
         <PhotoPicker
-          label="Photos (optional)"
+          label="Job Photos"
+          helperText="Upload photos that help providers understand the job (space, damage, setup, or requirements)."
           photos={photos}
           onPhotosChange={setPhotos}
           maxPhotos={5}

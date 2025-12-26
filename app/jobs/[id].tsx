@@ -332,13 +332,16 @@ export default function JobDetailScreen() {
         </View>
 
         {photos.length > 0 && (
-          <ScrollView horizontal style={styles.photosContainer} showsHorizontalScrollIndicator={false}>
-            {photos.map((photo, index) => (
-              <View key={index} style={styles.photoWrapper}>
-                <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
-              </View>
-            ))}
-          </ScrollView>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Job Photos</Text>
+            <ScrollView horizontal style={styles.photosContainer} showsHorizontalScrollIndicator={false}>
+              {photos.map((photo, index) => (
+                <View key={index} style={styles.photoWrapper}>
+                  <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" />
+                </View>
+              ))}
+            </ScrollView>
+          </View>
         )}
 
         <View style={styles.section}>
