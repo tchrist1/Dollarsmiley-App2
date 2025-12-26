@@ -14,6 +14,7 @@ import { AvailabilityCalendar } from '@/components/AvailabilityCalendar';
 import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
+import AIPhotoAssistModal from '@/components/AIPhotoAssistModal';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock, CheckCircle2 } from 'lucide-react-native';
 
@@ -62,6 +63,7 @@ export default function CreateListingScreen() {
   const [turnaroundHours, setTurnaroundHours] = useState('2');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showAiPhotoModal, setShowAiPhotoModal] = useState(false);
 
   const hasFormData = () => {
     return (
@@ -127,6 +129,7 @@ export default function CreateListingScreen() {
     setRentalPricingModel('per_day');
     setTurnaroundHours('2');
     setErrors({});
+    setShowAiPhotoModal(false);
   };
 
   const handleClearAll = () => {
@@ -575,13 +578,20 @@ export default function CreateListingScreen() {
           onPhotosChange={setPhotos}
           maxPhotos={5}
           aiAssistEnabled={aiAssistEnabled}
-          onAiImageAssist={() => {
-            Alert.alert(
-              'AI Photo Assist',
-              'AI Photo Assist is coming soon. For now, please upload photos manually.',
-              [{ text: 'OK' }]
-            );
+          onAiImageAssist={() => setShowAiPhotoModal(true)}
+        />
+
+        <AIPhotoAssistModal
+          visible={showAiPhotoModal}
+          onClose={() => setShowAiPhotoModal(false)}
+          onPhotoGenerated={(photoUrl) => {
+            if (photos.length < 5) {
+              setPhotos([...photos, photoUrl]);
+            }
           }}
+          context={title ? `Service listing: ${title}` : undefined}
+          maxPhotos={5}
+          currentPhotoCount={photos.length}
         />
 
         <AvailabilityCalendar

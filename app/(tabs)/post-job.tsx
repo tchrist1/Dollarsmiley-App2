@@ -14,6 +14,7 @@ import { PhotoPicker } from '@/components/PhotoPicker';
 import AddressInput, { AddressData } from '@/components/AddressInput';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
+import AIPhotoAssistModal from '@/components/AIPhotoAssistModal';
 import TimeSlotPicker from '@/components/TimeSlotPicker';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { MapPin, DollarSign, FileText, Tag, Clock, RotateCcw, Sparkles } from 'lucide-react-native';
@@ -52,6 +53,7 @@ export default function PostJobScreen() {
   const [estimatedDuration, setEstimatedDuration] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showAiPhotoModal, setShowAiPhotoModal] = useState(false);
 
   const timeOptions = ['Morning', 'Afternoon', 'Evening', 'Flexible'];
 
@@ -104,6 +106,7 @@ export default function PostJobScreen() {
     setSpecificTimeSlot('');
     setPricingType('quote_based');
     setErrors({});
+    setShowAiPhotoModal(false);
   };
 
   const handleClearAll = () => {
@@ -523,13 +526,20 @@ export default function PostJobScreen() {
           onPhotosChange={setPhotos}
           maxPhotos={5}
           aiAssistEnabled={aiAssistEnabled}
-          onAiImageAssist={() => {
-            Alert.alert(
-              'AI Photo Assist',
-              'AI Photo Assist is coming soon. For now, please upload photos manually.',
-              [{ text: 'OK' }]
-            );
+          onAiImageAssist={() => setShowAiPhotoModal(true)}
+        />
+
+        <AIPhotoAssistModal
+          visible={showAiPhotoModal}
+          onClose={() => setShowAiPhotoModal(false)}
+          onPhotoGenerated={(photoUrl) => {
+            if (photos.length < 5) {
+              setPhotos([...photos, photoUrl]);
+            }
           }}
+          context={title ? `Job posting: ${title}` : undefined}
+          maxPhotos={5}
+          currentPhotoCount={photos.length}
         />
 
         <Text style={styles.smsOptInText}>
