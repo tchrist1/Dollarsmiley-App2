@@ -537,6 +537,13 @@ export default function PostJobScreen() {
               setPhotos([...photos, photoUrl]);
             }
           }}
+          onMultiplePhotosGenerated={(photoUrls) => {
+            const available = 5 - photos.length;
+            const toAdd = photoUrls.slice(0, available);
+            if (toAdd.length > 0) {
+              setPhotos([...photos, ...toAdd]);
+            }
+          }}
           context={title ? `Job posting: ${title}` : undefined}
           maxPhotos={5}
           currentPhotoCount={photos.length}

@@ -12,19 +12,25 @@ import {
   Dimensions,
 } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { Sparkles, X, RotateCcw, Check, ImagePlus, Wand2 } from 'lucide-react-native';
+import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
 interface AIPhotoAssistModalProps {
   visible: boolean;
   onClose: () => void;
   onPhotoGenerated: (photoUrl: string) => void;
+  onMultiplePhotosGenerated?: (photoUrls: string[]) => void;
   context?: string;
   maxPhotos?: number;
   currentPhotoCount?: number;
 }
 
-type ImageSize = '1024x1024' | '1792x1024' | '1024x1792';
+type ImageSize = '1024x1024' | '1536x1024' | '1024x1536';
+
+interface GeneratedImage {
+  imageUrl: string;
+  revisedPrompt: string;
+}
 
 const { width: screenWidth } = Dimensions.get('window');
 const imagePreviewSize = Math.min(screenWidth - spacing.lg * 4, 320);
@@ -33,6 +39,7 @@ export default function AIPhotoAssistModal({
   visible,
   onClose,
   onPhotoGenerated,
+  onMultiplePhotosGenerated,
   context,
   maxPhotos = 5,
   currentPhotoCount = 0,
@@ -40,11 +47,15 @@ export default function AIPhotoAssistModal({
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [revisedPrompt, setRevisedPrompt] = useState<string | null>(null);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedSize, setSelectedSize] = useState<ImageSize>('1024x1024');
+  const [photoCount, setPhotoCount] = useState(1);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
 
-  const canAddMore = currentPhotoCount < maxPhotos;
+  const remainingSlots = maxPhotos - currentPhotoCount;
+  const canAddMore = remainingSlots > 0;
+  const maxGeneratable = Math.min(5, remainingSlots);
 
   useEffect(() => {
     if (!visible) {
@@ -52,12 +63,20 @@ export default function AIPhotoAssistModal({
     }
   }, [visible]);
 
+  useEffect(() => {
+    if (photoCount > maxGeneratable) {
+      setPhotoCount(Math.max(1, maxGeneratable));
+    }
+  }, [maxGeneratable]);
+
   const resetState = () => {
     setPrompt('');
     setError(null);
-    setGeneratedImage(null);
-    setRevisedPrompt(null);
+    setGeneratedImages([]);
+    setSelectedImageIndex(0);
+    setSelectedPhotos(new Set());
     setLoading(false);
+    setPhotoCount(1);
   };
 
   const handleGenerate = async () => {
@@ -73,8 +92,9 @@ export default function AIPhotoAssistModal({
 
     setLoading(true);
     setError(null);
-    setGeneratedImage(null);
-    setRevisedPrompt(null);
+    setGeneratedImages([]);
+    setSelectedImageIndex(0);
+    setSelectedPhotos(new Set());
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -87,7 +107,7 @@ export default function AIPhotoAssistModal({
           prompt: prompt.trim(),
           context,
           size: selectedSize,
-          quality: 'standard',
+          count: photoCount,
         },
       });
 
@@ -99,12 +119,18 @@ export default function AIPhotoAssistModal({
         throw new Error(response.data.error);
       }
 
-      if (!response.data?.imageUrl) {
-        throw new Error('No image was generated. Please try again.');
+      if (response.data?.images && response.data.images.length > 0) {
+        setGeneratedImages(response.data.images);
+        setSelectedPhotos(new Set([0]));
+      } else if (response.data?.imageUrl) {
+        setGeneratedImages([{
+          imageUrl: response.data.imageUrl,
+          revisedPrompt: response.data.revisedPrompt || prompt,
+        }]);
+        setSelectedPhotos(new Set([0]));
+      } else {
+        throw new Error('No images were generated. Please try again.');
       }
-
-      setGeneratedImage(response.data.imageUrl);
-      setRevisedPrompt(response.data.revisedPrompt || null);
     } catch (err: any) {
       console.error('AI Photo generation error:', err);
       setError(err.message || 'AI Photo Assist is temporarily unavailable. Please try again.');
@@ -114,10 +140,23 @@ export default function AIPhotoAssistModal({
   };
 
   const handleAccept = () => {
-    if (generatedImage) {
-      onPhotoGenerated(generatedImage);
-      onClose();
+    if (generatedImages.length === 0) return;
+
+    const selectedUrls = Array.from(selectedPhotos)
+      .sort((a, b) => a - b)
+      .map(index => generatedImages[index]?.imageUrl)
+      .filter(Boolean) as string[];
+
+    if (selectedUrls.length === 0) return;
+
+    if (selectedUrls.length === 1) {
+      onPhotoGenerated(selectedUrls[0]);
+    } else if (onMultiplePhotosGenerated) {
+      onMultiplePhotosGenerated(selectedUrls);
+    } else {
+      selectedUrls.forEach(url => onPhotoGenerated(url));
     }
+    onClose();
   };
 
   const handleRegenerate = () => {
@@ -128,11 +167,33 @@ export default function AIPhotoAssistModal({
     onClose();
   };
 
+  const togglePhotoSelection = (index: number) => {
+    const newSelected = new Set(selectedPhotos);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      if (newSelected.size < remainingSlots) {
+        newSelected.add(index);
+      }
+    }
+    setSelectedPhotos(newSelected);
+  };
+
+  const navigateImage = (direction: 'prev' | 'next') => {
+    if (direction === 'prev' && selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    } else if (direction === 'next' && selectedImageIndex < generatedImages.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+  };
+
   const sizeOptions: { value: ImageSize; label: string }[] = [
     { value: '1024x1024', label: 'Square' },
-    { value: '1792x1024', label: 'Landscape' },
-    { value: '1024x1792', label: 'Portrait' },
+    { value: '1536x1024', label: 'Landscape' },
+    { value: '1024x1536', label: 'Portrait' },
   ];
+
+  const currentImage = generatedImages[selectedImageIndex];
 
   return (
     <Modal
@@ -155,7 +216,7 @@ export default function AIPhotoAssistModal({
 
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={styles.helperIntro}>
-              Describe what you want, and AI will generate a photo for you. You stay in control.
+              Describe what you want, and AI will generate photos for you using GPT-4o.
             </Text>
 
             <View style={styles.promptContainer}>
@@ -174,46 +235,73 @@ export default function AIPhotoAssistModal({
               <Text style={styles.charCount}>{prompt.length}/500</Text>
             </View>
 
-            <View style={styles.sizeContainer}>
-              <Text style={styles.fieldLabel}>Photo Orientation</Text>
-              <View style={styles.sizeOptions}>
-                {sizeOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.sizeOption,
-                      selectedSize === option.value && styles.sizeOptionActive,
-                    ]}
-                    onPress={() => setSelectedSize(option.value)}
-                    disabled={loading}
-                  >
-                    <Text style={[
-                      styles.sizeOptionText,
-                      selectedSize === option.value && styles.sizeOptionTextActive,
-                    ]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <View style={styles.optionsRow}>
+              <View style={styles.sizeContainer}>
+                <Text style={styles.fieldLabel}>Orientation</Text>
+                <View style={styles.sizeOptions}>
+                  {sizeOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.sizeOption,
+                        selectedSize === option.value && styles.sizeOptionActive,
+                      ]}
+                      onPress={() => setSelectedSize(option.value)}
+                      disabled={loading}
+                    >
+                      <Text style={[
+                        styles.sizeOptionText,
+                        selectedSize === option.value && styles.sizeOptionTextActive,
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
+
+              {maxGeneratable > 1 && (
+                <View style={styles.countContainer}>
+                  <Text style={styles.fieldLabel}>Photos to Generate</Text>
+                  <View style={styles.countSelector}>
+                    <TouchableOpacity
+                      style={[styles.countButton, photoCount <= 1 && styles.countButtonDisabled]}
+                      onPress={() => setPhotoCount(Math.max(1, photoCount - 1))}
+                      disabled={loading || photoCount <= 1}
+                    >
+                      <Text style={styles.countButtonText}>-</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.countValue}>{photoCount}</Text>
+                    <TouchableOpacity
+                      style={[styles.countButton, photoCount >= maxGeneratable && styles.countButtonDisabled]}
+                      onPress={() => setPhotoCount(Math.min(maxGeneratable, photoCount + 1))}
+                      disabled={loading || photoCount >= maxGeneratable}
+                    >
+                      <Text style={styles.countButtonText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
-            {!loading && !generatedImage && !error && (
+            {!loading && generatedImages.length === 0 && !error && (
               <TouchableOpacity
                 style={[styles.generateButton, !prompt.trim() && styles.generateButtonDisabled]}
                 onPress={handleGenerate}
                 disabled={!prompt.trim() || !canAddMore}
               >
                 <Wand2 size={20} color={colors.white} />
-                <Text style={styles.generateButtonText}>Generate Photo</Text>
+                <Text style={styles.generateButtonText}>
+                  Generate {photoCount > 1 ? `${photoCount} Photos` : 'Photo'}
+                </Text>
               </TouchableOpacity>
             )}
 
             {loading && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Generating your photo...</Text>
-                <Text style={styles.loadingSubtext}>This may take a few seconds</Text>
+                <Text style={styles.loadingText}>Generating with GPT-4o...</Text>
+                <Text style={styles.loadingSubtext}>This may take a moment</Text>
               </View>
             )}
 
@@ -226,21 +314,98 @@ export default function AIPhotoAssistModal({
               </View>
             )}
 
-            {generatedImage && !loading && (
+            {generatedImages.length > 0 && !loading && (
               <View style={styles.resultContainer}>
-                <Text style={styles.resultLabel}>Generated Photo</Text>
-                <View style={styles.imageContainer}>
-                  <Image
-                    source={{ uri: generatedImage }}
-                    style={[styles.generatedImage, { width: imagePreviewSize, height: imagePreviewSize }]}
-                    resizeMode="cover"
-                  />
+                <View style={styles.resultHeader}>
+                  <Text style={styles.resultLabel}>
+                    Generated {generatedImages.length === 1 ? 'Photo' : 'Photos'}
+                  </Text>
+                  {generatedImages.length > 1 && (
+                    <Text style={styles.selectionCount}>
+                      {selectedPhotos.size} selected
+                    </Text>
+                  )}
                 </View>
 
-                {revisedPrompt && (
+                <View style={styles.imageContainer}>
+                  {generatedImages.length > 1 && (
+                    <TouchableOpacity
+                      style={[styles.navButton, styles.navButtonLeft, selectedImageIndex === 0 && styles.navButtonDisabled]}
+                      onPress={() => navigateImage('prev')}
+                      disabled={selectedImageIndex === 0}
+                    >
+                      <ChevronLeft size={24} color={selectedImageIndex === 0 ? colors.textLight : colors.text} />
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    style={[
+                      styles.imageWrapper,
+                      selectedPhotos.has(selectedImageIndex) && styles.imageWrapperSelected,
+                    ]}
+                    onPress={() => togglePhotoSelection(selectedImageIndex)}
+                    activeOpacity={0.9}
+                  >
+                    <Image
+                      source={{ uri: currentImage?.imageUrl }}
+                      style={[styles.generatedImage, { width: imagePreviewSize, height: imagePreviewSize }]}
+                      resizeMode="cover"
+                    />
+                    {selectedPhotos.has(selectedImageIndex) && (
+                      <View style={styles.selectedBadge}>
+                        <Check size={16} color={colors.white} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {generatedImages.length > 1 && (
+                    <TouchableOpacity
+                      style={[styles.navButton, styles.navButtonRight, selectedImageIndex === generatedImages.length - 1 && styles.navButtonDisabled]}
+                      onPress={() => navigateImage('next')}
+                      disabled={selectedImageIndex === generatedImages.length - 1}
+                    >
+                      <ChevronRight size={24} color={selectedImageIndex === generatedImages.length - 1 ? colors.textLight : colors.text} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {generatedImages.length > 1 && (
+                  <View style={styles.thumbnailRow}>
+                    {generatedImages.map((img, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.thumbnail,
+                          index === selectedImageIndex && styles.thumbnailActive,
+                          selectedPhotos.has(index) && styles.thumbnailSelected,
+                        ]}
+                        onPress={() => setSelectedImageIndex(index)}
+                      >
+                        <Image
+                          source={{ uri: img.imageUrl }}
+                          style={styles.thumbnailImage}
+                          resizeMode="cover"
+                        />
+                        {selectedPhotos.has(index) && (
+                          <View style={styles.thumbnailCheck}>
+                            <Check size={10} color={colors.white} />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                {generatedImages.length > 1 && (
+                  <Text style={styles.selectionHint}>
+                    Tap photos to select. You can add up to {remainingSlots} more.
+                  </Text>
+                )}
+
+                {currentImage?.revisedPrompt && (
                   <View style={styles.revisedPromptContainer}>
-                    <Text style={styles.revisedPromptLabel}>AI interpreted your description as:</Text>
-                    <Text style={styles.revisedPromptText}>{revisedPrompt}</Text>
+                    <Text style={styles.revisedPromptLabel}>AI interpretation:</Text>
+                    <Text style={styles.revisedPromptText}>{currentImage.revisedPrompt}</Text>
                   </View>
                 )}
 
@@ -254,11 +419,14 @@ export default function AIPhotoAssistModal({
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.acceptButton}
+                    style={[styles.acceptButton, selectedPhotos.size === 0 && styles.acceptButtonDisabled]}
                     onPress={handleAccept}
+                    disabled={selectedPhotos.size === 0}
                   >
-                    <Check size={20} color={colors.white} />
-                    <Text style={styles.acceptButtonText}>Use This Photo</Text>
+                    <Plus size={20} color={colors.white} />
+                    <Text style={styles.acceptButtonText}>
+                      Add {selectedPhotos.size === 1 ? 'Photo' : `${selectedPhotos.size} Photos`}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -273,7 +441,7 @@ export default function AIPhotoAssistModal({
             )}
 
             <Text style={styles.footerNote}>
-              Generated photos are created by AI and may require manual adjustments. You can always remove or replace photos after adding them.
+              Photos generated using GPT-4o. You can remove or replace photos after adding them.
             </Text>
           </ScrollView>
         </View>
@@ -292,7 +460,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
-    maxHeight: '90%',
+    maxHeight: '92%',
     paddingBottom: spacing.xl,
   },
   modalHeader: {
@@ -326,7 +494,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   promptContainer: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   fieldLabel: {
     fontSize: fontSize.sm,
@@ -350,17 +518,22 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: spacing.xs,
   },
-  sizeContainer: {
+  optionsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
     marginBottom: spacing.lg,
+  },
+  sizeContainer: {
+    flex: 1,
   },
   sizeOptions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   sizeOption: {
     flex: 1,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xs,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -372,12 +545,45 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   sizeOptionText: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     color: colors.text,
   },
   sizeOptionTextActive: {
     color: colors.white,
+  },
+  countContainer: {
+    minWidth: 100,
+  },
+  countSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  countButton: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countButtonDisabled: {
+    borderColor: colors.border,
+    opacity: 0.5,
+  },
+  countButtonText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.primary,
+  },
+  countValue: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    minWidth: 24,
+    textAlign: 'center',
   },
   generateButton: {
     flexDirection: 'row',
@@ -442,19 +648,104 @@ const styles = StyleSheet.create({
   resultContainer: {
     marginBottom: spacing.lg,
   },
+  resultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   resultLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text,
-    marginBottom: spacing.sm,
+  },
+  selectionCount: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
   imageContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
-  generatedImage: {
+  navButton: {
+    padding: spacing.sm,
+  },
+  navButtonLeft: {
+    marginRight: spacing.xs,
+  },
+  navButtonRight: {
+    marginLeft: spacing.xs,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  imageWrapper: {
     borderRadius: borderRadius.md,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  imageWrapperSelected: {
+    borderColor: colors.success,
+  },
+  generatedImage: {
+    borderRadius: borderRadius.md - 2,
     backgroundColor: colors.surface,
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbnailRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  thumbnail: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    overflow: 'hidden',
+  },
+  thumbnailActive: {
+    borderColor: colors.primary,
+  },
+  thumbnailSelected: {
+    borderColor: colors.success,
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailCheck: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionHint: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   revisedPromptContainer: {
     backgroundColor: colors.surface,
@@ -503,6 +794,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     gap: spacing.xs,
+  },
+  acceptButtonDisabled: {
+    backgroundColor: colors.border,
+    opacity: 0.5,
   },
   acceptButtonText: {
     fontSize: fontSize.md,

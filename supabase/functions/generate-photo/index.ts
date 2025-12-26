@@ -11,13 +11,15 @@ const corsHeaders = {
 interface GeneratePhotoRequest {
   prompt: string;
   context?: string;
-  size?: "1024x1024" | "1792x1024" | "1024x1792";
-  quality?: "standard" | "hd";
+  size?: "1024x1024" | "1536x1024" | "1024x1536";
+  count?: number;
 }
 
 interface GeneratePhotoResponse {
-  imageUrl: string;
-  revisedPrompt: string;
+  images: Array<{
+    imageUrl: string;
+    revisedPrompt: string;
+  }>;
 }
 
 Deno.serve(async (req: Request) => {
@@ -73,7 +75,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: GeneratePhotoRequest = await req.json();
-    const { prompt, context, size = "1024x1024", quality = "standard" } = body;
+    const { prompt, context, size = "1024x1024", count = 1 } = body;
 
     if (!prompt || prompt.trim().length === 0) {
       return new Response(
@@ -82,34 +84,85 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const imageCount = Math.min(Math.max(1, count), 5);
+
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
     let enhancedPrompt = prompt.trim();
     if (context) {
       enhancedPrompt = `${context}. ${enhancedPrompt}`;
     }
-    enhancedPrompt = `Professional, high-quality photograph: ${enhancedPrompt}. Realistic style, good lighting, clean composition.`;
 
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: enhancedPrompt,
-      n: 1,
-      size: size,
-      quality: quality,
-      response_format: "url",
-    });
+    const systemPrompt = `You are a professional photographer and image creator. Generate high-quality, realistic photographs based on user descriptions. Focus on:
+- Professional composition and lighting
+- Clean, crisp imagery
+- Realistic style unless otherwise specified
+- Good visual balance and framing`;
 
-    if (!response.data || response.data.length === 0) {
+    const userPrompt = `Generate a professional photograph: ${enhancedPrompt}
+
+Requirements:
+- High quality, realistic image
+- Good lighting and composition
+- Clean background unless context requires otherwise
+- Professional appearance suitable for a service marketplace listing`;
+
+    const images: Array<{ imageUrl: string; revisedPrompt: string }> = [];
+
+    for (let i = 0; i < imageCount; i++) {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ],
+        modalities: ["text", "image"],
+        max_tokens: 1000,
+      });
+
+      const message = response.choices[0]?.message;
+
+      if (message?.content) {
+        const content = message.content;
+
+        if (Array.isArray(content)) {
+          for (const part of content) {
+            if (part.type === "image_url" && part.image_url?.url) {
+              images.push({
+                imageUrl: part.image_url.url,
+                revisedPrompt: enhancedPrompt,
+              });
+            }
+          }
+        } else if (typeof content === "string" && content.startsWith("data:image")) {
+          images.push({
+            imageUrl: content,
+            revisedPrompt: enhancedPrompt,
+          });
+        }
+      }
+
+      if (message && "audio" in message) {
+        continue;
+      }
+
+      const rawMessage = message as any;
+      if (rawMessage?.image_url) {
+        images.push({
+          imageUrl: rawMessage.image_url,
+          revisedPrompt: enhancedPrompt,
+        });
+      }
+    }
+
+    if (images.length === 0) {
       return new Response(
         JSON.stringify({ error: "Failed to generate photo. Please try a different description." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result: GeneratePhotoResponse = {
-      imageUrl: response.data[0].url ?? "",
-      revisedPrompt: response.data[0].revised_prompt ?? enhancedPrompt,
-    };
+    const result: GeneratePhotoResponse = { images };
 
     const serviceRoleClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -118,9 +171,9 @@ Deno.serve(async (req: Request) => {
 
     await serviceRoleClient.from("ai_agent_actions").insert({
       agent_id: null,
-      action_type: "photo_generation",
-      input_data: { prompt, context, size, quality },
-      output_data: { imageUrl: result.imageUrl.substring(0, 100) + "...", revisedPrompt: result.revisedPrompt },
+      action_type: "photo_generation_gpt4o",
+      input_data: { prompt, context, size, count: imageCount },
+      output_data: { imageCount: images.length, model: "gpt-4o" },
       execution_time_ms: 0,
       tokens_used: 0,
       confidence_score: 1.0,
@@ -145,6 +198,9 @@ Deno.serve(async (req: Request) => {
       errorMessage = "AI Photo Assist is temporarily unavailable due to high demand. Please try again later.";
       statusCode = 503;
     } else if (error.message?.includes("invalid_api_key")) {
+      errorMessage = "AI Photo Assist is temporarily unavailable. Please try again later.";
+      statusCode = 503;
+    } else if (error.message?.includes("modalities") || error.message?.includes("image generation")) {
       errorMessage = "AI Photo Assist is temporarily unavailable. Please try again later.";
       statusCode = 503;
     }
