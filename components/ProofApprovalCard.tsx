@@ -156,6 +156,9 @@ export default function ProofApprovalCard({ proof, onAction, isCustomer }: Proof
         return 'Rejected';
       case 'revision_requested':
         return 'Revision Requested';
+      case 'pending':
+      case 'pending_approval':
+        return 'Pending Review';
       default:
         return 'Pending Review';
     }
@@ -202,7 +205,7 @@ export default function ProofApprovalCard({ proof, onAction, isCustomer }: Proof
         </View>
       )}
 
-      {isCustomer && proof.status === 'pending' && (
+      {isCustomer && (proof.status === 'pending' || proof.status === 'pending_approval') && (
         <>
           {!showActions ? (
             <View style={styles.actionsRow}>
@@ -291,7 +294,7 @@ export default function ProofApprovalCard({ proof, onAction, isCustomer }: Proof
         </>
       )}
 
-      {!isCustomer && proof.status === 'pending' && (
+      {!isCustomer && (proof.status === 'pending' || proof.status === 'pending_approval') && (
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
             Waiting for customer approval. You'll be notified when they respond.

@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/currency-utils';
 import ConsultationRequestCard from '@/components/ConsultationRequestCard';
 import PriceAdjustmentCard from '@/components/PriceAdjustmentCard';
 import DeliveryConfirmationCard from '@/components/DeliveryConfirmationCard';
+import ProofApprovalCard from '@/components/ProofApprovalCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import {
   ArrowLeft,
@@ -89,6 +90,24 @@ interface TimelineEvent {
   description: string;
   created_at: string;
   metadata?: Record<string, any>;
+}
+
+interface ListingInfo {
+  id: string;
+  title: string;
+  listing_type: string;
+  proofing_required: boolean;
+}
+
+interface ProofInfo {
+  id: string;
+  production_order_id: string;
+  version_number: number;
+  proof_images: string[];
+  design_files: string[];
+  provider_notes?: string;
+  status: string;
+  created_at: string;
 }
 
 const STATUS_CONFIG: Record<string, {
@@ -167,6 +186,8 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams();
   const { profile } = useAuth();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [listing, setListing] = useState<ListingInfo | null>(null);
+  const [proofs, setProofs] = useState<ProofInfo[]>([]);
   const [consultation, setConsultation] = useState<Consultation | null>(null);
   const [priceAdjustment, setPriceAdjustment] = useState<PriceAdjustment | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
@@ -198,6 +219,28 @@ export default function OrderDetailScreen() {
     }
 
     setOrder(orderData as any);
+
+    if (orderData.listing_id) {
+      const { data: listingData } = await supabase
+        .from('service_listings')
+        .select('id, title, listing_type, proofing_required')
+        .eq('id', orderData.listing_id)
+        .maybeSingle();
+
+      if (listingData) {
+        setListing(listingData);
+      }
+    }
+
+    const { data: proofsData } = await supabase
+      .from('proofs')
+      .select('*')
+      .eq('production_order_id', id)
+      .order('version_number', { ascending: false });
+
+    if (proofsData) {
+      setProofs(proofsData);
+    }
 
     const { data: consultationData } = await supabase
       .from('custom_service_consultations')
@@ -375,6 +418,79 @@ export default function OrderDetailScreen() {
             />
           </View>
         )}
+
+        {isCustomer &&
+          listing?.listing_type === 'CustomService' &&
+          listing?.proofing_required &&
+          proofs.length > 0 &&
+          ['pending_approval', 'proofing', 'revision_requested'].includes(order.status) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Proof Approval</Text>
+              {proofs.map((proof) => (
+                <ProofApprovalCard
+                  key={proof.id}
+                  proof={{
+                    id: proof.id,
+                    production_order_id: proof.production_order_id,
+                    version_number: proof.version_number,
+                    proof_images: proof.proof_images || [],
+                    design_files: proof.design_files || [],
+                    provider_notes: proof.provider_notes,
+                    status: proof.status,
+                    created_at: proof.created_at,
+                  }}
+                  onAction={fetchOrderDetails}
+                  isCustomer={true}
+                />
+              ))}
+            </View>
+          )}
+
+        {isCustomer &&
+          listing?.listing_type === 'CustomService' &&
+          listing?.proofing_required &&
+          proofs.length > 0 &&
+          !['pending_approval', 'proofing', 'revision_requested'].includes(order.status) && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Proof History</Text>
+              {proofs.map((proof) => (
+                <View key={proof.id} style={styles.proofHistoryItem}>
+                  <View style={styles.proofVersion}>
+                    <Text style={styles.proofVersionText}>v{proof.version_number}</Text>
+                  </View>
+                  <View style={styles.proofHistoryContent}>
+                    <Text style={styles.proofHistoryTitle}>
+                      {proof.status === 'approved'
+                        ? 'Approved'
+                        : proof.status === 'rejected'
+                        ? 'Rejected'
+                        : proof.status === 'revision_requested'
+                        ? 'Revision Requested'
+                        : 'Pending Review'}
+                    </Text>
+                    <Text style={styles.proofHistoryDate}>
+                      {new Date(proof.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.proofStatusDot,
+                      {
+                        backgroundColor:
+                          proof.status === 'approved'
+                            ? '#10B981'
+                            : proof.status === 'rejected'
+                            ? '#EF4444'
+                            : proof.status === 'revision_requested'
+                            ? '#F59E0B'
+                            : '#3B82F6',
+                      },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
         {isCustomer && (
           <View style={styles.section}>
@@ -800,6 +916,45 @@ const styles = StyleSheet.create({
   timelineDate: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+  },
+  proofHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight || colors.border,
+    gap: spacing.md,
+  },
+  proofVersion: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.backgroundSecondary || colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofVersionText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+  },
+  proofHistoryContent: {
+    flex: 1,
+  },
+  proofHistoryTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  proofHistoryDate: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  proofStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   bottomPadding: {
     height: spacing.xxl,

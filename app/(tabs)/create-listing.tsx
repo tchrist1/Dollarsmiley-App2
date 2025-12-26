@@ -14,7 +14,7 @@ import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock } from 'lucide-react-native';
+import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock, CheckCircle2 } from 'lucide-react-native';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -58,6 +58,7 @@ export default function CreateListingScreen() {
   const [requiresAgreement, setRequiresAgreement] = useState(false);
   const [requiresDamageDeposit, setRequiresDamageDeposit] = useState(false);
   const [damageDepositAmount, setDamageDepositAmount] = useState('');
+  const [proofingRequired, setProofingRequired] = useState(false);
 
   const [inventoryMode, setInventoryMode] = useState<'none' | 'quantity' | 'rental'>('none');
   const [stockQuantity, setStockQuantity] = useState('');
@@ -90,6 +91,7 @@ export default function CreateListingScreen() {
       requiresAgreement !== false ||
       requiresDamageDeposit !== false ||
       damageDepositAmount !== '' ||
+      proofingRequired !== false ||
       inventoryMode !== 'none' ||
       stockQuantity !== '' ||
       lowStockThreshold !== ''
@@ -122,6 +124,7 @@ export default function CreateListingScreen() {
     setRequiresAgreement(false);
     setRequiresDamageDeposit(false);
     setDamageDepositAmount('');
+    setProofingRequired(false);
     setInventoryMode('none');
     setStockQuantity('');
     setLowStockThreshold('');
@@ -254,6 +257,7 @@ export default function CreateListingScreen() {
       requires_agreement: requiresAgreement,
       requires_damage_deposit: requiresDamageDeposit,
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
+      proofing_required: listingType === 'CustomService' ? proofingRequired : false,
       inventory_mode: inventoryMode,
     };
 
@@ -422,6 +426,35 @@ export default function CreateListingScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {listingType === 'CustomService' && (
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.fulfilmentToggleContainer}
+              onPress={() => setProofingRequired(!proofingRequired)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.fulfilmentToggleLeft}>
+                <CheckCircle2 size={20} color={colors.primary} />
+                <View style={styles.fulfilmentToggleTextContainer}>
+                  <Text style={styles.fulfilmentToggleLabel}>Require Proof Approval</Text>
+                  <Text style={styles.fulfilmentToggleDescription}>
+                    Customer must approve a proof before production begins
+                  </Text>
+                </View>
+              </View>
+              <View style={[
+                styles.toggleSwitch,
+                proofingRequired && styles.toggleSwitchActive
+              ]}>
+                <View style={[
+                  styles.toggleThumb,
+                  proofingRequired && styles.toggleThumbActive
+                ]} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <Input
           label="Service Title"

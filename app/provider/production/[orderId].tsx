@@ -14,6 +14,7 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { safeGoBack } from '@/lib/navigation-utils';
+import { supabase } from '@/lib/supabase';
 import {
   ProductionManagement,
   ProductionOrder,
@@ -43,10 +44,18 @@ import {
   X,
 } from 'lucide-react-native';
 
+interface ListingInfo {
+  id: string;
+  title: string;
+  listing_type: string;
+  proofing_required: boolean;
+}
+
 export default function ProviderProductionOrderDetail() {
   const { orderId } = useLocalSearchParams();
   const { profile } = useAuth();
   const [order, setOrder] = useState<ProductionOrder | null>(null);
+  const [listing, setListing] = useState<ListingInfo | null>(null);
   const [proofs, setProofs] = useState<ProductionProof[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +80,21 @@ export default function ProviderProductionOrderDetail() {
       ProductionManagement.getTimelineEvents(orderId),
     ]);
 
-    if (orderResult.data) setOrder(orderResult.data);
+    if (orderResult.data) {
+      setOrder(orderResult.data);
+
+      if (orderResult.data.listing?.id) {
+        const { data: listingData } = await supabase
+          .from('service_listings')
+          .select('id, title, listing_type, proofing_required')
+          .eq('id', orderResult.data.listing.id)
+          .maybeSingle();
+
+        if (listingData) {
+          setListing(listingData);
+        }
+      }
+    }
     if (proofsResult.data) setProofs(proofsResult.data);
     if (timelineResult.data) setTimeline(timelineResult.data);
 
@@ -111,6 +134,17 @@ export default function ProviderProductionOrderDetail() {
 
   const handleStartProduction = async () => {
     if (!order || !profile?.id) return;
+
+    if (listing?.proofing_required) {
+      const latestProof = proofs[0];
+      if (!latestProof || latestProof.status !== 'approved') {
+        Alert.alert(
+          'Cannot Start Production',
+          'Proofing is required for this service. Please submit a proof and wait for customer approval before starting production.'
+        );
+        return;
+      }
+    }
 
     Alert.alert(
       'Start Production',
@@ -400,47 +434,79 @@ export default function ProviderProductionOrderDetail() {
           </View>
         )}
 
-        {proofs.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Proof History</Text>
-            {proofs.map((proof) => (
-              <View key={proof.id} style={styles.proofHistoryItem}>
-                <View style={styles.proofVersion}>
-                  <Text style={styles.proofVersionText}>v{proof.version_number}</Text>
-                </View>
-                <View style={styles.proofHistoryContent}>
-                  <Text style={styles.proofHistoryTitle}>
-                    {proof.status === 'approved'
-                      ? 'Approved'
-                      : proof.status === 'rejected'
-                      ? 'Rejected'
-                      : proof.status === 'revision_requested'
-                      ? 'Revision Requested'
-                      : 'Pending Review'}
-                  </Text>
-                  <Text style={styles.proofHistoryDate}>
-                    {new Date(proof.created_at).toLocaleDateString()}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.proofStatusDot,
-                    {
-                      backgroundColor:
-                        proof.status === 'approved'
-                          ? colors.success
-                          : proof.status === 'rejected'
-                          ? colors.error
-                          : proof.status === 'revision_requested'
-                          ? colors.warning
-                          : colors.info,
-                    },
-                  ]}
+        {listing?.listing_type === 'CustomService' &&
+          listing?.proofing_required &&
+          proofs.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Proofs</Text>
+              {proofs.map((proof) => (
+                <ProofApprovalCard
+                  key={proof.id}
+                  proof={{
+                    id: proof.id,
+                    production_order_id: proof.production_order_id,
+                    version_number: proof.version_number,
+                    proof_images: proof.proof_images || [],
+                    design_files: proof.design_files || [],
+                    provider_notes: proof.provider_notes,
+                    status: proof.status,
+                    created_at: proof.created_at,
+                  }}
+                  onAction={fetchData}
+                  isCustomer={false}
                 />
+              ))}
+            </View>
+          )}
+
+        {listing?.listing_type === 'CustomService' &&
+          !listing?.proofing_required &&
+          proofs.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Proof History</Text>
+              <View style={styles.proofingDisabledNotice}>
+                <Text style={styles.proofingDisabledText}>
+                  Proofing is not required for this listing. Proofs are for reference only.
+                </Text>
               </View>
-            ))}
-          </View>
-        )}
+              {proofs.map((proof) => (
+                <View key={proof.id} style={styles.proofHistoryItem}>
+                  <View style={styles.proofVersion}>
+                    <Text style={styles.proofVersionText}>v{proof.version_number}</Text>
+                  </View>
+                  <View style={styles.proofHistoryContent}>
+                    <Text style={styles.proofHistoryTitle}>
+                      {proof.status === 'approved'
+                        ? 'Approved'
+                        : proof.status === 'rejected'
+                        ? 'Rejected'
+                        : proof.status === 'revision_requested'
+                        ? 'Revision Requested'
+                        : 'Pending Review'}
+                    </Text>
+                    <Text style={styles.proofHistoryDate}>
+                      {new Date(proof.created_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.proofStatusDot,
+                      {
+                        backgroundColor:
+                          proof.status === 'approved'
+                            ? colors.success
+                            : proof.status === 'rejected'
+                            ? colors.error
+                            : proof.status === 'revision_requested'
+                            ? colors.warning
+                            : colors.info,
+                      },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+          )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -786,6 +852,16 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+  },
+  proofingDisabledNotice: {
+    backgroundColor: colors.infoLight || '#E0F2FE',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.md,
+  },
+  proofingDisabledText: {
+    fontSize: fontSize.sm,
+    color: colors.info || '#0284C7',
   },
   timelineItem: {
     flexDirection: 'row',
