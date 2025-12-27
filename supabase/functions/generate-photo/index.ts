@@ -92,66 +92,39 @@ Deno.serve(async (req: Request) => {
     if (context) {
       enhancedPrompt = `${context}. ${enhancedPrompt}`;
     }
-
-    const systemPrompt = `You are a professional photographer and image creator. Generate high-quality, realistic photographs based on user descriptions. Focus on:
-- Professional composition and lighting
-- Clean, crisp imagery
-- Realistic style unless otherwise specified
-- Good visual balance and framing`;
-
-    const userPrompt = `Generate a professional photograph: ${enhancedPrompt}
-
-Requirements:
-- High quality, realistic image
-- Good lighting and composition
-- Clean background unless context requires otherwise
-- Professional appearance suitable for a service marketplace listing`;
+    enhancedPrompt = `Professional, high-quality photograph: ${enhancedPrompt}. Realistic style, good lighting, clean composition.`;
 
     const images: Array<{ imageUrl: string; revisedPrompt: string }> = [];
 
     for (let i = 0; i < imageCount; i++) {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        modalities: ["text", "image"],
-        max_tokens: 1000,
-      });
-
-      const message = response.choices[0]?.message;
-
-      if (message?.content) {
-        const content = message.content;
-
-        if (Array.isArray(content)) {
-          for (const part of content) {
-            if (part.type === "image_url" && part.image_url?.url) {
-              images.push({
-                imageUrl: part.image_url.url,
-                revisedPrompt: enhancedPrompt,
-              });
-            }
-          }
-        } else if (typeof content === "string" && content.startsWith("data:image")) {
-          images.push({
-            imageUrl: content,
-            revisedPrompt: enhancedPrompt,
-          });
-        }
-      }
-
-      if (message && "audio" in message) {
-        continue;
-      }
-
-      const rawMessage = message as any;
-      if (rawMessage?.image_url) {
-        images.push({
-          imageUrl: rawMessage.image_url,
-          revisedPrompt: enhancedPrompt,
+      try {
+        const response = await openai.images.generate({
+          model: "gpt-image-1",
+          prompt: enhancedPrompt,
+          n: 1,
+          size: size === "1536x1024" ? "1536x1024" : size === "1024x1536" ? "1024x1536" : "1024x1024",
+          quality: "auto",
         });
+
+        if (response.data && response.data.length > 0) {
+          const imageData = response.data[0];
+          if (imageData.b64_json) {
+            images.push({
+              imageUrl: `data:image/png;base64,${imageData.b64_json}`,
+              revisedPrompt: enhancedPrompt,
+            });
+          } else if (imageData.url) {
+            images.push({
+              imageUrl: imageData.url,
+              revisedPrompt: enhancedPrompt,
+            });
+          }
+        }
+      } catch (imgError: any) {
+        console.error(`Image generation attempt ${i + 1} failed:`, imgError.message);
+        if (i === 0) {
+          throw imgError;
+        }
       }
     }
 
@@ -171,9 +144,9 @@ Requirements:
 
     await serviceRoleClient.from("ai_agent_actions").insert({
       agent_id: null,
-      action_type: "photo_generation_gpt4o",
+      action_type: "photo_generation_gpt_image",
       input_data: { prompt, context, size, count: imageCount },
-      output_data: { imageCount: images.length, model: "gpt-4o" },
+      output_data: { imageCount: images.length, model: "gpt-image-1" },
       execution_time_ms: 0,
       tokens_used: 0,
       confidence_score: 1.0,
@@ -200,7 +173,10 @@ Requirements:
     } else if (error.message?.includes("invalid_api_key")) {
       errorMessage = "AI Photo Assist is temporarily unavailable. Please try again later.";
       statusCode = 503;
-    } else if (error.message?.includes("modalities") || error.message?.includes("image generation")) {
+    } else if (error.message?.includes("model") && error.message?.includes("not found")) {
+      errorMessage = "AI Photo Assist is temporarily unavailable. Please try again later.";
+      statusCode = 503;
+    } else if (error.status === 404) {
       errorMessage = "AI Photo Assist is temporarily unavailable. Please try again later.";
       statusCode = 503;
     }

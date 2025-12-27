@@ -216,7 +216,7 @@ export default function AIPhotoAssistModal({
 
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={styles.helperIntro}>
-              Describe what you want, and AI will generate photos for you using GPT-4o.
+              Describe what you want, and AI will generate photos for you.
             </Text>
 
             <View style={styles.promptContainer}>
@@ -300,7 +300,7 @@ export default function AIPhotoAssistModal({
             {loading && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>Generating with GPT-4o...</Text>
+                <Text style={styles.loadingText}>Generating your photos...</Text>
                 <Text style={styles.loadingSubtext}>This may take a moment</Text>
               </View>
             )}
@@ -441,7 +441,7 @@ export default function AIPhotoAssistModal({
             )}
 
             <Text style={styles.footerNote}>
-              Photos generated using GPT-4o. You can remove or replace photos after adding them.
+              AI-generated photos. You can remove or replace photos after adding them.
             </Text>
           </ScrollView>
         </View>
