@@ -8,9 +8,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface SourceContext {
+  title?: string;
+  description?: string;
+  category?: string;
+  subcategory?: string;
+  locationType?: string;
+  fulfillmentType?: string[];
+  listingType?: 'Service' | 'CustomService';
+  jobType?: 'quote_based' | 'fixed_price';
+}
+
 interface GeneratePhotoRequest {
   prompt: string;
-  context?: string;
+  sourceContext?: SourceContext;
   size?: "1024x1024" | "1536x1024" | "1024x1536";
   count?: number;
 }
@@ -75,7 +86,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body: GeneratePhotoRequest = await req.json();
-    const { prompt, context, size = "1024x1024", count = 1 } = body;
+    const { prompt, sourceContext, size = "1024x1024", count = 1 } = body;
 
     if (!prompt || prompt.trim().length === 0) {
       return new Response(
@@ -88,17 +99,32 @@ Deno.serve(async (req: Request) => {
 
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
+    let contextDescription = '';
+    if (sourceContext) {
+      const parts: string[] = [];
+      if (sourceContext.title) parts.push(`Title: "${sourceContext.title}"`);
+      if (sourceContext.description) parts.push(`Description: "${sourceContext.description}"`);
+      if (sourceContext.category) parts.push(`Category: ${sourceContext.category}`);
+      if (sourceContext.subcategory) parts.push(`Subcategory: ${sourceContext.subcategory}`);
+      if (sourceContext.listingType === 'CustomService') parts.push('Type: Custom product/service with fulfillment');
+      if (sourceContext.jobType) parts.push(`Job Type: ${sourceContext.jobType === 'fixed_price' ? 'Fixed price job' : 'Quote-based job'}`);
+      if (sourceContext.fulfillmentType && sourceContext.fulfillmentType.length > 0) {
+        parts.push(`Fulfillment: ${sourceContext.fulfillmentType.join(', ')}`);
+      }
+      contextDescription = parts.join('\n');
+    }
+
     const enhancementPrompt = `You are an expert prompt engineer for image generation. Transform the user's description into a detailed, optimized prompt for an AI image generator.
 
-User's Description: "${prompt.trim()}"
-${context ? `Context: ${context}` : ''}
+${contextDescription ? `Source Context:\n${contextDescription}\n\n` : ''}User's Photo Description: "${prompt.trim()}"
 
 Create an enhanced prompt that:
-1. Maintains the user's original intent
-2. Adds professional photography details (lighting, composition, style)
-3. Specifies quality and aesthetic characteristics
-4. Includes relevant technical details (camera angle, depth of field, etc.)
-5. Keeps it concise (max 150 words)
+1. Reflects the service or job purpose from the context
+2. Incorporates the environment and visual expectations
+3. Adds professional photography details (lighting, composition, style)
+4. Specifies quality and aesthetic characteristics
+5. Includes relevant technical details (camera angle, depth of field, etc.)
+6. Keeps it concise (max 150 words)
 
 Return ONLY the enhanced prompt text, nothing else.`;
 
@@ -162,12 +188,25 @@ Return ONLY the enhanced prompt text, nothing else.`;
     await serviceRoleClient.from("ai_agent_actions").insert({
       agent_id: null,
       action_type: "photo_generation_gpt_image",
-      input_data: { prompt, context, size, count: imageCount },
+      input_data: {
+        prompt,
+        sourceContext: sourceContext ? {
+          title: sourceContext.title,
+          description: sourceContext.description?.substring(0, 200),
+          category: sourceContext.category,
+          subcategory: sourceContext.subcategory,
+          listingType: sourceContext.listingType,
+          jobType: sourceContext.jobType,
+        } : null,
+        size,
+        count: imageCount
+      },
       output_data: {
         imageCount: images.length,
         enhancementModel: "gpt-4o-mini",
         imageModel: "gpt-image-1",
-        enhancedPrompt: enhancedPrompt.substring(0, 500)
+        enhancedPrompt: enhancedPrompt.substring(0, 500),
+        contextUsed: !!sourceContext
       },
       execution_time_ms: 0,
       tokens_used: enhancementResponse.usage?.total_tokens || 0,

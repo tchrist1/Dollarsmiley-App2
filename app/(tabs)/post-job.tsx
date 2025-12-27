@@ -544,7 +544,14 @@ export default function PostJobScreen() {
               setPhotos([...photos, ...toAdd]);
             }
           }}
-          context={title ? `Job posting: ${title}` : undefined}
+          sourceContext={{
+            title: title.trim() || undefined,
+            description: description.trim() || undefined,
+            category: categoryName || undefined,
+            subcategory: subcategoryName || undefined,
+            jobType: pricingType,
+            locationType: address.city && address.state ? `${address.city}, ${address.state}` : undefined,
+          }}
           maxPhotos={5}
           currentPhotoCount={photos.length}
         />

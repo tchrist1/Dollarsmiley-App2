@@ -596,7 +596,14 @@ export default function CreateListingScreen() {
               setPhotos([...photos, ...toAdd]);
             }
           }}
-          context={title ? `Service listing: ${title}` : undefined}
+          sourceContext={{
+            title: title.trim() || undefined,
+            description: description.trim() || undefined,
+            category: categoryName || undefined,
+            subcategory: subcategoryName || undefined,
+            listingType: listingType,
+            fulfillmentType: requiresFulfilment ? fulfillmentType : undefined,
+          }}
           maxPhotos={5}
           currentPhotoCount={photos.length}
         />

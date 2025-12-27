@@ -15,12 +15,23 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants
 import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 
+interface SourceContext {
+  title?: string;
+  description?: string;
+  category?: string;
+  subcategory?: string;
+  locationType?: string;
+  fulfillmentType?: string[];
+  listingType?: 'Service' | 'CustomService';
+  jobType?: 'quote_based' | 'fixed_price';
+}
+
 interface AIPhotoAssistModalProps {
   visible: boolean;
   onClose: () => void;
   onPhotoGenerated: (photoUrl: string) => void;
   onMultiplePhotosGenerated?: (photoUrls: string[]) => void;
-  context?: string;
+  sourceContext?: SourceContext;
   maxPhotos?: number;
   currentPhotoCount?: number;
 }
@@ -35,12 +46,69 @@ interface GeneratedImage {
 const { width: screenWidth } = Dimensions.get('window');
 const imagePreviewSize = Math.min(screenWidth - spacing.lg * 4, 320);
 
+function generateVisualSummary(context: SourceContext): string {
+  if (!context.description || context.description.trim().length === 0) {
+    return '';
+  }
+
+  const desc = context.description.toLowerCase();
+  let summary = '';
+
+  if (context.listingType === 'CustomService' || context.fulfillmentType?.includes('Shipping')) {
+    summary = 'Professional product photo showcasing';
+  } else if (context.jobType) {
+    if (desc.includes('clean') || desc.includes('tidy')) {
+      summary = 'Bright, clean space with professional finish';
+    } else if (desc.includes('repair') || desc.includes('fix')) {
+      summary = 'Professional repair work in progress, clear before/after view';
+    } else if (desc.includes('paint') || desc.includes('wall')) {
+      summary = 'Freshly painted interior with even coverage';
+    } else if (desc.includes('landscape') || desc.includes('garden') || desc.includes('yard')) {
+      summary = 'Well-maintained outdoor space with natural lighting';
+    } else if (desc.includes('move') || desc.includes('furniture')) {
+      summary = 'Professional movers handling furniture carefully';
+    } else if (desc.includes('install') || desc.includes('setup')) {
+      summary = 'Professional installation in modern space';
+    } else {
+      summary = 'Professional service work in progress';
+    }
+  } else {
+    if (desc.includes('clean')) {
+      summary = 'Spotless, professionally cleaned space with natural lighting';
+    } else if (desc.includes('photo') || desc.includes('video')) {
+      summary = 'Professional photography setup with modern equipment';
+    } else if (desc.includes('food') || desc.includes('catering')) {
+      summary = 'Beautifully presented dishes in professional setting';
+    } else if (desc.includes('beauty') || desc.includes('makeup') || desc.includes('hair')) {
+      summary = 'Professional beauty service in modern salon setting';
+    } else if (desc.includes('tutor') || desc.includes('teach')) {
+      summary = 'Engaging learning environment with modern materials';
+    } else if (desc.includes('fitness') || desc.includes('training')) {
+      summary = 'Dynamic fitness training in professional gym setting';
+    } else if (desc.includes('event') || desc.includes('party')) {
+      summary = 'Elegant event setup with professional decor';
+    } else if (desc.includes('music') || desc.includes('dj')) {
+      summary = 'Professional music setup with modern equipment';
+    } else if (desc.includes('massage') || desc.includes('spa')) {
+      summary = 'Serene spa environment with professional ambiance';
+    } else {
+      summary = 'Professional service environment with clear detail';
+    }
+  }
+
+  if (context.category && summary) {
+    summary += `, ${context.category.toLowerCase()} context`;
+  }
+
+  return summary;
+}
+
 export default function AIPhotoAssistModal({
   visible,
   onClose,
   onPhotoGenerated,
   onMultiplePhotosGenerated,
-  context,
+  sourceContext,
   maxPhotos = 5,
   currentPhotoCount = 0,
 }: AIPhotoAssistModalProps) {
@@ -52,6 +120,7 @@ export default function AIPhotoAssistModal({
   const [selectedSize, setSelectedSize] = useState<ImageSize>('1024x1024');
   const [photoCount, setPhotoCount] = useState(1);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
+  const [hasPrefilledOnce, setHasPrefilledOnce] = useState(false);
 
   const remainingSlots = maxPhotos - currentPhotoCount;
   const canAddMore = remainingSlots > 0;
@@ -60,8 +129,19 @@ export default function AIPhotoAssistModal({
   useEffect(() => {
     if (!visible) {
       resetState();
+      setHasPrefilledOnce(false);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (visible && !hasPrefilledOnce && sourceContext) {
+      const visualSummary = generateVisualSummary(sourceContext);
+      if (visualSummary && prompt.trim() === '') {
+        setPrompt(visualSummary);
+        setHasPrefilledOnce(true);
+      }
+    }
+  }, [visible, sourceContext, hasPrefilledOnce, prompt]);
 
   useEffect(() => {
     if (photoCount > maxGeneratable) {
@@ -105,7 +185,7 @@ export default function AIPhotoAssistModal({
       const response = await supabase.functions.invoke('generate-photo', {
         body: {
           prompt: prompt.trim(),
-          context,
+          sourceContext,
           size: selectedSize,
           count: photoCount,
         },
