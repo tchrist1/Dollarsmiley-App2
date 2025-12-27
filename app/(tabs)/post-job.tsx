@@ -273,14 +273,6 @@ export default function PostJobScreen() {
         contentContainerStyle={[styles.contentContainer, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}
         showsVerticalScrollIndicator={false}
       >
-        <Input
-          label="Job Title"
-          placeholder="e.g., Need help moving furniture"
-          value={title}
-          onChangeText={setTitle}
-          error={errors.title}
-        />
-
         <AITitleDescriptionAssist
           currentTitle={title}
           currentDescription={description}
@@ -291,6 +283,14 @@ export default function PostJobScreen() {
           disabled={!canUseAi}
           type="job"
           visible={aiAssistEnabled}
+        />
+
+        <Input
+          label="Job Title"
+          placeholder="e.g., Need help moving furniture"
+          value={title}
+          onChangeText={setTitle}
+          error={errors.title}
         />
 
         <TextArea

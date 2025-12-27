@@ -426,14 +426,6 @@ export default function CreateListingScreen() {
           </View>
         </View>
 
-        <Input
-          label="Service Title"
-          placeholder="e.g., Professional House Cleaning"
-          value={title}
-          onChangeText={setTitle}
-          error={errors.title}
-        />
-
         <AITitleDescriptionAssist
           currentTitle={title}
           currentDescription={description}
@@ -444,6 +436,14 @@ export default function CreateListingScreen() {
           disabled={!canUseAi}
           type="service"
           visible={aiAssistEnabled}
+        />
+
+        <Input
+          label="Service Title"
+          placeholder="e.g., Professional House Cleaning"
+          value={title}
+          onChangeText={setTitle}
+          error={errors.title}
         />
 
         <TextArea
