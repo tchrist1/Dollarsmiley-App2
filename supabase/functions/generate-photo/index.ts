@@ -88,11 +88,28 @@ Deno.serve(async (req: Request) => {
 
     const openai = new OpenAI({ apiKey: openaiApiKey });
 
-    let enhancedPrompt = prompt.trim();
-    if (context) {
-      enhancedPrompt = `${context}. ${enhancedPrompt}`;
-    }
-    enhancedPrompt = `Professional, high-quality photograph: ${enhancedPrompt}. Realistic style, good lighting, clean composition.`;
+    const enhancementPrompt = `You are an expert prompt engineer for image generation. Transform the user's description into a detailed, optimized prompt for an AI image generator.
+
+User's Description: "${prompt.trim()}"
+${context ? `Context: ${context}` : ''}
+
+Create an enhanced prompt that:
+1. Maintains the user's original intent
+2. Adds professional photography details (lighting, composition, style)
+3. Specifies quality and aesthetic characteristics
+4. Includes relevant technical details (camera angle, depth of field, etc.)
+5. Keeps it concise (max 150 words)
+
+Return ONLY the enhanced prompt text, nothing else.`;
+
+    const enhancementResponse = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: enhancementPrompt }],
+      temperature: 0.7,
+      max_tokens: 200,
+    });
+
+    const enhancedPrompt = enhancementResponse.choices[0].message.content?.trim() || prompt.trim();
 
     const images: Array<{ imageUrl: string; revisedPrompt: string }> = [];
 
@@ -146,9 +163,14 @@ Deno.serve(async (req: Request) => {
       agent_id: null,
       action_type: "photo_generation_gpt_image",
       input_data: { prompt, context, size, count: imageCount },
-      output_data: { imageCount: images.length, model: "gpt-image-1" },
+      output_data: {
+        imageCount: images.length,
+        enhancementModel: "gpt-4o-mini",
+        imageModel: "gpt-image-1",
+        enhancedPrompt: enhancedPrompt.substring(0, 500)
+      },
       execution_time_ms: 0,
-      tokens_used: 0,
+      tokens_used: enhancementResponse.usage?.total_tokens || 0,
       confidence_score: 1.0,
       status: "completed",
       created_by: user.id,
