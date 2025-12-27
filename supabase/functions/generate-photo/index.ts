@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile?.ai_assist_enabled) {
+    if (profile && profile.ai_assist_enabled === false) {
       return new Response(
         JSON.stringify({ error: "AI Assist is disabled. Enable it in Settings to use this feature." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -180,40 +180,44 @@ Return ONLY the enhanced prompt text, nothing else.`;
 
     const result: GeneratePhotoResponse = { images };
 
-    const serviceRoleClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    try {
+      const serviceRoleClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      );
 
-    await serviceRoleClient.from("ai_agent_actions").insert({
-      agent_id: null,
-      action_type: "photo_generation_gpt_image",
-      input_data: {
-        prompt,
-        sourceContext: sourceContext ? {
-          title: sourceContext.title,
-          description: sourceContext.description?.substring(0, 200),
-          category: sourceContext.category,
-          subcategory: sourceContext.subcategory,
-          listingType: sourceContext.listingType,
-          jobType: sourceContext.jobType,
-        } : null,
-        size,
-        count: imageCount
-      },
-      output_data: {
-        imageCount: images.length,
-        enhancementModel: "gpt-4o-mini",
-        imageModel: "gpt-image-1",
-        enhancedPrompt: enhancedPrompt.substring(0, 500),
-        contextUsed: !!sourceContext
-      },
-      execution_time_ms: 0,
-      tokens_used: enhancementResponse.usage?.total_tokens || 0,
-      confidence_score: 1.0,
-      status: "completed",
-      created_by: user.id,
-    });
+      await serviceRoleClient.from("ai_agent_actions").insert({
+        agent_id: null,
+        action_type: "photo_generation_gpt_image",
+        input_data: {
+          prompt,
+          sourceContext: sourceContext ? {
+            title: sourceContext.title,
+            description: sourceContext.description?.substring(0, 200),
+            category: sourceContext.category,
+            subcategory: sourceContext.subcategory,
+            listingType: sourceContext.listingType,
+            jobType: sourceContext.jobType,
+          } : null,
+          size,
+          count: imageCount
+        },
+        output_data: {
+          imageCount: images.length,
+          enhancementModel: "gpt-4o-mini",
+          imageModel: "gpt-image-1",
+          enhancedPrompt: enhancedPrompt.substring(0, 500),
+          contextUsed: !!sourceContext
+        },
+        execution_time_ms: 0,
+        tokens_used: enhancementResponse.usage?.total_tokens || 0,
+        confidence_score: 1.0,
+        status: "completed",
+        created_by: user.id,
+      });
+    } catch (logError) {
+      console.error("Failed to log AI action:", logError);
+    }
 
     return new Response(
       JSON.stringify(result),
