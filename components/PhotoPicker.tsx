@@ -247,25 +247,14 @@ export function PhotoPicker({
 
         {onAiImageAssist && (
           <TouchableOpacity
-            style={[
-              styles.aiImageButton,
-              !aiAssistEnabled && styles.aiImageButtonDisabled,
-            ]}
-            onPress={aiAssistEnabled ? onAiImageAssist : undefined}
-            activeOpacity={aiAssistEnabled ? 0.7 : 1}
+            style={styles.aiImageButton}
+            onPress={onAiImageAssist}
+            activeOpacity={0.7}
           >
-            <Sparkles size={28} color={aiAssistEnabled ? colors.primary : colors.textLight} />
-            <Text style={[
-              styles.aiImageButtonText,
-              !aiAssistEnabled && styles.aiImageButtonTextDisabled,
-            ]}>
+            <Sparkles size={28} color={colors.primary} />
+            <Text style={styles.aiImageButtonText}>
               AI Photo Assist
             </Text>
-            {!aiAssistEnabled && (
-              <Text style={styles.aiImageDisabledHint}>
-                Enable AI Assist
-              </Text>
-            )}
           </TouchableOpacity>
         )}
 

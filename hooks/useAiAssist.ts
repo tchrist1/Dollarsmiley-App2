@@ -13,7 +13,8 @@ export function useAiAssist(): UseAiAssistReturn {
   const { profile, refreshProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  const aiAssistEnabled = profile?.ai_assist_enabled ?? true;
+  // TESTING MODE: AI Assist always enabled
+  const aiAssistEnabled = true;
 
   const setAiAssistEnabled = useCallback(async (enabled: boolean) => {
     if (!profile?.id) return;
@@ -51,8 +52,6 @@ export function useAiAssist(): UseAiAssistReturn {
 }
 
 export function meetsAiThreshold(text: string): boolean {
-  const trimmed = text.trim();
-  const wordCount = trimmed.split(/\s+/).filter(word => word.length > 0).length;
-  const charCount = trimmed.replace(/\s/g, '').length;
-  return wordCount >= 2 || charCount >= 12;
+  // TESTING MODE: Always meets threshold
+  return true;
 }
