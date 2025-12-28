@@ -65,41 +65,24 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
 
 /**
  * Check if user has access to a specific feature
+ * TESTING MODE: All features unlocked
  */
 export async function hasFeature(userId: string, featureKey: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('has_subscription_feature', {
-    user_uuid: userId,
-    feature_key: featureKey,
-  });
-
-  if (error) {
-    console.error('Error checking feature access:', error);
-    return false;
-  }
-
-  return data;
+  // TESTING MODE: Always return true to unlock all features
+  return true;
 }
 
 /**
  * Check if user is within usage limit
+ * TESTING MODE: No limits enforced
  */
 export async function checkUsageLimit(
   userId: string,
   limitKey: string,
   currentUsage: number
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc('check_usage_limit', {
-    user_uuid: userId,
-    limit_key: limitKey,
-    current_usage: currentUsage,
-  });
-
-  if (error) {
-    console.error('Error checking usage limit:', error);
-    return false;
-  }
-
-  return data;
+  // TESTING MODE: Always return true to bypass all limits
+  return true;
 }
 
 /**
@@ -200,84 +183,14 @@ export async function getUsageStats(userId: string) {
 
 /**
  * Check if user can perform an action based on limits
+ * TESTING MODE: All actions allowed
  */
 export async function canPerformAction(
   userId: string,
   action: 'create_listing' | 'create_job' | 'feature_listing'
 ): Promise<{ allowed: boolean; reason?: string; limit?: number; current?: number }> {
-  const subscription = await getUserSubscription(userId);
-
-  if (!subscription) {
-    return {
-      allowed: false,
-      reason: 'No active subscription found',
-    };
-  }
-
-  switch (action) {
-    case 'create_listing': {
-      const limit = subscription.limits.monthly_listings;
-      if (limit === -1) {
-        return { allowed: true };
-      }
-
-      const current = await getCurrentUsage(userId, LIMITS.MONTHLY_LISTINGS);
-      const allowed = current < limit;
-
-      return {
-        allowed,
-        reason: allowed ? undefined : 'Monthly listing limit reached',
-        limit,
-        current,
-      };
-    }
-
-    case 'create_job': {
-      const limit = subscription.limits.monthly_jobs;
-      if (limit === -1) {
-        return { allowed: true };
-      }
-
-      const current = await getCurrentUsage(userId, LIMITS.MONTHLY_JOBS);
-      const allowed = current < limit;
-
-      return {
-        allowed,
-        reason: allowed ? undefined : 'Monthly job post limit reached',
-        limit,
-        current,
-      };
-    }
-
-    case 'feature_listing': {
-      const limit = subscription.limits.featured_listings;
-      if (limit === -1) {
-        return { allowed: true };
-      }
-
-      if (limit === 0) {
-        return {
-          allowed: false,
-          reason: 'Featured listings not available in your plan',
-          limit,
-          current: 0,
-        };
-      }
-
-      const current = await getCurrentUsage(userId, LIMITS.FEATURED_LISTINGS);
-      const allowed = current < limit;
-
-      return {
-        allowed,
-        reason: allowed ? undefined : 'Featured listing limit reached',
-        limit,
-        current,
-      };
-    }
-
-    default:
-      return { allowed: false, reason: 'Unknown action' };
-  }
+  // TESTING MODE: Always allow all actions
+  return { allowed: true };
 }
 
 /**

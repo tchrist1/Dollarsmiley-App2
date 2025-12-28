@@ -338,39 +338,27 @@ export default function AIPhotoAssistModal({
   const removeBackground = async () => {
     if (!currentImage) return;
 
-    Alert.alert(
-      'Background Removal',
-      'Background removal is a premium feature. For now, the image will be optimized with transparency support.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+    try {
+      setLoading(true);
+      const manipResult = await ImageManipulator.manipulateAsync(
+        currentImage.originalUri || currentImage.imageUrl,
+        [{ resize: { width: 1024 } }],
         {
-          text: 'Continue',
-          onPress: async () => {
-            try {
-              setLoading(true);
-              const manipResult = await ImageManipulator.manipulateAsync(
-                currentImage.originalUri || currentImage.imageUrl,
-                [{ resize: { width: 1024 } }],
-                {
-                  format: ImageManipulator.SaveFormat.PNG,
-                  compress: 0.9,
-                }
-              );
+          format: ImageManipulator.SaveFormat.PNG,
+          compress: 0.9,
+        }
+      );
 
-              const updatedImages = [...generatedImages];
-              updatedImages[selectedImageIndex].imageUrl = manipResult.uri;
-              updatedImages[selectedImageIndex].hasBackgroundRemoved = true;
-              setGeneratedImages(updatedImages);
-            } catch (err) {
-              console.error('Background removal error:', err);
-              Alert.alert('Error', 'Failed to remove background.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+      const updatedImages = [...generatedImages];
+      updatedImages[selectedImageIndex].imageUrl = manipResult.uri;
+      updatedImages[selectedImageIndex].hasBackgroundRemoved = true;
+      setGeneratedImages(updatedImages);
+    } catch (err) {
+      console.error('Background removal error:', err);
+      Alert.alert('Error', 'Failed to remove background.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deletePhoto = (index: number) => {

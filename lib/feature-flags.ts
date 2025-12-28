@@ -16,37 +16,11 @@ class FeatureFlagService {
 
   /**
    * Check if a feature is enabled
+   * TESTING MODE: All features unlocked
    */
   async isEnabled(featureKey: string): Promise<boolean> {
-    // Check cache first
-    const cached = this.cache.get(featureKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-      return cached.enabled;
-    }
-
-    // Query database
-    try {
-      const { data, error } = await supabase.rpc('is_feature_enabled', {
-        p_feature_key: featureKey,
-      });
-
-      if (error) {
-        console.error(`Error checking feature ${featureKey}:`, error);
-        return false;
-      }
-
-      // Update cache
-      this.cache.set(featureKey, {
-        enabled: data || false,
-        config: {},
-        timestamp: Date.now(),
-      });
-
-      return data || false;
-    } catch (error) {
-      console.error(`Error checking feature ${featureKey}:`, error);
-      return false;
-    }
+    // TESTING MODE: Always return true to enable all features
+    return true;
   }
 
   /**
@@ -116,23 +90,11 @@ class FeatureFlagService {
 
   /**
    * Check rate limit
+   * TESTING MODE: No rate limits
    */
   async checkRateLimit(featureKey: string): Promise<boolean> {
-    try {
-      const { data, error } = await supabase.rpc('check_feature_rate_limit', {
-        p_feature_key: featureKey,
-      });
-
-      if (error) {
-        console.error(`Error checking rate limit for ${featureKey}:`, error);
-        return false;
-      }
-
-      return data || false;
-    } catch (error) {
-      console.error(`Error checking rate limit for ${featureKey}:`, error);
-      return false;
-    }
+    // TESTING MODE: Always return true to bypass rate limits
+    return true;
   }
 
   /**

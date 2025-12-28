@@ -103,44 +103,16 @@ export async function checkUsageLimit(
   userId: string,
   metric: UsageMetric
 ): Promise<UsageData> {
-  try {
-    // Get user's subscription
-    const subscription = await getUserSubscription(userId);
-    const plan = subscription?.plan || null;
-
-    // Get limit for metric
-    const limit = getMetricLimit(plan, metric);
-    const unlimited = limit === -1;
-
-    // Get current usage
-    const { periodStart, periodEnd } = getCurrentPeriod();
-    const { data: usage } = await supabase
-      .from('usage_tracking')
-      .select('count')
-      .eq('user_id', userId)
-      .eq('metric', metric)
-      .eq('period_start', periodStart)
-      .eq('period_end', periodEnd)
-      .single();
-
-    const count = usage?.count || 0;
-    const remaining = unlimited ? Infinity : Math.max(0, limit - count);
-    const percentage = unlimited ? 0 : (count / limit) * 100;
-    const exceeded = !unlimited && count >= limit;
-
-    return {
-      metric,
-      count,
-      limit,
-      percentage,
-      unlimited,
-      remaining,
-      exceeded,
-    };
-  } catch (error) {
-    console.error('Error checking usage limit:', error);
-    throw error;
-  }
+  // TESTING MODE: Always return unlimited usage
+  return {
+    metric,
+    count: 0,
+    limit: -1,
+    percentage: 0,
+    unlimited: true,
+    remaining: Infinity,
+    exceeded: false,
+  };
 }
 
 export async function canPerformAction(
@@ -148,40 +120,19 @@ export async function canPerformAction(
   metric: UsageMetric,
   amount: number = 1
 ): Promise<{ allowed: boolean; usage: UsageData; message?: string }> {
-  try {
-    const usageData = await checkUsageLimit(userId, metric);
-
-    if (usageData.unlimited) {
-      return { allowed: true, usage: usageData };
-    }
-
-    const wouldExceed = usageData.count + amount > usageData.limit;
-
-    if (wouldExceed) {
-      return {
-        allowed: false,
-        usage: usageData,
-        message: `You've reached your ${metric.replace(/_/g, ' ')} limit. Upgrade to continue.`,
-      };
-    }
-
-    return { allowed: true, usage: usageData };
-  } catch (error: any) {
-    console.error('Error checking if action allowed:', error);
-    return {
-      allowed: false,
-      usage: {
-        metric,
-        count: 0,
-        limit: 0,
-        percentage: 100,
-        unlimited: false,
-        remaining: 0,
-        exceeded: true,
-      },
-      message: 'Error checking usage limits',
-    };
-  }
+  // TESTING MODE: Always allow all actions with unlimited usage
+  return {
+    allowed: true,
+    usage: {
+      metric,
+      count: 0,
+      limit: -1,
+      percentage: 0,
+      unlimited: true,
+      remaining: Infinity,
+      exceeded: false,
+    },
+  };
 }
 
 export async function getUserUsageSummary(userId: string): Promise<UsageSummary | null> {
