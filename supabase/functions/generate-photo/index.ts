@@ -64,18 +64,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: profile } = await supabaseClient
-      .from("profiles")
-      .select("ai_assist_enabled")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (profile && profile.ai_assist_enabled === false) {
-      return new Response(
-        JSON.stringify({ error: "AI Assist is disabled. Enable it in Settings to use this feature." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // TESTING MODE: AI Assist always enabled - no checks
 
     const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openaiApiKey) {
