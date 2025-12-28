@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -149,6 +149,11 @@ export default function AIPhotoAssistModal({
   const [isEditMode, setIsEditMode] = useState(false);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [processingFilter, setProcessingFilter] = useState(false);
+
+  const filterCache = useRef<Map<string, string>>(new Map());
+  const abortController = useRef<AbortController | null>(null);
 
   const remainingSlots = maxPhotos - currentPhotoCount;
   const canAddMore = remainingSlots > 0;
@@ -177,7 +182,11 @@ export default function AIPhotoAssistModal({
     }
   }, [maxGeneratable]);
 
-  const resetState = () => {
+  const resetState = useCallback(() => {
+    if (abortController.current) {
+      abortController.current.abort();
+      abortController.current = null;
+    }
     setPrompt('');
     setError(null);
     setGeneratedImages([]);
@@ -187,7 +196,10 @@ export default function AIPhotoAssistModal({
     setPhotoCount(1);
     setIsEditMode(false);
     setShowFilterMenu(false);
-  };
+    setGenerationProgress(0);
+    setProcessingFilter(false);
+    filterCache.current.clear();
+  }, []);
 
   const requestPermissions = async (type: 'camera' | 'library') => {
     if (Platform.OS === 'web') {
@@ -279,40 +291,50 @@ export default function AIPhotoAssistModal({
     setSelectedPhotos(new Set([...selectedPhotos, generatedImages.length]));
   };
 
-  const applyFilter = async (filter: PhotoFilter) => {
+  const applyFilter = useCallback(async (filter: PhotoFilter) => {
     if (!currentImage) return;
 
     const updatedImages = [...generatedImages];
     const currentImg = updatedImages[selectedImageIndex];
+    const originalUri = currentImg.originalUri || currentImg.imageUrl;
 
     if (filter === 'none') {
       currentImg.filter = 'none';
-      currentImg.imageUrl = currentImg.originalUri || currentImg.imageUrl;
+      currentImg.imageUrl = originalUri;
     } else {
-      try {
-        setLoading(true);
-        const manipResult = await ImageManipulator.manipulateAsync(
-          currentImg.originalUri || currentImg.imageUrl,
-          [],
-          {
-            format: ImageManipulator.SaveFormat.JPEG,
-            compress: 0.9,
-          }
-        );
+      const cacheKey = `${originalUri}-${filter}`;
 
+      if (filterCache.current.has(cacheKey)) {
         currentImg.filter = filter;
-        currentImg.imageUrl = manipResult.uri;
-      } catch (err) {
-        console.error('Filter error:', err);
-        Alert.alert('Error', 'Failed to apply filter.');
-      } finally {
-        setLoading(false);
+        currentImg.imageUrl = filterCache.current.get(cacheKey)!;
+      } else {
+        try {
+          setProcessingFilter(true);
+          const manipResult = await ImageManipulator.manipulateAsync(
+            originalUri,
+            [],
+            {
+              format: ImageManipulator.SaveFormat.JPEG,
+              compress: 0.9,
+            }
+          );
+
+          filterCache.current.set(cacheKey, manipResult.uri);
+          currentImg.filter = filter;
+          currentImg.imageUrl = manipResult.uri;
+        } catch (err) {
+          console.error('Filter error:', err);
+          Alert.alert('Error', 'Failed to apply filter.');
+          return;
+        } finally {
+          setProcessingFilter(false);
+        }
       }
     }
 
     setGeneratedImages(updatedImages);
     setShowFilterMenu(false);
-  };
+  }, [currentImage, generatedImages, selectedImageIndex]);
 
   const removeBackground = async () => {
     if (!currentImage) return;
@@ -380,7 +402,7 @@ export default function AIPhotoAssistModal({
     ]);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
       setError('Please describe the photo you want to generate.');
       return;
@@ -391,17 +413,21 @@ export default function AIPhotoAssistModal({
       return;
     }
 
+    abortController.current = new AbortController();
     setLoading(true);
     setError(null);
     setGeneratedImages([]);
     setSelectedImageIndex(0);
     setSelectedPhotos(new Set());
+    setGenerationProgress(0);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Please sign in to use AI Photo Assist.');
       }
+
+      setGenerationProgress(20);
 
       const response = await supabase.functions.invoke('generate-photo', {
         body: {
@@ -412,6 +438,12 @@ export default function AIPhotoAssistModal({
         },
       });
 
+      if (abortController.current?.signal.aborted) {
+        return;
+      }
+
+      setGenerationProgress(90);
+
       if (response.error) {
         throw new Error(response.error.message || 'Failed to generate photo');
       }
@@ -421,24 +453,40 @@ export default function AIPhotoAssistModal({
       }
 
       if (response.data?.images && response.data.images.length > 0) {
-        setGeneratedImages(response.data.images);
+        const imagesWithFilter = response.data.images.map((img: any) => ({
+          ...img,
+          filter: 'none',
+          hasBackgroundRemoved: false,
+          originalUri: img.imageUrl,
+        }));
+        setGeneratedImages(imagesWithFilter);
         setSelectedPhotos(new Set([0]));
+        setGenerationProgress(100);
       } else if (response.data?.imageUrl) {
         setGeneratedImages([{
           imageUrl: response.data.imageUrl,
           revisedPrompt: response.data.revisedPrompt || prompt,
+          filter: 'none',
+          hasBackgroundRemoved: false,
+          originalUri: response.data.imageUrl,
         }]);
         setSelectedPhotos(new Set([0]));
+        setGenerationProgress(100);
       } else {
         throw new Error('No images were generated. Please try again.');
       }
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('AI Photo generation error:', err);
       setError(err.message || 'AI Photo Assist is temporarily unavailable. Please try again.');
     } finally {
       setLoading(false);
+      setGenerationProgress(0);
+      abortController.current = null;
     }
-  };
+  }, [prompt, sourceContext, selectedSize, photoCount, canAddMore, maxPhotos]);
 
   const handleAccept = () => {
     if (generatedImages.length === 0) return;
@@ -642,7 +690,26 @@ export default function AIPhotoAssistModal({
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Generating your photos...</Text>
-                <Text style={styles.loadingSubtext}>This may take a moment</Text>
+                {generationProgress > 0 && (
+                  <>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { width: `${generationProgress}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>{generationProgress}%</Text>
+                  </>
+                )}
+                <Text style={styles.loadingSubtext}>
+                  {generationProgress < 30 ? 'Initializing...' :
+                   generationProgress < 90 ? 'Creating images...' :
+                   generationProgress > 0 ? 'Finalizing...' : 'This may take a moment'}
+                </Text>
+              </View>
+            )}
+
+            {processingFilter && (
+              <View style={styles.filterProcessingOverlay}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.filterProcessingText}>Applying filter...</Text>
               </View>
             )}
 
@@ -1346,5 +1413,41 @@ const styles = StyleSheet.create({
   filterOptionDesc: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+  },
+  progressBar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: 3,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  filterProcessingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+    zIndex: 999,
+  },
+  filterProcessingText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
 });

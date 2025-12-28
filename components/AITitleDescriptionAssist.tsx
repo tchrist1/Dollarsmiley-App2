@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,9 @@ export default function AITitleDescriptionAssist({
   const [tone, setTone] = useState<'professional' | 'friendly'>('professional');
   const [length, setLength] = useState<'concise' | 'detailed'>('concise');
 
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const abortController = useRef<AbortController | null>(null);
+
   const titleWordLimit = type === 'job' ? 8 : 10;
   const descriptionWordLimit = 120;
 
@@ -59,13 +62,26 @@ export default function AITitleDescriptionAssist({
     if (modalVisible && currentTitle.trim()) {
       generateContent();
     }
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      if (abortController.current) {
+        abortController.current.abort();
+      }
+    };
   }, [modalVisible]);
 
-  const generateContent = async () => {
+  const generateContent = useCallback(async () => {
     if (!currentTitle.trim()) {
       setError('Please enter a title first');
       return;
     }
+
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    abortController.current = new AbortController();
 
     setLoading(true);
     setError(null);
@@ -141,18 +157,35 @@ Respond ONLY with valid JSON in this exact format:
         throw new Error('Invalid response format');
       }
 
+      if (abortController.current?.signal.aborted) {
+        return;
+      }
+
       setGeneratedTitle(content.title.trim());
       setGeneratedDescription(content.description.trim());
       setError(null);
     } catch (err: any) {
+      if (err.name === 'AbortError') {
+        return;
+      }
       console.error('AI generation error:', err);
       setError('AI assistance is temporarily unavailable. Please write your content manually.');
       setGeneratedTitle('');
       setGeneratedDescription('');
     } finally {
       setLoading(false);
+      abortController.current = null;
     }
-  };
+  }, [currentTitle, type, titleWordLimit, descriptionWordLimit, tone, length]);
+
+  const debouncedGenerate = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      generateContent();
+    }, 800);
+  }, [generateContent]);
 
   const handleRegenerate = () => {
     generateContent();
@@ -222,7 +255,12 @@ Respond ONLY with valid JSON in this exact format:
                   <View style={styles.optionButtons}>
                     <TouchableOpacity
                       style={[styles.optionButton, tone === 'professional' && styles.optionButtonActive]}
-                      onPress={() => setTone('professional')}
+                      onPress={() => {
+                        setTone('professional');
+                        if (generatedTitle || generatedDescription) {
+                          debouncedGenerate();
+                        }
+                      }}
                       disabled={loading}
                     >
                       <Text style={[styles.optionButtonText, tone === 'professional' && styles.optionButtonTextActive]}>
@@ -231,7 +269,12 @@ Respond ONLY with valid JSON in this exact format:
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.optionButton, tone === 'friendly' && styles.optionButtonActive]}
-                      onPress={() => setTone('friendly')}
+                      onPress={() => {
+                        setTone('friendly');
+                        if (generatedTitle || generatedDescription) {
+                          debouncedGenerate();
+                        }
+                      }}
                       disabled={loading}
                     >
                       <Text style={[styles.optionButtonText, tone === 'friendly' && styles.optionButtonTextActive]}>
@@ -246,7 +289,12 @@ Respond ONLY with valid JSON in this exact format:
                   <View style={styles.optionButtons}>
                     <TouchableOpacity
                       style={[styles.optionButton, length === 'concise' && styles.optionButtonActive]}
-                      onPress={() => setLength('concise')}
+                      onPress={() => {
+                        setLength('concise');
+                        if (generatedTitle || generatedDescription) {
+                          debouncedGenerate();
+                        }
+                      }}
                       disabled={loading}
                     >
                       <Text style={[styles.optionButtonText, length === 'concise' && styles.optionButtonTextActive]}>
@@ -255,7 +303,12 @@ Respond ONLY with valid JSON in this exact format:
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.optionButton, length === 'detailed' && styles.optionButtonActive]}
-                      onPress={() => setLength('detailed')}
+                      onPress={() => {
+                        setLength('detailed');
+                        if (generatedTitle || generatedDescription) {
+                          debouncedGenerate();
+                        }
+                      }}
                       disabled={loading}
                     >
                       <Text style={[styles.optionButtonText, length === 'detailed' && styles.optionButtonTextActive]}>

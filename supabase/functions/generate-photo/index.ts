@@ -137,9 +137,7 @@ Return ONLY the enhanced prompt text, nothing else.`;
 
     const enhancedPrompt = enhancementResponse.choices[0].message.content?.trim() || prompt.trim();
 
-    const images: Array<{ imageUrl: string; revisedPrompt: string }> = [];
-
-    for (let i = 0; i < imageCount; i++) {
+    const imageGenerationPromises = Array.from({ length: imageCount }, async (_, i) => {
       try {
         const response = await openai.images.generate({
           model: "gpt-image-1",
@@ -152,24 +150,31 @@ Return ONLY the enhanced prompt text, nothing else.`;
         if (response.data && response.data.length > 0) {
           const imageData = response.data[0];
           if (imageData.b64_json) {
-            images.push({
+            return {
               imageUrl: `data:image/png;base64,${imageData.b64_json}`,
               revisedPrompt: enhancedPrompt,
-            });
+            };
           } else if (imageData.url) {
-            images.push({
+            return {
               imageUrl: imageData.url,
               revisedPrompt: enhancedPrompt,
-            });
+            };
           }
         }
+        return null;
       } catch (imgError: any) {
         console.error(`Image generation attempt ${i + 1} failed:`, imgError.message);
         if (i === 0) {
           throw imgError;
         }
+        return null;
       }
-    }
+    });
+
+    const settledResults = await Promise.allSettled(imageGenerationPromises);
+    const images: Array<{ imageUrl: string; revisedPrompt: string }> = settledResults
+      .filter((result) => result.status === 'fulfilled' && result.value !== null)
+      .map((result) => (result as PromiseFulfilledResult<any>).value);
 
     if (images.length === 0) {
       return new Response(

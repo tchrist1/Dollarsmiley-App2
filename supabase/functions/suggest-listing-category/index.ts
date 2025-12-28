@@ -1,12 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.38.4";
 import { OpenAI } from "npm:openai@4.67.3";
+import { getCache } from "../_shared/response-cache.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
+
+const suggestionCache = getCache<any>("category-suggestions", 1800000);
 
 interface SuggestionResponse {
   suggested_category_id: string;
@@ -186,6 +189,22 @@ Deno.serve(async (req: Request) => {
         })),
     }));
 
+    const cacheKey = suggestionCache.generateKey({
+      title: (title || "").toLowerCase().trim(),
+      description: (description || "").substring(0, 200).toLowerCase().trim(),
+    });
+
+    const cachedSuggestion = suggestionCache.get(cacheKey);
+    if (cachedSuggestion) {
+      return new Response(
+        JSON.stringify(cachedSuggestion),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "HIT" },
+        }
+      );
+    }
+
     const openaiService = new OpenAIService(openaiApiKey);
 
     let suggestion;
@@ -218,9 +237,11 @@ Deno.serve(async (req: Request) => {
       alternate_suggestions: suggestion.alternativeSuggestions || [],
     };
 
+    suggestionCache.set(cacheKey, response);
+
     return new Response(JSON.stringify(response), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json", "X-Cache": "MISS" },
     });
   } catch (error: any) {
     console.error("Error suggesting category:", error);
