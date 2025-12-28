@@ -1,4 +1,4 @@
-package com.helloworld
+package com.dollarsmiley
 
 import android.os.Build
 import android.os.Bundle
