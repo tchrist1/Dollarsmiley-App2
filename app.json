@@ -68,6 +68,8 @@
       "@rnmapbox/maps",
       "expo-location",
       "expo-camera",
+      "expo-image-manipulator",
+      "expo-image-picker",
       "expo-media-library",
       "expo-contacts",
       "expo-notifications",
