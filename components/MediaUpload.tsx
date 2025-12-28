@@ -57,18 +57,12 @@ export default function MediaUpload({
         return;
       }
 
-      if (!allowVideos) {
-        const shouldContinue = await showCropInstructions();
-        if (!shouldContinue) return;
-      }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: allowVideos
           ? ['images', 'videos']
           : ['images'],
         allowsMultipleSelection: false,
-        allowsEditing: !allowVideos,
-        aspect: !allowVideos ? [4, 3] : undefined,
+        allowsEditing: false,
         quality: 0.8,
         videoMaxDuration: 60,
       });
@@ -82,19 +76,6 @@ export default function MediaUpload({
     }
   };
 
-  const showCropInstructions = () => {
-    return new Promise<boolean>((resolve) => {
-      Alert.alert(
-        'Crop Your Image',
-        'After taking/selecting your photo, you can crop and adjust it.\n\n• Tap "CROP" or the checkmark to confirm\n• Tap the back arrow or "Cancel" to go back\n• Pinch to zoom, drag to reposition',
-        [
-          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-          { text: 'Continue', onPress: () => resolve(true) },
-        ]
-      );
-    });
-  };
-
   const takePhoto = async () => {
     try {
       const hasPermission = await requestPermissions('camera');
@@ -103,14 +84,10 @@ export default function MediaUpload({
         return;
       }
 
-      const shouldContinue = await showCropInstructions();
-      if (!shouldContinue) return;
-
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         quality: 0.8,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
       });
 
       if (!result.canceled) {

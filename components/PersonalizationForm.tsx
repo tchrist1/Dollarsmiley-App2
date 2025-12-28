@@ -182,7 +182,7 @@ export default function PersonalizationForm({
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
+      allowsEditing: false,
       quality: config.image_upload_config?.require_high_res ? 1 : 0.8,
     });
 

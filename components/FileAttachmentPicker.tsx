@@ -64,9 +64,8 @@ export default function FileAttachmentPicker({
       setLoading(true);
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
-        aspect: [4, 3],
       });
 
       if (!result.canceled && result.assets[0]) {
