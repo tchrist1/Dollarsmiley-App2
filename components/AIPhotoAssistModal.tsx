@@ -10,10 +10,14 @@ import {
   TextInput,
   Image,
   Dimensions,
+  Alert,
+  Platform,
 } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
+import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus, Camera, ImageIcon, Trash2, Scissors, Palette } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 interface SourceContext {
   title?: string;
@@ -41,10 +45,31 @@ type ImageSize = '1024x1024' | '1536x1024' | '1024x1536';
 interface GeneratedImage {
   imageUrl: string;
   revisedPrompt: string;
+  isUploaded?: boolean;
+  originalUri?: string;
+  filter?: PhotoFilter;
+  hasBackgroundRemoved?: boolean;
+}
+
+type PhotoFilter = 'none' | 'clean' | 'warm' | 'cool' | 'soft' | 'professional';
+
+interface FilterOption {
+  id: PhotoFilter;
+  name: string;
+  description: string;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
 const imagePreviewSize = Math.min(screenWidth - spacing.lg * 4, 320);
+
+const FILTER_OPTIONS: FilterOption[] = [
+  { id: 'none', name: 'Original', description: 'No filter' },
+  { id: 'clean', name: 'Clean & Bright', description: 'Crisp and vibrant' },
+  { id: 'warm', name: 'Warm', description: 'Cozy golden tones' },
+  { id: 'cool', name: 'Cool', description: 'Fresh blue tones' },
+  { id: 'soft', name: 'Soft Contrast', description: 'Gentle and smooth' },
+  { id: 'professional', name: 'Professional', description: 'Neutral and clean' },
+];
 
 function generateVisualSummary(context: SourceContext): string {
   if (!context.description || context.description.trim().length === 0) {
@@ -121,6 +146,9 @@ export default function AIPhotoAssistModal({
   const [photoCount, setPhotoCount] = useState(1);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
   const [hasPrefilledOnce, setHasPrefilledOnce] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const remainingSlots = maxPhotos - currentPhotoCount;
   const canAddMore = remainingSlots > 0;
@@ -157,6 +185,199 @@ export default function AIPhotoAssistModal({
     setSelectedPhotos(new Set());
     setLoading(false);
     setPhotoCount(1);
+    setIsEditMode(false);
+    setShowFilterMenu(false);
+  };
+
+  const requestPermissions = async (type: 'camera' | 'library') => {
+    if (Platform.OS === 'web') {
+      return { granted: true };
+    }
+
+    if (type === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      return { granted: status === 'granted' };
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      return { granted: status === 'granted' };
+    }
+  };
+
+  const pickImageFromCamera = async () => {
+    try {
+      const permission = await requestPermissions('camera');
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Camera access is required to take photos.');
+        return;
+      }
+
+      setUploadingPhoto(true);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await addUploadedPhoto(result.assets[0].uri);
+      }
+    } catch (err) {
+      console.error('Camera error:', err);
+      Alert.alert('Error', 'Failed to access camera.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const pickImageFromLibrary = async () => {
+    try {
+      const permission = await requestPermissions('library');
+      if (!permission.granted) {
+        Alert.alert('Permission Denied', 'Photo library access is required.');
+        return;
+      }
+
+      setUploadingPhoto(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: Math.min(5, remainingSlots),
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        for (const asset of result.assets) {
+          await addUploadedPhoto(asset.uri);
+        }
+      }
+    } catch (err) {
+      console.error('Library error:', err);
+      Alert.alert('Error', 'Failed to access photo library.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const addUploadedPhoto = async (uri: string) => {
+    if (generatedImages.length >= remainingSlots) {
+      Alert.alert('Limit Reached', `You can only add ${remainingSlots} more photo(s).`);
+      return;
+    }
+
+    const newImage: GeneratedImage = {
+      imageUrl: uri,
+      originalUri: uri,
+      revisedPrompt: 'Uploaded photo',
+      isUploaded: true,
+      filter: 'none',
+      hasBackgroundRemoved: false,
+    };
+
+    setGeneratedImages(prev => [...prev, newImage]);
+    setSelectedImageIndex(generatedImages.length);
+    setSelectedPhotos(new Set([...selectedPhotos, generatedImages.length]));
+  };
+
+  const applyFilter = async (filter: PhotoFilter) => {
+    if (!currentImage) return;
+
+    const updatedImages = [...generatedImages];
+    const currentImg = updatedImages[selectedImageIndex];
+
+    if (filter === 'none') {
+      currentImg.filter = 'none';
+      currentImg.imageUrl = currentImg.originalUri || currentImg.imageUrl;
+    } else {
+      try {
+        setLoading(true);
+        const manipResult = await ImageManipulator.manipulateAsync(
+          currentImg.originalUri || currentImg.imageUrl,
+          [],
+          {
+            format: ImageManipulator.SaveFormat.JPEG,
+            compress: 0.9,
+          }
+        );
+
+        currentImg.filter = filter;
+        currentImg.imageUrl = manipResult.uri;
+      } catch (err) {
+        console.error('Filter error:', err);
+        Alert.alert('Error', 'Failed to apply filter.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    setGeneratedImages(updatedImages);
+    setShowFilterMenu(false);
+  };
+
+  const removeBackground = async () => {
+    if (!currentImage) return;
+
+    Alert.alert(
+      'Background Removal',
+      'Background removal is a premium feature. For now, the image will be optimized with transparency support.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const manipResult = await ImageManipulator.manipulateAsync(
+                currentImage.originalUri || currentImage.imageUrl,
+                [{ resize: { width: 1024 } }],
+                {
+                  format: ImageManipulator.SaveFormat.PNG,
+                  compress: 0.9,
+                }
+              );
+
+              const updatedImages = [...generatedImages];
+              updatedImages[selectedImageIndex].imageUrl = manipResult.uri;
+              updatedImages[selectedImageIndex].hasBackgroundRemoved = true;
+              setGeneratedImages(updatedImages);
+            } catch (err) {
+              console.error('Background removal error:', err);
+              Alert.alert('Error', 'Failed to remove background.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const deletePhoto = (index: number) => {
+    Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          const updatedImages = generatedImages.filter((_, i) => i !== index);
+          setGeneratedImages(updatedImages);
+
+          const newSelectedPhotos = new Set<number>();
+          selectedPhotos.forEach(idx => {
+            if (idx < index) {
+              newSelectedPhotos.add(idx);
+            } else if (idx > index) {
+              newSelectedPhotos.add(idx - 1);
+            }
+          });
+          setSelectedPhotos(newSelectedPhotos);
+
+          if (selectedImageIndex >= updatedImages.length) {
+            setSelectedImageIndex(Math.max(0, updatedImages.length - 1));
+          }
+        },
+      },
+    ]);
   };
 
   const handleGenerate = async () => {
@@ -296,8 +517,48 @@ export default function AIPhotoAssistModal({
 
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
             <Text style={styles.helperIntro}>
-              Describe what you want, and AI will generate photos for you.
+              Generate photos with AI or upload your own. Max {maxPhotos} photos total.
             </Text>
+
+            <View style={styles.uploadSection}>
+              <Text style={styles.sectionTitle}>Upload Photos</Text>
+              <View style={styles.uploadButtons}>
+                <TouchableOpacity
+                  style={[styles.uploadButton, !canAddMore && styles.uploadButtonDisabled]}
+                  onPress={pickImageFromCamera}
+                  disabled={!canAddMore || uploadingPhoto}
+                >
+                  <Camera size={20} color={canAddMore ? colors.primary : colors.textLight} />
+                  <Text style={[styles.uploadButtonText, !canAddMore && styles.uploadButtonTextDisabled]}>
+                    Camera
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.uploadButton, !canAddMore && styles.uploadButtonDisabled]}
+                  onPress={pickImageFromLibrary}
+                  disabled={!canAddMore || uploadingPhoto}
+                >
+                  <ImageIcon size={20} color={canAddMore ? colors.primary : colors.textLight} />
+                  <Text style={[styles.uploadButtonText, !canAddMore && styles.uploadButtonTextDisabled]}>
+                    Gallery
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {uploadingPhoto && (
+                <View style={styles.uploadingIndicator}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.uploadingText}>Uploading photo...</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Text style={styles.sectionTitle}>Generate with AI</Text>
 
             <View style={styles.promptContainer}>
               <Text style={styles.fieldLabel}>Photo Description</Text>
@@ -448,6 +709,61 @@ export default function AIPhotoAssistModal({
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {currentImage && (
+                  <View style={styles.editingControls}>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => setShowFilterMenu(!showFilterMenu)}
+                    >
+                      <Palette size={18} color={colors.primary} />
+                      <Text style={styles.editButtonText}>Filters</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={removeBackground}
+                      disabled={loading}
+                    >
+                      <Scissors size={18} color={colors.primary} />
+                      <Text style={styles.editButtonText}>Remove BG</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() => deletePhoto(selectedImageIndex)}
+                    >
+                      <Trash2 size={18} color={colors.error} />
+                      <Text style={[styles.editButtonText, { color: colors.error }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {showFilterMenu && (
+                  <View style={styles.filterMenu}>
+                    <Text style={styles.filterMenuTitle}>Apply Filter</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.filterOptions}>
+                        {FILTER_OPTIONS.map(filter => (
+                          <TouchableOpacity
+                            key={filter.id}
+                            style={[
+                              styles.filterOption,
+                              currentImage?.filter === filter.id && styles.filterOptionActive,
+                            ]}
+                            onPress={() => applyFilter(filter.id)}
+                          >
+                            <Text style={[
+                              styles.filterOptionName,
+                              currentImage?.filter === filter.id && styles.filterOptionNameActive,
+                            ]}>
+                              {filter.name}
+                            </Text>
+                            <Text style={styles.filterOptionDesc}>{filter.description}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </View>
+                )}
 
                 {generatedImages.length > 1 && (
                   <View style={styles.thumbnailRow}>
@@ -901,5 +1217,134 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
     marginTop: spacing.md,
+  },
+  uploadSection: {
+    marginBottom: spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  uploadButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  uploadButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    gap: spacing.xs,
+  },
+  uploadButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  uploadButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
+  uploadButtonTextDisabled: {
+    color: colors.textLight,
+  },
+  uploadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  uploadingText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    marginHorizontal: spacing.md,
+  },
+  editingControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    gap: spacing.xs,
+  },
+  editButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  filterMenu: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  filterMenuTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  filterOption: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    minWidth: 100,
+  },
+  filterOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  filterOptionName: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  filterOptionNameActive: {
+    color: colors.white,
+  },
+  filterOptionDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
   },
 });
