@@ -1,4 +1,4 @@
-package com.dollarsmiley
+package com.dollarsmiley.app
 
 import android.app.Application
 import android.content.res.Configuration

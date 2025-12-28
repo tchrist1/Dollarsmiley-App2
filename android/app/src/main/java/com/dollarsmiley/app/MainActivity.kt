@@ -1,4 +1,4 @@
-package com.dollarsmiley
+package com.dollarsmiley.app
 
 import android.os.Build
 import android.os.Bundle
