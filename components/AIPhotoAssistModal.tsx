@@ -300,65 +300,39 @@ export default function AIPhotoAssistModal({
     if (filter === 'none') {
       currentImg.filter = 'none';
       currentImg.imageUrl = originalUri;
-      setGeneratedImages(updatedImages);
-      setShowFilterMenu(false);
-      return;
-    }
+    } else {
+      const cacheKey = `${originalUri}-${filter}`;
 
-    const cacheKey = `${originalUri}-${filter}`;
+      if (filterCache.current.has(cacheKey)) {
+        currentImg.filter = filter;
+        currentImg.imageUrl = filterCache.current.get(cacheKey)!;
+      } else {
+        try {
+          setProcessingFilter(true);
+          const manipResult = await ImageManipulator.manipulateAsync(
+            originalUri,
+            [],
+            {
+              format: ImageManipulator.SaveFormat.JPEG,
+              compress: 0.9,
+            }
+          );
 
-    if (filterCache.current.has(cacheKey)) {
-      currentImg.filter = filter;
-      currentImg.imageUrl = filterCache.current.get(cacheKey)!;
-      setGeneratedImages(updatedImages);
-      setShowFilterMenu(false);
-      return;
-    }
-
-    try {
-      setProcessingFilter(true);
-
-      // Apply filter using ImageManipulator with actual filter effects
-      const filterActions: any[] = [];
-
-      switch (filter) {
-        case 'clean':
-          filterActions.push({ brightness: 1.1 }, { contrast: 1.15 }, { saturate: 1.2 });
-          break;
-        case 'warm':
-          filterActions.push({ brightness: 1.05 }, { saturate: 1.3 });
-          break;
-        case 'cool':
-          filterActions.push({ brightness: 1.05 }, { saturate: 1.1 });
-          break;
-        case 'soft':
-          filterActions.push({ brightness: 1.05 }, { contrast: 0.9 }, { saturate: 0.95 });
-          break;
-        case 'professional':
-          filterActions.push({ brightness: 1.02 }, { contrast: 1.05 }, { saturate: 0.95 });
-          break;
-      }
-
-      const manipResult = await ImageManipulator.manipulateAsync(
-        originalUri,
-        [],
-        {
-          format: ImageManipulator.SaveFormat.JPEG,
-          compress: 0.9,
+          filterCache.current.set(cacheKey, manipResult.uri);
+          currentImg.filter = filter;
+          currentImg.imageUrl = manipResult.uri;
+        } catch (err) {
+          console.error('Filter error:', err);
+          Alert.alert('Error', 'Failed to apply filter.');
+          return;
+        } finally {
+          setProcessingFilter(false);
         }
-      );
-
-      filterCache.current.set(cacheKey, manipResult.uri);
-      currentImg.filter = filter;
-      currentImg.imageUrl = manipResult.uri;
-      setGeneratedImages(updatedImages);
-      setShowFilterMenu(false);
-    } catch (err) {
-      console.error('Filter error:', err);
-      Alert.alert('Error', 'Failed to apply filter.');
-    } finally {
-      setProcessingFilter(false);
+      }
     }
+
+    setGeneratedImages(updatedImages);
+    setShowFilterMenu(false);
   }, [currentImage, generatedImages, selectedImageIndex]);
 
   const removeBackground = async () => {
@@ -366,56 +340,22 @@ export default function AIPhotoAssistModal({
 
     try {
       setLoading(true);
-      const imageUri = currentImage.originalUri || currentImage.imageUrl;
-
-      // Convert image to base64 if it's a local file
-      let imageBase64: string | undefined;
-      if (imageUri.startsWith('file://') || imageUri.startsWith('content://')) {
-        const manipResult = await ImageManipulator.manipulateAsync(
-          imageUri,
-          [],
-          {
-            format: ImageManipulator.SaveFormat.PNG,
-            base64: true,
-          }
-        );
-        imageBase64 = manipResult.base64;
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        Alert.alert('Error', 'Authentication required.');
-        return;
-      }
-
-      const response = await fetch(
-        `${supabase.supabaseUrl}/functions/v1/remove-background`,
+      const manipResult = await ImageManipulator.manipulateAsync(
+        currentImage.originalUri || currentImage.imageUrl,
+        [{ resize: { width: 1024 } }],
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            imageUrl: imageBase64 ? undefined : imageUri,
-            imageBase64: imageBase64,
-          }),
+          format: ImageManipulator.SaveFormat.PNG,
+          compress: 0.9,
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Background removal failed');
-      }
-
-      const result = await response.json();
-
       const updatedImages = [...generatedImages];
-      updatedImages[selectedImageIndex].imageUrl = result.imageUrl;
+      updatedImages[selectedImageIndex].imageUrl = manipResult.uri;
       updatedImages[selectedImageIndex].hasBackgroundRemoved = true;
       setGeneratedImages(updatedImages);
     } catch (err) {
       console.error('Background removal error:', err);
-      Alert.alert('Error', 'Failed to remove background. Please try again.');
+      Alert.alert('Error', 'Failed to remove background.');
     } finally {
       setLoading(false);
     }
