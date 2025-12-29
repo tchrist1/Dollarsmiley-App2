@@ -232,43 +232,50 @@ export function PhotoPicker({
           </Text>
         </View>
       )}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosContainer}>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddPhoto}
-          activeOpacity={0.7}
-        >
-          <Camera size={32} color={colors.primary} />
-          <Text style={styles.addButtonText}>Add Photo</Text>
-          <Text style={styles.photoCount}>
-            {photos.length}/{maxPhotos}
-          </Text>
-        </TouchableOpacity>
-
-        {onAiImageAssist && (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.photosContainer}
+        contentContainerStyle={styles.photosContentContainer}
+      >
+        <View style={styles.photoRow}>
           <TouchableOpacity
-            style={styles.aiImageButton}
-            onPress={onAiImageAssist}
+            style={styles.addButton}
+            onPress={handleAddPhoto}
             activeOpacity={0.7}
           >
-            <Sparkles size={28} color={colors.primary} />
-            <Text style={styles.aiImageButtonText}>
-              AI Photo Assist
+            <Camera size={32} color={colors.primary} />
+            <Text style={styles.addButtonText}>Add Photo</Text>
+            <Text style={styles.photoCount}>
+              {photos.length}/{maxPhotos}
             </Text>
           </TouchableOpacity>
-        )}
 
-        {photos.map((photo, index) => (
-          <DraggablePhoto
-            key={`${photo}-${index}`}
-            photo={photo}
-            index={index}
-            isFeatured={index === 0}
-            onRemove={() => handleRemovePhoto(index)}
-            onMove={handleMovePhoto}
-            totalPhotos={photos.length}
-          />
-        ))}
+          {onAiImageAssist && aiAssistEnabled && (
+            <TouchableOpacity
+              style={styles.aiImageButton}
+              onPress={onAiImageAssist}
+              activeOpacity={0.7}
+            >
+              <Sparkles size={28} color={colors.primary} />
+              <Text style={styles.aiImageButtonText}>
+                AI Photo Assist
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {photos.map((photo, index) => (
+            <DraggablePhoto
+              key={`${photo}-${index}`}
+              photo={photo}
+              index={index}
+              isFeatured={index === 0}
+              onRemove={() => handleRemovePhoto(index)}
+              onMove={handleMovePhoto}
+              totalPhotos={photos.length}
+            />
+          ))}
+        </View>
       </ScrollView>
       {error && <Text style={styles.error}>{error}</Text>}
       <Text style={styles.helperText}>
@@ -307,6 +314,14 @@ const styles = StyleSheet.create({
   photosContainer: {
     flexDirection: 'row',
   },
+  photosContentContainer: {
+    paddingRight: spacing.md,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   addButton: {
     width: 120,
     height: 120,
@@ -330,7 +345,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   photoWrapper: {
-    marginRight: spacing.sm,
+    flexShrink: 0,
   },
   photoContainer: {
     position: 'relative',
