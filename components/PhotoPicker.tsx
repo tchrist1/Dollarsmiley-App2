@@ -238,44 +238,42 @@ export function PhotoPicker({
         style={styles.photosContainer}
         contentContainerStyle={styles.photosContentContainer}
       >
-        <View style={styles.photoRow}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleAddPhoto}
+          activeOpacity={0.7}
+        >
+          <Camera size={32} color={colors.primary} />
+          <Text style={styles.addButtonText}>Add Photo</Text>
+          <Text style={styles.photoCount}>
+            {photos.length}/{maxPhotos}
+          </Text>
+        </TouchableOpacity>
+
+        {onAiImageAssist && aiAssistEnabled && (
           <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddPhoto}
+            style={styles.aiImageButton}
+            onPress={onAiImageAssist}
             activeOpacity={0.7}
           >
-            <Camera size={32} color={colors.primary} />
-            <Text style={styles.addButtonText}>Add Photo</Text>
-            <Text style={styles.photoCount}>
-              {photos.length}/{maxPhotos}
+            <Sparkles size={28} color={colors.primary} />
+            <Text style={styles.aiImageButtonText}>
+              AI Photo Assist
             </Text>
           </TouchableOpacity>
+        )}
 
-          {onAiImageAssist && aiAssistEnabled && (
-            <TouchableOpacity
-              style={styles.aiImageButton}
-              onPress={onAiImageAssist}
-              activeOpacity={0.7}
-            >
-              <Sparkles size={28} color={colors.primary} />
-              <Text style={styles.aiImageButtonText}>
-                AI Photo Assist
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {photos.map((photo, index) => (
-            <DraggablePhoto
-              key={`${photo}-${index}`}
-              photo={photo}
-              index={index}
-              isFeatured={index === 0}
-              onRemove={() => handleRemovePhoto(index)}
-              onMove={handleMovePhoto}
-              totalPhotos={photos.length}
-            />
-          ))}
-        </View>
+        {photos.map((photo, index) => (
+          <DraggablePhoto
+            key={`${photo}-${index}`}
+            photo={photo}
+            index={index}
+            isFeatured={index === 0}
+            onRemove={() => handleRemovePhoto(index)}
+            onMove={handleMovePhoto}
+            totalPhotos={photos.length}
+          />
+        ))}
       </ScrollView>
       {error && <Text style={styles.error}>{error}</Text>}
       <Text style={styles.helperText}>
@@ -315,12 +313,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   photosContentContainer: {
-    paddingRight: spacing.md,
-  },
-  photoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    paddingRight: spacing.md,
   },
   addButton: {
     width: 120,
@@ -332,7 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
+    marginRight: spacing.md,
   },
   addButtonText: {
     fontSize: fontSize.xs,
@@ -345,7 +340,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   photoWrapper: {
-    flexShrink: 0,
+    marginRight: spacing.md,
   },
   photoContainer: {
     position: 'relative',
@@ -441,7 +436,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}08`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.sm,
+    marginRight: spacing.md,
   },
   aiImageButtonDisabled: {
     borderColor: colors.border,
