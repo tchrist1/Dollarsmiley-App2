@@ -126,7 +126,6 @@ export default function AIPhotoAssistModal({
   const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
   const [hasPrefilledOnce, setHasPrefilledOnce] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
 
   const abortController = useRef<AbortController | null>(null);
 
@@ -171,7 +170,6 @@ export default function AIPhotoAssistModal({
     setSelectedPhotos(new Set());
     setLoading(false);
     setPhotoCount(1);
-    setGenerationProgress(0);
   }, []);
 
   const requestPermissions = async (type: 'camera' | 'library') => {
@@ -308,15 +306,12 @@ export default function AIPhotoAssistModal({
     setGeneratedImages([]);
     setSelectedImageIndex(0);
     setSelectedPhotos(new Set());
-    setGenerationProgress(0);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Please sign in to use AI Photo Assist.');
       }
-
-      setGenerationProgress(20);
 
       const response = await supabase.functions.invoke('generate-photo', {
         body: {
@@ -330,8 +325,6 @@ export default function AIPhotoAssistModal({
       if (abortController.current?.signal.aborted) {
         return;
       }
-
-      setGenerationProgress(90);
 
       if (response.error) {
         throw new Error(response.error.message || 'Failed to generate photo');
@@ -350,7 +343,6 @@ export default function AIPhotoAssistModal({
         }));
         setGeneratedImages(imagesWithFilter);
         setSelectedPhotos(new Set([0]));
-        setGenerationProgress(100);
       } else if (response.data?.imageUrl) {
         setGeneratedImages([{
           imageUrl: response.data.imageUrl,
@@ -360,7 +352,6 @@ export default function AIPhotoAssistModal({
           originalUri: response.data.imageUrl,
         }]);
         setSelectedPhotos(new Set([0]));
-        setGenerationProgress(100);
       } else {
         throw new Error('No images were generated. Please try again.');
       }
@@ -372,7 +363,6 @@ export default function AIPhotoAssistModal({
       setError(err.message || 'AI Photo Assist is temporarily unavailable. Please try again.');
     } finally {
       setLoading(false);
-      setGenerationProgress(0);
       abortController.current = null;
     }
   }, [prompt, sourceContext, photoCount, canAddMore, maxPhotos]);
@@ -554,19 +544,7 @@ export default function AIPhotoAssistModal({
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Generating your photos...</Text>
-                {generationProgress > 0 && (
-                  <>
-                    <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${generationProgress}%` }]} />
-                    </View>
-                    <Text style={styles.progressText}>{generationProgress}%</Text>
-                  </>
-                )}
-                <Text style={styles.loadingSubtext}>
-                  {generationProgress < 30 ? 'Initializing...' :
-                   generationProgress < 90 ? 'Creating images...' :
-                   generationProgress > 0 ? 'Finalizing...' : 'This may take a moment'}
-                </Text>
+                <Text style={styles.loadingSubtext}>This may take a moment</Text>
               </View>
             )}
 
@@ -1121,24 +1099,5 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
     marginHorizontal: spacing.md,
-  },
-  progressBar: {
-    width: '100%',
-    height: 6,
-    backgroundColor: colors.border,
-    borderRadius: 3,
-    marginTop: spacing.md,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  progressText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.primary,
-    marginTop: spacing.xs,
   },
 });
