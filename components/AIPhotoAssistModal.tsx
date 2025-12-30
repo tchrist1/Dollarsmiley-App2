@@ -14,10 +14,9 @@ import {
   Platform,
 } from 'react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus, Camera, ImageIcon, Trash2, Scissors, Palette } from 'lucide-react-native';
+import { Sparkles, X, RotateCcw, Check, Wand2, ChevronLeft, ChevronRight, Plus, Camera, ImageIcon, Trash2 } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 
 interface SourceContext {
   title?: string;
@@ -40,36 +39,17 @@ interface AIPhotoAssistModalProps {
   currentPhotoCount?: number;
 }
 
-type ImageSize = '1024x1024' | '1536x1024' | '1024x1536';
-
 interface GeneratedImage {
   imageUrl: string;
   revisedPrompt: string;
   isUploaded?: boolean;
   originalUri?: string;
-  filter?: PhotoFilter;
+  filter?: string;
   hasBackgroundRemoved?: boolean;
-}
-
-type PhotoFilter = 'none' | 'clean' | 'warm' | 'cool' | 'soft' | 'professional';
-
-interface FilterOption {
-  id: PhotoFilter;
-  name: string;
-  description: string;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
 const imagePreviewSize = Math.min(screenWidth - spacing.lg * 4, 320);
-
-const FILTER_OPTIONS: FilterOption[] = [
-  { id: 'none', name: 'Original', description: 'No filter' },
-  { id: 'clean', name: 'Clean & Bright', description: 'Crisp and vibrant' },
-  { id: 'warm', name: 'Warm', description: 'Cozy golden tones' },
-  { id: 'cool', name: 'Cool', description: 'Fresh blue tones' },
-  { id: 'soft', name: 'Soft Contrast', description: 'Gentle and smooth' },
-  { id: 'professional', name: 'Professional', description: 'Neutral and clean' },
-];
 
 function generateVisualSummary(context: SourceContext): string {
   if (!context.description || context.description.trim().length === 0) {
@@ -142,18 +122,15 @@ export default function AIPhotoAssistModal({
   const [error, setError] = useState<string | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [selectedSize, setSelectedSize] = useState<ImageSize>('1024x1024');
   const [photoCount, setPhotoCount] = useState(1);
   const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
   const [hasPrefilledOnce, setHasPrefilledOnce] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [processingFilter, setProcessingFilter] = useState(false);
 
-  const filterCache = useRef<Map<string, string>>(new Map());
   const abortController = useRef<AbortController | null>(null);
+
+  const MAX_PROMPT_LENGTH = 200;
 
   const remainingSlots = maxPhotos - currentPhotoCount;
   const canAddMore = remainingSlots > 0;
@@ -194,11 +171,7 @@ export default function AIPhotoAssistModal({
     setSelectedPhotos(new Set());
     setLoading(false);
     setPhotoCount(1);
-    setIsEditMode(false);
-    setShowFilterMenu(false);
     setGenerationProgress(0);
-    setProcessingFilter(false);
-    filterCache.current.clear();
   }, []);
 
   const requestPermissions = async (type: 'camera' | 'library') => {
@@ -290,117 +263,6 @@ export default function AIPhotoAssistModal({
     setSelectedPhotos(new Set([...selectedPhotos, generatedImages.length]));
   };
 
-  const applyFilter = useCallback(async (filter: PhotoFilter) => {
-    if (!currentImage) return;
-
-    const updatedImages = [...generatedImages];
-    const currentImg = updatedImages[selectedImageIndex];
-    const originalUri = currentImg.originalUri || currentImg.imageUrl;
-
-    if (filter === 'none') {
-      currentImg.filter = 'none';
-      currentImg.imageUrl = originalUri;
-    } else {
-      const cacheKey = `${originalUri}-${filter}`;
-
-      if (filterCache.current.has(cacheKey)) {
-        currentImg.filter = filter;
-        currentImg.imageUrl = filterCache.current.get(cacheKey)!;
-      } else {
-        try {
-          setProcessingFilter(true);
-
-          const filterSettings = getFilterSettings(filter);
-          const manipResult = await ImageManipulator.manipulateAsync(
-            originalUri,
-            [],
-            {
-              format: ImageManipulator.SaveFormat.JPEG,
-              compress: 0.9,
-              ...filterSettings,
-            }
-          );
-
-          filterCache.current.set(cacheKey, manipResult.uri);
-          currentImg.filter = filter;
-          currentImg.imageUrl = manipResult.uri;
-        } catch (err) {
-          console.error('Filter error:', err);
-          Alert.alert('Error', 'Failed to apply filter.');
-          return;
-        } finally {
-          setProcessingFilter(false);
-        }
-      }
-    }
-
-    setGeneratedImages(updatedImages);
-    setShowFilterMenu(false);
-  }, [currentImage, generatedImages, selectedImageIndex]);
-
-  const getFilterSettings = (filter: PhotoFilter) => {
-    switch (filter) {
-      case 'clean':
-        return {};
-      case 'warm':
-        return {};
-      case 'cool':
-        return {};
-      case 'soft':
-        return {};
-      case 'professional':
-        return {};
-      default:
-        return {};
-    }
-  };
-
-  const removeBackground = async () => {
-    if (!currentImage) return;
-
-    if (currentImage.hasBackgroundRemoved) {
-      Alert.alert('Already Processed', 'Background has already been removed from this photo.');
-      return;
-    }
-
-    try {
-      setProcessingFilter(true);
-
-      const manipResult = await ImageManipulator.manipulateAsync(
-        currentImage.originalUri || currentImage.imageUrl,
-        [
-          { resize: { width: 1024 } },
-        ],
-        {
-          format: ImageManipulator.SaveFormat.PNG,
-          compress: 1.0,
-        }
-      );
-
-      const updatedImages = [...generatedImages];
-      const currentImg = updatedImages[selectedImageIndex];
-
-      currentImg.imageUrl = manipResult.uri;
-      currentImg.hasBackgroundRemoved = true;
-
-      if (!currentImg.originalUri) {
-        currentImg.originalUri = currentImage.imageUrl;
-      }
-
-      setGeneratedImages(updatedImages);
-
-      Alert.alert(
-        'Background Processed',
-        'Photo has been optimized for clean backgrounds. The processed version will be saved.'
-      );
-    } catch (err) {
-      console.error('Background removal error:', err);
-      Alert.alert('Error', 'Failed to process background. Please try again.');
-    } finally {
-      setProcessingFilter(false);
-    }
-  };
-
   const deletePhoto = (index: number) => {
     Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
       { text: 'Cancel', style: 'cancel' },
@@ -460,7 +322,7 @@ export default function AIPhotoAssistModal({
         body: {
           prompt: prompt.trim(),
           sourceContext,
-          size: selectedSize,
+          size: '1024x1024',
           count: photoCount,
         },
       });
@@ -513,7 +375,7 @@ export default function AIPhotoAssistModal({
       setGenerationProgress(0);
       abortController.current = null;
     }
-  }, [prompt, sourceContext, selectedSize, photoCount, canAddMore, maxPhotos]);
+  }, [prompt, sourceContext, photoCount, canAddMore, maxPhotos]);
 
   const handleAccept = () => {
     if (generatedImages.length === 0) return;
@@ -562,12 +424,6 @@ export default function AIPhotoAssistModal({
       setSelectedImageIndex(selectedImageIndex + 1);
     }
   };
-
-  const sizeOptions: { value: ImageSize; label: string }[] = [
-    { value: '1024x1024', label: 'Square' },
-    { value: '1536x1024', label: 'Landscape' },
-    { value: '1024x1536', label: 'Portrait' },
-  ];
 
   const currentImage = generatedImages[selectedImageIndex];
 
@@ -640,43 +496,24 @@ export default function AIPhotoAssistModal({
               <TextInput
                 style={styles.promptInput}
                 value={prompt}
-                onChangeText={setPrompt}
+                onChangeText={(text) => {
+                  if (text.length <= MAX_PROMPT_LENGTH) {
+                    setPrompt(text);
+                  }
+                }}
                 placeholder="e.g., A clean, modern living room with natural lighting..."
                 placeholderTextColor={colors.textLight}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
                 editable={!loading}
+                maxLength={MAX_PROMPT_LENGTH}
               />
-              <Text style={styles.charCount}>{prompt.length}/500</Text>
+              <Text style={styles.charCount}>{prompt.length}/{MAX_PROMPT_LENGTH}</Text>
             </View>
 
-            <View style={styles.optionsRow}>
-              <View style={styles.sizeContainer}>
-                <Text style={styles.fieldLabel}>Orientation</Text>
-                <View style={styles.sizeOptions}>
-                  {sizeOptions.map((option) => (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[
-                        styles.sizeOption,
-                        selectedSize === option.value && styles.sizeOptionActive,
-                      ]}
-                      onPress={() => setSelectedSize(option.value)}
-                      disabled={loading}
-                    >
-                      <Text style={[
-                        styles.sizeOptionText,
-                        selectedSize === option.value && styles.sizeOptionTextActive,
-                      ]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              {maxGeneratable > 1 && (
+            {maxGeneratable > 1 && (
+              <View style={styles.optionsRow}>
                 <View style={styles.countContainer}>
                   <Text style={styles.fieldLabel}>Photos to Generate</Text>
                   <View style={styles.countSelector}>
@@ -697,8 +534,8 @@ export default function AIPhotoAssistModal({
                     </TouchableOpacity>
                   </View>
                 </View>
-              )}
-            </View>
+              </View>
+            )}
 
             {!loading && generatedImages.length === 0 && !error && (
               <TouchableOpacity
@@ -796,82 +633,6 @@ export default function AIPhotoAssistModal({
                     </TouchableOpacity>
                   )}
                 </View>
-
-                {currentImage && (
-                  <View style={styles.editingControls}>
-                    <TouchableOpacity
-                      style={[styles.editButton, processingFilter && styles.editButtonDisabled]}
-                      onPress={() => setShowFilterMenu(!showFilterMenu)}
-                      disabled={processingFilter}
-                    >
-                      <Palette size={18} color={processingFilter ? colors.textLight : colors.primary} />
-                      <Text style={[styles.editButtonText, processingFilter && { color: colors.textLight }]}>Filters</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.editButton, processingFilter && styles.editButtonDisabled]}
-                      onPress={removeBackground}
-                      disabled={processingFilter}
-                    >
-                      {processingFilter ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <Scissors size={18} color={colors.primary} />
-                      )}
-                      <Text style={[styles.editButtonText, processingFilter && { color: colors.textLight }]}>
-                        {processingFilter ? 'Processing...' : 'Remove BG'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.editButton, processingFilter && styles.editButtonDisabled]}
-                      onPress={() => deletePhoto(selectedImageIndex)}
-                      disabled={processingFilter}
-                    >
-                      <Trash2 size={18} color={processingFilter ? colors.textLight : colors.error} />
-                      <Text style={[styles.editButtonText, { color: processingFilter ? colors.textLight : colors.error }]}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {showFilterMenu && (
-                  <View style={styles.filterMenu}>
-                    <View style={styles.filterMenuHeader}>
-                      <Text style={styles.filterMenuTitle}>Apply Filter</Text>
-                      {processingFilter && (
-                        <View style={styles.filterProcessingBadge}>
-                          <ActivityIndicator size="small" color={colors.primary} />
-                          <Text style={styles.filterProcessingBadgeText}>Processing...</Text>
-                        </View>
-                      )}
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      <View style={styles.filterOptions}>
-                        {FILTER_OPTIONS.map(filter => (
-                          <TouchableOpacity
-                            key={filter.id}
-                            style={[
-                              styles.filterOption,
-                              currentImage?.filter === filter.id && styles.filterOptionActive,
-                              processingFilter && styles.filterOptionDisabled,
-                            ]}
-                            onPress={() => applyFilter(filter.id)}
-                            disabled={processingFilter}
-                          >
-                            <Text style={[
-                              styles.filterOptionName,
-                              currentImage?.filter === filter.id && styles.filterOptionNameActive,
-                              processingFilter && styles.filterOptionNameDisabled,
-                            ]}>
-                              {filter.name}
-                            </Text>
-                            <Text style={[styles.filterOptionDesc, processingFilter && { color: colors.textLight }]}>
-                              {filter.description}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                )}
 
                 {generatedImages.length > 1 && (
                   <View style={styles.thumbnailRow}>
@@ -1026,35 +787,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.lg,
-  },
-  sizeContainer: {
-    flex: 1,
-  },
-  sizeOptions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  sizeOption: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-  },
-  sizeOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  sizeOptionText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  sizeOptionTextActive: {
-    color: colors.white,
   },
   countContainer: {
     minWidth: 100,
@@ -1389,100 +1121,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
     marginHorizontal: spacing.md,
-  },
-  editingControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    gap: spacing.xs,
-  },
-  editButtonDisabled: {
-    opacity: 0.5,
-    borderColor: colors.border,
-  },
-  editButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  filterMenu: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.md,
-  },
-  filterMenuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  filterMenuTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-  },
-  filterProcessingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    backgroundColor: colors.primaryLight || `${colors.primary}15`,
-    borderRadius: borderRadius.sm,
-  },
-  filterProcessingBadgeText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.primary,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  filterOption: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    minWidth: 100,
-  },
-  filterOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  filterOptionDisabled: {
-    opacity: 0.5,
-  },
-  filterOptionName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  filterOptionNameActive: {
-    color: colors.white,
-  },
-  filterOptionNameDisabled: {
-    color: colors.textLight,
-  },
-  filterOptionDesc: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
   },
   progressBar: {
     width: '100%',
