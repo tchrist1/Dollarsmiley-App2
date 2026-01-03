@@ -310,11 +310,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   photosContainer: {
-    flexDirection: 'row',
+    marginBottom: spacing.xs,
   },
   photosContentContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     paddingRight: spacing.md,
   },
   addButton: {
@@ -327,7 +328,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
   addButtonText: {
     fontSize: fontSize.xs,
@@ -340,7 +340,8 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   photoWrapper: {
-    marginRight: spacing.md,
+    width: 120,
+    height: 120,
   },
   photoContainer: {
     position: 'relative',
@@ -436,7 +437,6 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.primary}08`,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: spacing.md,
   },
   aiImageButtonDisabled: {
     borderColor: colors.border,
