@@ -87,15 +87,13 @@ export default function ProviderProofSubmissionForm({
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
 
       const fileName = `proof_${orderId}_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
       const filePath = `production-proofs/${orderId}/${fileName}`;
 
       const { error } = await supabase.storage
         .from('production-proofs')
-        .upload(filePath, uint8Array, {
+        .upload(filePath, blob, {
           contentType: 'image/jpeg',
           upsert: false,
         });

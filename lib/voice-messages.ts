@@ -23,11 +23,10 @@ export async function uploadVoiceMessage(
 
     const response = await fetch(audioUri);
     const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from('voice-messages')
-      .upload(fileName, arrayBuffer, {
+      .upload(fileName, blob, {
         contentType: 'audio/m4a',
         upsert: false,
       });

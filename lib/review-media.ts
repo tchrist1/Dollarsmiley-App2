@@ -52,12 +52,11 @@ export async function uploadReviewMedia(
     // Read file as blob
     const response = await fetch(fileUri);
     const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
 
     // Upload to storage
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(filePath, arrayBuffer, {
+      .upload(filePath, blob, {
         contentType: metadata.mimeType,
         upsert: false,
       });

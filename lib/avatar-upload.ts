@@ -61,7 +61,6 @@ export async function uploadAvatar(
   try {
     const response = await fetch(imageUri);
     const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
 
     const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
@@ -69,7 +68,7 @@ export async function uploadAvatar(
 
     const { data, error } = await supabase.storage
       .from('avatars')
-      .upload(fileName, arrayBuffer, {
+      .upload(fileName, blob, {
         contentType,
         upsert: false,
       });

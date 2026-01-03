@@ -173,11 +173,10 @@ export class LogisticsEnhancedService {
 
     const response = await fetch(photoUri);
     const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from('delivery-proofs')
-      .upload(filePath, arrayBuffer, {
+      .upload(filePath, blob, {
         contentType: 'image/jpeg',
       });
 

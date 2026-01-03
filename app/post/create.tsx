@@ -56,11 +56,10 @@ export default function CreatePostScreen() {
 
       const response = await fetch(file.uri);
       const blob = await response.blob();
-      const arrayBuffer = await blob.arrayBuffer();
 
       const { error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, arrayBuffer, {
+        .upload(filePath, blob, {
           contentType: file.type === 'video' ? 'video/mp4' : 'image/jpeg',
           upsert: false,
         });

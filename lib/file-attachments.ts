@@ -27,11 +27,10 @@ export async function uploadFileAttachment(
 
     const response = await fetch(file.uri);
     const blob = await response.blob();
-    const arrayBuffer = await blob.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from('chat-attachments')
-      .upload(fileName, arrayBuffer, {
+      .upload(fileName, blob, {
         contentType: file.mimeType,
         upsert: false,
       });
