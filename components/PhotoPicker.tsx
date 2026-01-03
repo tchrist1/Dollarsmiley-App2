@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Pla
 import * as ImagePicker from 'expo-image-picker';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Camera, X, Star, GripVertical, Sparkles } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
@@ -232,49 +233,71 @@ export function PhotoPicker({
           </Text>
         </View>
       )}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.photosContainer}
-        contentContainerStyle={styles.photosContentContainer}
-      >
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddPhoto}
-          activeOpacity={0.7}
+      <View style={styles.scrollWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={true}
+          style={styles.photosContainer}
+          contentContainerStyle={styles.photosContentContainer}
+          persistentScrollbar={true}
         >
-          <Camera size={32} color={colors.primary} />
-          <Text style={styles.addButtonText}>Add Photo</Text>
-          <Text style={styles.photoCount}>
-            {photos.length}/{maxPhotos}
-          </Text>
-        </TouchableOpacity>
-
-        {onAiImageAssist && aiAssistEnabled && (
           <TouchableOpacity
-            style={styles.aiImageButton}
-            onPress={onAiImageAssist}
+            style={styles.addButton}
+            onPress={handleAddPhoto}
             activeOpacity={0.7}
           >
-            <Sparkles size={28} color={colors.primary} />
-            <Text style={styles.aiImageButtonText}>
-              AI Photo Assist
+            <Camera size={32} color={colors.primary} />
+            <Text style={styles.addButtonText}>Add Photo</Text>
+            <Text style={styles.photoCount}>
+              {photos.length}/{maxPhotos}
             </Text>
           </TouchableOpacity>
-        )}
 
-        {photos.map((photo, index) => (
-          <DraggablePhoto
-            key={`${photo}-${index}`}
-            photo={photo}
-            index={index}
-            isFeatured={index === 0}
-            onRemove={() => handleRemovePhoto(index)}
-            onMove={handleMovePhoto}
-            totalPhotos={photos.length}
-          />
-        ))}
-      </ScrollView>
+          {onAiImageAssist && aiAssistEnabled && (
+            <TouchableOpacity
+              style={styles.aiImageButton}
+              onPress={onAiImageAssist}
+              activeOpacity={0.7}
+            >
+              <Sparkles size={28} color={colors.primary} />
+              <Text style={styles.aiImageButtonText}>
+                AI Photo Assist
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {photos.map((photo, index) => (
+            <DraggablePhoto
+              key={`${photo}-${index}`}
+              photo={photo}
+              index={index}
+              isFeatured={index === 0}
+              onRemove={() => handleRemovePhoto(index)}
+              onMove={handleMovePhoto}
+              totalPhotos={photos.length}
+            />
+          ))}
+        </ScrollView>
+
+        {(photos.length > 0 || onAiImageAssist) && (
+          <>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.edgeFadeLeft}
+              pointerEvents="none"
+            />
+            <LinearGradient
+              colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.edgeFadeRight}
+              pointerEvents="none"
+            />
+          </>
+        )}
+      </View>
       {error && <Text style={styles.error}>{error}</Text>}
       <Text style={styles.helperText}>
         {helperText || `You can add up to ${maxPhotos} photos at once. The first photo will be the main display image.`}
@@ -309,6 +332,9 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     flex: 1,
   },
+  scrollWrapper: {
+    position: 'relative',
+  },
   photosContainer: {
     marginBottom: spacing.xs,
   },
@@ -317,6 +343,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     paddingRight: spacing.md,
+    paddingLeft: 2,
+  },
+  edgeFadeLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    zIndex: 1,
+  },
+  edgeFadeRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    zIndex: 1,
   },
   addButton: {
     width: 120,
