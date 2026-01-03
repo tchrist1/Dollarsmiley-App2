@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Platform, ActionSheetIOS } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Platform, ActionSheetIOS, LayoutChangeEvent } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
@@ -124,6 +124,81 @@ export function PhotoPicker({
   aiAssistEnabled = false,
   onAiImageAssist,
 }: PhotoPickerProps) {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollState, setScrollState] = useState({
+    scrollX: 0,
+    contentWidth: 0,
+    containerWidth: 0,
+  });
+
+  const thumbPosition = useSharedValue(0);
+  const isDraggingThumb = useSharedValue(false);
+
+  const totalItems = photos.length + 1 + (onAiImageAssist && aiAssistEnabled ? 1 : 0);
+  const itemWidth = 120;
+  const itemGap = spacing.md;
+  const estimatedContentWidth = totalItems * itemWidth + (totalItems - 1) * itemGap;
+
+  const showScrollIndicator = scrollState.contentWidth > scrollState.containerWidth && scrollState.containerWidth > 0;
+  const thumbWidthRatio = scrollState.containerWidth / scrollState.contentWidth;
+  const thumbWidth = Math.max(60, scrollState.containerWidth * thumbWidthRatio);
+  const maxThumbOffset = scrollState.containerWidth - thumbWidth;
+  const maxScrollX = scrollState.contentWidth - scrollState.containerWidth;
+
+  const handleScroll = (event: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    setScrollState({
+      scrollX: contentOffset.x,
+      contentWidth: contentSize.width,
+      containerWidth: layoutMeasurement.width,
+    });
+
+    if (!isDraggingThumb.value && maxScrollX > 0) {
+      const scrollPercentage = contentOffset.x / maxScrollX;
+      thumbPosition.value = scrollPercentage * maxThumbOffset;
+    }
+  };
+
+  const handleContentSizeChange = (width: number, height: number) => {
+    setScrollState(prev => ({
+      ...prev,
+      contentWidth: width,
+    }));
+  };
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setScrollState(prev => ({
+      ...prev,
+      containerWidth: event.nativeEvent.layout.width,
+    }));
+  };
+
+  const scrollToPosition = (thumbX: number) => {
+    if (maxThumbOffset > 0 && maxScrollX > 0) {
+      const scrollPercentage = thumbX / maxThumbOffset;
+      const targetScrollX = scrollPercentage * maxScrollX;
+      scrollViewRef.current?.scrollTo({ x: targetScrollX, animated: false });
+    }
+  };
+
+  const thumbPanGesture = Gesture.Pan()
+    .onStart(() => {
+      isDraggingThumb.value = true;
+    })
+    .onUpdate((event) => {
+      const newPosition = thumbPosition.value + event.translationX;
+      const clampedPosition = Math.max(0, Math.min(maxThumbOffset, newPosition));
+      thumbPosition.value = clampedPosition;
+      runOnJS(scrollToPosition)(clampedPosition);
+    })
+    .onEnd(() => {
+      isDraggingThumb.value = false;
+    });
+
+  const thumbAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: thumbPosition.value }],
+  }));
+
   const handleAddPhoto = async () => {
     if (photos.length >= maxPhotos) {
       Alert.alert('Maximum Photos', `You can only add up to ${maxPhotos} photos.`);
@@ -235,11 +310,15 @@ export function PhotoPicker({
       )}
       <View style={styles.scrollWrapper}>
         <ScrollView
+          ref={scrollViewRef}
           horizontal
-          showsHorizontalScrollIndicator={true}
+          showsHorizontalScrollIndicator={false}
           style={styles.photosContainer}
           contentContainerStyle={styles.photosContentContainer}
-          persistentScrollbar={true}
+          onScroll={handleScroll}
+          onContentSizeChange={handleContentSizeChange}
+          onLayout={handleLayout}
+          scrollEventThrottle={16}
         >
           <TouchableOpacity
             style={styles.addButton}
@@ -296,6 +375,22 @@ export function PhotoPicker({
               pointerEvents="none"
             />
           </>
+        )}
+
+        {showScrollIndicator && (
+          <View style={styles.customScrollIndicator}>
+            <View style={styles.scrollTrack}>
+              <GestureDetector gesture={thumbPanGesture}>
+                <Animated.View
+                  style={[
+                    styles.scrollThumb,
+                    { width: thumbWidth },
+                    thumbAnimatedStyle,
+                  ]}
+                />
+              </GestureDetector>
+            </View>
+          </View>
         )}
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
@@ -360,6 +455,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 40,
     zIndex: 1,
+  },
+  customScrollIndicator: {
+    width: '100%',
+    height: 20,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    marginTop: spacing.xs,
+  },
+  scrollTrack: {
+    width: '100%',
+    height: 8,
+    backgroundColor: colors.border,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  scrollThumb: {
+    height: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+    minWidth: 60,
   },
   addButton: {
     width: 120,
