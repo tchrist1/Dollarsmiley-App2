@@ -1,7 +1,5 @@
 import { supabase } from './supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { decode } from 'base64-arraybuffer';
-import * as FileSystem from 'expo-file-system';
 
 export interface AvatarUploadResult {
   success: boolean;
@@ -61,9 +59,9 @@ export async function uploadAvatar(
   imageUri: string
 ): Promise<AvatarUploadResult> {
   try {
-    const base64 = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
 
     const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
@@ -71,7 +69,7 @@ export async function uploadAvatar(
 
     const { data, error } = await supabase.storage
       .from('avatars')
-      .upload(fileName, decode(base64), {
+      .upload(fileName, arrayBuffer, {
         contentType,
         upsert: false,
       });

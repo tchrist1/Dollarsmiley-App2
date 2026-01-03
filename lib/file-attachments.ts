@@ -1,6 +1,4 @@
 import { supabase } from './supabase';
-import * as FileSystem from 'expo-file-system';
-import { decode as atob } from 'base-64';
 
 export interface FileAttachment {
   uri: string;
@@ -27,15 +25,13 @@ export async function uploadFileAttachment(
     const fileExtension = file.name.split('.').pop() || 'bin';
     const fileName = `${userId}/${timestamp}_${file.name}`;
 
-    const base64 = await FileSystem.readAsStringAsync(file.uri, {
-      encoding: 'base64' as any,
-    });
-
-    const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from('chat-attachments')
-      .upload(fileName, arrayBuffer.buffer, {
+      .upload(fileName, arrayBuffer, {
         contentType: file.mimeType,
         upsert: false,
       });

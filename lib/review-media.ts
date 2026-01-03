@@ -1,6 +1,5 @@
 import { supabase } from './supabase';
 import * as FileSystem from 'expo-file-system';
-import { decode } from 'base64-arraybuffer';
 
 export interface ReviewMedia {
   id: string;
@@ -50,13 +49,10 @@ export async function uploadReviewMedia(
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
     const filePath = `${user.id}/${reviewId}/${fileName}`;
 
-    // Read file as base64
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: 'base64' as any,
-    });
-
-    // Convert base64 to array buffer
-    const arrayBuffer = decode(base64);
+    // Read file as blob
+    const response = await fetch(fileUri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
 
     // Upload to storage
     const { data, error } = await supabase.storage

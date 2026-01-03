@@ -1,6 +1,4 @@
 import { supabase } from './supabase';
-import * as FileSystem from 'expo-file-system';
-import { decode as atob } from 'base-64';
 
 export interface VoiceMessage {
   id: string;
@@ -23,15 +21,13 @@ export async function uploadVoiceMessage(
     const timestamp = Date.now();
     const fileName = `${userId}/${timestamp}.m4a`;
 
-    const base64 = await FileSystem.readAsStringAsync(audioUri, {
-      encoding: 'base64' as any,
-    });
-
-    const arrayBuffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const response = await fetch(audioUri);
+    const blob = await response.blob();
+    const arrayBuffer = await blob.arrayBuffer();
 
     const { data, error } = await supabase.storage
       .from('voice-messages')
-      .upload(fileName, arrayBuffer.buffer, {
+      .upload(fileName, arrayBuffer, {
         contentType: 'audio/m4a',
         upsert: false,
       });

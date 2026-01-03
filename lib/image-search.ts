@@ -1,5 +1,4 @@
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { supabase } from './supabase';
 
 export interface ImageSearchResult {
@@ -107,15 +106,14 @@ export async function pickImage(): Promise<string | null> {
   }
 }
 
-// Convert image to base64
-export async function imageToBase64(imageUri: string): Promise<string> {
+// Convert image to blob
+export async function imageToBlob(imageUri: string): Promise<Blob> {
   try {
-    const base64 = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: 'base64' as any,
-    });
-    return base64;
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    return blob;
   } catch (error) {
-    console.error('Error converting image to base64:', error);
+    console.error('Error converting image to blob:', error);
     throw error;
   }
 }
@@ -281,12 +279,8 @@ export async function uploadSearchImage(
   try {
     const fileName = `search-images/${userId}/${Date.now()}.jpg`;
 
-    // Read file as base64
-    const base64 = await imageToBase64(imageUri);
-
-    // Convert base64 to blob
-    const response = await fetch(`data:image/jpeg;base64,${base64}`);
-    const blob = await response.blob();
+    // Convert image to blob
+    const blob = await imageToBlob(imageUri);
 
     // Upload to Supabase storage
     const { data, error } = await supabase.storage
