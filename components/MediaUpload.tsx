@@ -30,7 +30,7 @@ interface MediaUploadProps {
 }
 
 export default function MediaUpload({
-  maxFiles = 10,
+  maxFiles = 5,
   maxVideoSize = 100 * 1024 * 1024,
   allowImages = true,
   allowVideos = true,
@@ -57,14 +57,17 @@ export default function MediaUpload({
         return;
       }
 
+      const remainingSlots = maxFiles - mediaFiles.length;
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: allowVideos
           ? ['images', 'videos']
           : ['images'],
-        allowsMultipleSelection: false,
+        allowsMultipleSelection: true,
         allowsEditing: false,
         quality: 0.8,
         videoMaxDuration: 60,
+        selectionLimit: remainingSlots,
       });
 
       if (!result.canceled) {

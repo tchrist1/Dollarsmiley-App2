@@ -215,7 +215,7 @@ export default function CreatePostScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Media (Optional)</Text>
           <MediaUpload
-            maxFiles={10}
+            maxFiles={5}
             allowImages={true}
             allowVideos={true}
             onMediaSelected={setMediaFiles}
