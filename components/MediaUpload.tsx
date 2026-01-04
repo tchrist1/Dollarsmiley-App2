@@ -59,11 +59,12 @@ export default function MediaUpload({
   const maxScrollX = scrollState.contentWidth - scrollState.containerWidth;
 
   const handleScroll = (event: any) => {
+    if (!event?.nativeEvent) return;
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     setScrollState({
-      scrollX: contentOffset.x,
-      contentWidth: contentSize.width,
-      containerWidth: layoutMeasurement.width,
+      scrollX: contentOffset?.x || 0,
+      contentWidth: contentSize?.width || 0,
+      containerWidth: layoutMeasurement?.width || 0,
     });
 
     if (!isDraggingThumb.value && maxScrollX > 0) {
@@ -75,11 +76,12 @@ export default function MediaUpload({
   const handleContentSizeChange = (width: number, height: number) => {
     setScrollState(prev => ({
       ...prev,
-      contentWidth: width,
+      contentWidth: width || 0,
     }));
   };
 
   const handleLayout = (event: LayoutChangeEvent) => {
+    if (!event?.nativeEvent?.layout) return;
     setScrollState(prev => ({
       ...prev,
       containerWidth: event.nativeEvent.layout.width,
