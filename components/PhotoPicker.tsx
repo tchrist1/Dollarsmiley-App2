@@ -167,11 +167,13 @@ export function PhotoPicker({
     }));
   };
 
-  const handleLayout = (event: LayoutChangeEvent) => {
+  const handleLayout = (event: LayoutChangeEvent | null) => {
     if (!event?.nativeEvent?.layout) return;
+    const width = event.nativeEvent.layout.width;
+    if (typeof width !== 'number' || isNaN(width)) return;
     setScrollState(prev => ({
       ...prev,
-      containerWidth: event.nativeEvent.layout.width,
+      containerWidth: width,
     }));
   };
 
@@ -319,7 +321,13 @@ export function PhotoPicker({
           contentContainerStyle={styles.photosContentContainer}
           onScroll={handleScroll}
           onContentSizeChange={handleContentSizeChange}
-          onLayout={handleLayout}
+          onLayout={(e) => {
+            try {
+              handleLayout(e);
+            } catch (error) {
+              console.warn('Layout error:', error);
+            }
+          }}
           scrollEventThrottle={16}
         >
           <TouchableOpacity
