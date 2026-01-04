@@ -54,9 +54,12 @@ export default function MediaUpload({
 
   const showScrollIndicator = scrollState.contentWidth > scrollState.containerWidth && scrollState.containerWidth > 0 && mediaFiles.length > 0;
   const thumbWidthRatio = scrollState.containerWidth / scrollState.contentWidth;
-  const thumbWidth = Math.max(60, scrollState.containerWidth * thumbWidthRatio);
+  const thumbWidth = Math.max(80, scrollState.containerWidth * thumbWidthRatio);
   const maxThumbOffset = scrollState.containerWidth - thumbWidth;
   const maxScrollX = scrollState.contentWidth - scrollState.containerWidth;
+
+  const hasSegments = mediaFiles.length <= 5;
+  const segmentCount = hasSegments ? mediaFiles.length : 0;
 
   const handleScroll = (event: any) => {
     if (!event?.nativeEvent) return;
@@ -316,6 +319,21 @@ export default function MediaUpload({
           {showScrollIndicator && (
             <View style={styles.customScrollIndicator}>
               <View style={styles.scrollTrack}>
+                {hasSegments && segmentCount > 1 && (
+                  <View style={styles.segmentMarkers}>
+                    {Array.from({ length: segmentCount - 1 }).map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.segmentMarker,
+                          {
+                            left: `${((i + 1) / segmentCount) * 100}%`,
+                          },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
                 <GestureDetector gesture={thumbPanGesture}>
                   <Animated.View
                     style={[
@@ -323,7 +341,9 @@ export default function MediaUpload({
                       { width: thumbWidth },
                       thumbAnimatedStyle,
                     ]}
-                  />
+                  >
+                    <View style={styles.thumbGripIndicator} />
+                  </Animated.View>
                 </GestureDetector>
               </View>
             </View>
@@ -384,23 +404,50 @@ const styles = StyleSheet.create({
   },
   customScrollIndicator: {
     width: '100%',
-    height: 20,
+    height: 28,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   scrollTrack: {
+    position: 'relative',
     width: '100%',
-    height: 8,
+    height: 12,
     backgroundColor: colors.border,
-    borderRadius: 4,
-    overflow: 'hidden',
+    borderRadius: 6,
+    overflow: 'visible',
   },
   scrollThumb: {
-    height: 8,
+    height: 12,
     backgroundColor: colors.primary,
-    borderRadius: 4,
-    minWidth: 60,
+    borderRadius: 6,
+    minWidth: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  thumbGripIndicator: {
+    width: 24,
+    height: 4,
+    backgroundColor: colors.white,
+    borderRadius: 2,
+    opacity: 0.8,
+  },
+  segmentMarkers: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+  },
+  segmentMarker: {
+    position: 'absolute',
+    width: 2,
+    height: 12,
+    backgroundColor: colors.white,
+    opacity: 0.4,
+    marginLeft: -1,
   },
   mediaItem: {
     position: 'relative',
