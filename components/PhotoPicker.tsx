@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Pla
 import * as ImagePicker from 'expo-image-picker';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Camera, X, Star, GripVertical, Sparkles } from 'lucide-react-native';
+import { Camera, X, Star, GripVertical, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
 interface PhotoPickerProps {
@@ -147,6 +146,19 @@ export function PhotoPicker({
 
   const hasSegments = photos.length <= 5;
   const segmentCount = hasSegments ? photos.length + 1 : 0;
+
+  const showLeftArrow = showScrollIndicator && scrollState.scrollX > 5;
+  const showRightArrow = showScrollIndicator && scrollState.scrollX < maxScrollX - 5;
+
+  const scrollByOnePhoto = (direction: 'left' | 'right') => {
+    const scrollAmount = itemWidth + itemGap;
+    const currentX = scrollState.scrollX;
+    const targetX = direction === 'left'
+      ? Math.max(0, currentX - scrollAmount)
+      : Math.min(maxScrollX, currentX + scrollAmount);
+
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
+  };
 
   const handleScroll = (event: any) => {
     if (!event?.nativeEvent) return;
@@ -371,23 +383,28 @@ export function PhotoPicker({
           ))}
         </ScrollView>
 
-        {(photos.length > 0 || onAiImageAssist) && (
-          <>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.edgeFadeLeft}
-              pointerEvents="none"
-            />
-            <LinearGradient
-              colors={['rgba(255,255,255,0)', 'rgba(255,255,255,0.9)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.edgeFadeRight}
-              pointerEvents="none"
-            />
-          </>
+        {showLeftArrow && (
+          <TouchableOpacity
+            style={styles.scrollArrowLeft}
+            onPress={() => scrollByOnePhoto('left')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.scrollArrowButton}>
+              <ChevronLeft size={24} color={colors.text} strokeWidth={2.5} />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {showRightArrow && (
+          <TouchableOpacity
+            style={styles.scrollArrowRight}
+            onPress={() => scrollByOnePhoto('right')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.scrollArrowButton}>
+              <ChevronRight size={24} color={colors.text} strokeWidth={2.5} />
+            </View>
+          </TouchableOpacity>
         )}
 
         {showScrollIndicator && (
@@ -470,21 +487,34 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
     paddingLeft: 2,
   },
-  edgeFadeLeft: {
+  scrollArrowLeft: {
     position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 40,
-    zIndex: 1,
+    left: spacing.sm,
+    top: '50%',
+    marginTop: -20,
+    zIndex: 2,
   },
-  edgeFadeRight: {
+  scrollArrowRight: {
     position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
+    right: spacing.sm,
+    top: '50%',
+    marginTop: -20,
+    zIndex: 2,
+  },
+  scrollArrowButton: {
     width: 40,
-    zIndex: 1,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   customScrollIndicator: {
     width: '100%',

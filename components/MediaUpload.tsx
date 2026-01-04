@@ -14,7 +14,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, runOnJS } from 'react-native-reanimated';
-import { Camera, Image as ImageIcon, Video, X, Play } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Video, X, Play, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 
 export interface MediaFile {
@@ -60,6 +60,22 @@ export default function MediaUpload({
 
   const hasSegments = mediaFiles.length <= 5;
   const segmentCount = hasSegments ? mediaFiles.length : 0;
+
+  const itemWidth = 120;
+  const itemGap = spacing.sm;
+
+  const showLeftArrow = showScrollIndicator && scrollState.scrollX > 5;
+  const showRightArrow = showScrollIndicator && scrollState.scrollX < maxScrollX - 5;
+
+  const scrollByOneMedia = (direction: 'left' | 'right') => {
+    const scrollAmount = itemWidth + itemGap;
+    const currentX = scrollState.scrollX;
+    const targetX = direction === 'left'
+      ? Math.max(0, currentX - scrollAmount)
+      : Math.min(maxScrollX, currentX + scrollAmount);
+
+    scrollViewRef.current?.scrollTo({ x: targetX, animated: true });
+  };
 
   const handleScroll = (event: any) => {
     if (!event?.nativeEvent) return;
@@ -316,6 +332,30 @@ export default function MediaUpload({
           )}
           </ScrollView>
 
+          {showLeftArrow && (
+            <TouchableOpacity
+              style={styles.scrollArrowLeft}
+              onPress={() => scrollByOneMedia('left')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.scrollArrowButton}>
+                <ChevronLeft size={24} color={colors.text} strokeWidth={2.5} />
+              </View>
+            </TouchableOpacity>
+          )}
+
+          {showRightArrow && (
+            <TouchableOpacity
+              style={styles.scrollArrowRight}
+              onPress={() => scrollByOneMedia('right')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.scrollArrowButton}>
+                <ChevronRight size={24} color={colors.text} strokeWidth={2.5} />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {showScrollIndicator && (
             <View style={styles.customScrollIndicator}>
               <View style={styles.scrollTrack}>
@@ -394,6 +434,35 @@ const styles = StyleSheet.create({
   },
   scrollWrapper: {
     position: 'relative',
+  },
+  scrollArrowLeft: {
+    position: 'absolute',
+    left: spacing.sm,
+    top: '50%',
+    marginTop: -20,
+    zIndex: 2,
+  },
+  scrollArrowRight: {
+    position: 'absolute',
+    right: spacing.sm,
+    top: '50%',
+    marginTop: -20,
+    zIndex: 2,
+  },
+  scrollArrowButton: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.text,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   mediaScroll: {
     marginHorizontal: -spacing.lg,
