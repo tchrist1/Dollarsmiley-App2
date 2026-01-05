@@ -44,7 +44,7 @@ interface ProfileData {
 
 export default function EditProfileScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -165,7 +165,11 @@ export default function EditProfileScreen() {
         await deleteOldAvatar(oldAvatarUrl);
       }
 
-      setProfile({ ...profile, avatar_url: result.url || null });
+      const newProfile = { ...profile, avatar_url: result.url || null };
+      setProfile(newProfile);
+
+      await updateProfileAvatar(user.id, result.url || null);
+      await refreshProfile();
     } catch (error) {
       Alert.alert('Error', 'Failed to upload avatar');
     } finally {
@@ -218,6 +222,8 @@ export default function EditProfileScreen() {
           throw new Error(avatarResult.error);
         }
       }
+
+      await refreshProfile();
 
       Alert.alert('Success', 'Profile updated successfully', [
         {

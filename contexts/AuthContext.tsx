@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, forceRefresh = false) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -44,15 +44,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data) {
-        setProfile(data);
-
-        try {
-          const pushToken = await registerForPushNotificationsAsync();
-          if (pushToken) {
-            await savePushToken(userId, pushToken);
+        setProfile((prev) => {
+          if (forceRefresh || JSON.stringify(prev) !== JSON.stringify(data)) {
+            return data;
           }
-        } catch (error) {
-          // Silently fail - push notifications are optional
+          return prev;
+        });
+
+        if (!forceRefresh) {
+          try {
+            const pushToken = await registerForPushNotificationsAsync();
+            if (pushToken) {
+              await savePushToken(userId, pushToken);
+            }
+          } catch (error) {
+            // Silently fail - push notifications are optional
+          }
         }
       }
     } catch (error) {
@@ -62,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchProfile(user.id, true);
     }
   };
 
@@ -91,6 +98,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const profileSubscription = supabase
+      .channel(`profile:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          setProfile(payload.new as Profile);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      profileSubscription.unsubscribe();
+    };
+  }, [user]);
 
   const signOut = async () => {
     await supabase.auth.signOut();

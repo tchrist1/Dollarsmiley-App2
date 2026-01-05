@@ -84,9 +84,11 @@ export async function uploadAvatar(
       .from('avatars')
       .getPublicUrl(data.path);
 
+    const urlWithCacheBusting = `${urlData.publicUrl}?t=${Date.now()}`;
+
     return {
       success: true,
-      url: urlData.publicUrl,
+      url: urlWithCacheBusting,
     };
   } catch (error) {
     console.error('File upload error:', error);

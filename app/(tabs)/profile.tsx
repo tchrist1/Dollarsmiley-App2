@@ -10,6 +10,7 @@ import BadgeList from '@/components/BadgeList';
 import { Badge } from '@/components/VerificationBadge';
 import AdminModeToggle from '@/components/AdminModeToggle';
 import AccountTypeSwitcher from '@/components/AccountTypeSwitcher';
+import CachedAvatar from '@/components/CachedAvatar';
 
 export default function ProfileScreen() {
   const { profile, loading, signOut, refreshProfile } = useAuth();
@@ -140,7 +141,7 @@ export default function ProfileScreen() {
         <View style={styles.identitySection}>
           <View style={styles.avatarContainer}>
             {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+              <CachedAvatar uri={profile.avatar_url} size={120} fallbackIconSize={48} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <Text style={styles.avatarText}>{profile.full_name.charAt(0).toUpperCase()}</Text>
