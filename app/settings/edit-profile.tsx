@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Platform,
   ActionSheetIOS,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -260,7 +261,17 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={true}
+        >
         <View style={styles.avatarSection}>
           <TouchableOpacity onPress={showImagePicker} disabled={uploadingImage}>
             <View style={styles.avatarContainer}>
@@ -348,7 +359,8 @@ export default function EditProfileScreen() {
             />
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -393,8 +405,15 @@ const styles = StyleSheet.create({
     color: '#FF9500',
     fontWeight: '600',
   },
+  keyboardView: {
+    flex: 1,
+  },
   content: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+    flexGrow: 1,
   },
   avatarSection: {
     alignItems: 'center',
