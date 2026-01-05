@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import * as FileSystem from 'expo-file-system';
+import { fileUriToByteArray } from './file-upload-utils';
 
 export interface ReviewMedia {
   id: string;
@@ -49,14 +50,13 @@ export async function uploadReviewMedia(
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
     const filePath = `${user.id}/${reviewId}/${fileName}`;
 
-    // Read file as blob
-    const response = await fetch(fileUri);
-    const blob = await response.blob();
+    // Read file as byte array
+    const byteArray = await fileUriToByteArray(fileUri);
 
     // Upload to storage
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(filePath, blob, {
+      .upload(filePath, byteArray, {
         contentType: metadata.mimeType,
         upsert: false,
       });

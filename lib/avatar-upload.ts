@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import * as ImagePicker from 'expo-image-picker';
+import { fileUriToByteArray } from './file-upload-utils';
 
 export interface AvatarUploadResult {
   success: boolean;
@@ -59,8 +60,7 @@ export async function uploadAvatar(
   imageUri: string
 ): Promise<AvatarUploadResult> {
   try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
+    const byteArray = await fileUriToByteArray(imageUri);
 
     const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
@@ -68,7 +68,7 @@ export async function uploadAvatar(
 
     const { data, error } = await supabase.storage
       .from('avatars')
-      .upload(fileName, blob, {
+      .upload(fileName, byteArray, {
         contentType,
         upsert: false,
       });
@@ -89,6 +89,7 @@ export async function uploadAvatar(
       url: urlData.publicUrl,
     };
   } catch (error) {
+    console.error('File upload error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',

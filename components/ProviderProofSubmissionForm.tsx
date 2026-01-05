@@ -13,6 +13,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { fileUriToByteArray } from '@/lib/file-upload-utils';
 import {
   Camera,
   Upload,
@@ -85,15 +86,14 @@ export default function ProviderProofSubmissionForm({
 
   const uploadImage = async (uri: string): Promise<string | null> => {
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      const byteArray = await fileUriToByteArray(uri);
 
       const fileName = `proof_${orderId}_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
       const filePath = `production-proofs/${orderId}/${fileName}`;
 
       const { error } = await supabase.storage
         .from('production-proofs')
-        .upload(filePath, blob, {
+        .upload(filePath, byteArray, {
           contentType: 'image/jpeg',
           upsert: false,
         });

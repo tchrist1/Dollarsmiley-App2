@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fileUriToByteArray } from './file-upload-utils';
 
 export interface VoiceMessage {
   id: string;
@@ -21,12 +22,11 @@ export async function uploadVoiceMessage(
     const timestamp = Date.now();
     const fileName = `${userId}/${timestamp}.m4a`;
 
-    const response = await fetch(audioUri);
-    const blob = await response.blob();
+    const byteArray = await fileUriToByteArray(audioUri);
 
     const { data, error } = await supabase.storage
       .from('voice-messages')
-      .upload(fileName, blob, {
+      .upload(fileName, byteArray, {
         contentType: 'audio/m4a',
         upsert: false,
       });

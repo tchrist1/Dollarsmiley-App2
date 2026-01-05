@@ -14,6 +14,7 @@ import { ArrowLeft, Image as ImageIcon, Star, HelpCircle, Lightbulb, Award } fro
 import { useAuth } from '@/contexts/AuthContext';
 import { createPost, PostLocation } from '@/lib/social';
 import { supabase } from '@/lib/supabase';
+import { fileUriToByteArray } from '@/lib/file-upload-utils';
 import { Button } from '@/components/Button';
 import MediaUpload, { MediaFile } from '@/components/MediaUpload';
 import MentionInput from '@/components/MentionInput';
@@ -54,12 +55,11 @@ export default function CreatePostScreen() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `posts/${profile?.id}/${fileName}`;
 
-      const response = await fetch(file.uri);
-      const blob = await response.blob();
+      const byteArray = await fileUriToByteArray(file.uri);
 
       const { error: uploadError } = await supabase.storage
         .from('media')
-        .upload(filePath, blob, {
+        .upload(filePath, byteArray, {
           contentType: file.type === 'video' ? 'video/mp4' : 'image/jpeg',
           upsert: false,
         });

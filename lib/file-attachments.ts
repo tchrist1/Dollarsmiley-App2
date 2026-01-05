@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { fileUriToByteArray } from './file-upload-utils';
 
 export interface FileAttachment {
   uri: string;
@@ -25,12 +26,11 @@ export async function uploadFileAttachment(
     const fileExtension = file.name.split('.').pop() || 'bin';
     const fileName = `${userId}/${timestamp}_${file.name}`;
 
-    const response = await fetch(file.uri);
-    const blob = await response.blob();
+    const byteArray = await fileUriToByteArray(file.uri);
 
     const { data, error } = await supabase.storage
       .from('chat-attachments')
-      .upload(fileName, blob, {
+      .upload(fileName, byteArray, {
         contentType: file.mimeType,
         upsert: false,
       });

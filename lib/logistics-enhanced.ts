@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import * as Location from 'expo-location';
+import { fileUriToByteArray } from './file-upload-utils';
 
 interface LocationUpdate {
   shipmentId: string;
@@ -171,12 +172,11 @@ export class LogisticsEnhancedService {
     const filename = `delivery_${Date.now()}.jpg`;
     const filePath = `deliveries/${filename}`;
 
-    const response = await fetch(photoUri);
-    const blob = await response.blob();
+    const byteArray = await fileUriToByteArray(photoUri);
 
     const { data, error } = await supabase.storage
       .from('delivery-proofs')
-      .upload(filePath, blob, {
+      .upload(filePath, byteArray, {
         contentType: 'image/jpeg',
       });
 

@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
+import { fileUriToByteArray } from './file-upload-utils';
 
 export interface ImageSearchResult {
   labels: string[];
@@ -106,14 +107,13 @@ export async function pickImage(): Promise<string | null> {
   }
 }
 
-// Convert image to blob
-export async function imageToBlob(imageUri: string): Promise<Blob> {
+// Convert image to byte array
+export async function imageToByteArray(imageUri: string): Promise<Uint8Array> {
   try {
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    return blob;
+    const byteArray = await fileUriToByteArray(imageUri);
+    return byteArray;
   } catch (error) {
-    console.error('Error converting image to blob:', error);
+    console.error('Error converting image to byte array:', error);
     throw error;
   }
 }
