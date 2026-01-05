@@ -1,18 +1,18 @@
 import * as FileSystem from 'expo-file-system';
-import { decode } from 'base-64';
+import { decode as base64Decode } from 'base64-arraybuffer';
 
 export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
-  const base64 = await FileSystem.readAsStringAsync(fileUri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+  try {
+    const base64String = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
 
-  const byteCharacters = decode(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
+    const arrayBuffer = base64Decode(base64String);
+    return new Uint8Array(arrayBuffer);
+  } catch (error) {
+    console.error('Error converting file URI to byte array:', error);
+    throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-
-  return new Uint8Array(byteNumbers);
 }
 
 export function getFileExtension(uri: string): string {
