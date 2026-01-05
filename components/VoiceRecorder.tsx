@@ -175,7 +175,7 @@ export default function VoiceRecorder({
 
           <View style={styles.controls}>
             <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText} numberOfLines={1}>Cancel</Text>
             </TouchableOpacity>
 
             {!isRecording ? (
@@ -190,7 +190,7 @@ export default function VoiceRecorder({
               </TouchableOpacity>
             )}
 
-            <View style={styles.cancelButton} />
+            <View style={styles.cancelButtonSpacer} />
           </View>
         </View>
       ) : (
@@ -318,12 +318,18 @@ const styles = StyleSheet.create({
   cancelButton: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    width: 80,
+    minWidth: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonSpacer: {
+    minWidth: 88,
   },
   cancelButtonText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
+    flexWrap: 'nowrap',
   },
   recordButton: {
     width: 72,
