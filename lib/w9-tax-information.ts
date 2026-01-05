@@ -139,7 +139,7 @@ export async function submitW9(
   try {
     // Get IP address and user agent
     const ipAddress = await getClientIP();
-    const userAgent = navigator.userAgent || 'Unknown';
+    const userAgent = (typeof navigator !== 'undefined' && navigator.userAgent) || 'Unknown';
 
     // Prepare certification text
     const certificationText = `Under penalties of perjury, I certify that:

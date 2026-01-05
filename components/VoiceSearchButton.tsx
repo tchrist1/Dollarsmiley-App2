@@ -7,6 +7,7 @@ import {
   Modal,
   Animated,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Mic, MicOff, X, Volume2, Search } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +35,11 @@ export default function VoiceSearchButton({
   onResults,
   onError,
 }: VoiceSearchButtonProps) {
+  // Voice search only works on web browsers, not native mobile
+  if (Platform.OS !== 'web' || !isVoiceSearchSupported()) {
+    return null;
+  }
+
   const { user } = useAuth();
   const [isListening, setIsListening] = useState(false);
   const [showModal, setShowModal] = useState(false);

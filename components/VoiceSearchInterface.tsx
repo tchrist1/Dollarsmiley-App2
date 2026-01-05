@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  Platform,
 } from 'react-native';
 import {
   Mic,
@@ -23,6 +24,7 @@ import VoiceSearchButton from './VoiceSearchButton';
 import {
   getVoiceSearchSuggestions,
   getVoiceCommandExamples,
+  isVoiceSearchSupported,
 } from '@/lib/voice-search';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 
@@ -35,6 +37,11 @@ export default function VoiceSearchInterface({
   searchType = 'providers',
   onClose,
 }: VoiceSearchInterfaceProps) {
+  // Voice search only works on web browsers, not native mobile
+  if (Platform.OS !== 'web' || !isVoiceSearchSupported()) {
+    return null;
+  }
+
   const { user } = useAuth();
   const router = useRouter();
   const [searchResults, setSearchResults] = useState<any[]>([]);

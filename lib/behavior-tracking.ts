@@ -165,7 +165,7 @@ export async function trackEvent(event: TrackingEvent): Promise<void> {
       duration_ms: event.durationMs,
       timestamp: new Date().toISOString(),
       ip_address: 'Unknown', // Would be populated server-side in production
-      user_agent: navigator.userAgent || 'Unknown',
+      user_agent: (typeof navigator !== 'undefined' && navigator.userAgent) || 'Unknown',
       device_info: await getDeviceInfo(),
     };
 

@@ -136,7 +136,7 @@ export async function log1099Access(
   try {
     // Get IP address and user agent
     const ipAddress = await getClientIP();
-    const userAgent = navigator.userAgent || 'Unknown';
+    const userAgent = (typeof navigator !== 'undefined' && navigator.userAgent) || 'Unknown';
 
     const { error } = await supabase.rpc('log_1099_access', {
       p_distribution_id: distributionId,
