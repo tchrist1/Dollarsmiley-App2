@@ -379,6 +379,7 @@ export interface MarketplaceListing {
   latitude?: number;
   longitude?: number;
   photos: string | string[];
+  featured_image_url?: string;
   created_at: string;
   base_price?: number;
   budget_min?: number;

@@ -238,6 +238,8 @@ export default function CreateListingScreen() {
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
+    const photosArray = photos.length > 0 ? photos : [];
+
     const listingData: any = {
       provider_id: profile.id,
       category_id: categoryId,
@@ -247,10 +249,11 @@ export default function CreateListingScreen() {
       base_price: Number(price),
       price: Number(price),
       estimated_duration: duration ? Number(duration) : null,
-      photos: JSON.stringify(photos),
+      photos: photosArray,
       availability: JSON.stringify(availableDays),
       tags: tagsList,
       is_active: true,
+      status: 'Active',
       listing_type: listingType,
       requires_fulfilment: requiresFulfilment,
       requires_agreement: requiresAgreement,
@@ -258,6 +261,9 @@ export default function CreateListingScreen() {
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
       proofing_required: listingType === 'CustomService' ? proofingRequired : false,
       inventory_mode: inventoryEnabled ? inventoryMode : 'none',
+      location: profile.location || null,
+      latitude: profile.latitude || null,
+      longitude: profile.longitude || null,
     };
 
     if (inventoryEnabled) {

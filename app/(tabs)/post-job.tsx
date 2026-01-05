@@ -176,6 +176,8 @@ export default function PostJobScreen() {
 
     setLoading(true);
 
+    const photosArray = photos.length > 0 ? photos : [];
+
     const jobData = {
       customer_id: profile.id,
       category_id: categoryId,
@@ -198,7 +200,7 @@ export default function PostJobScreen() {
       start_time: timeSelectionMode === 'specific' ? specificTimeSlot : null,
       end_time: null,
       estimated_duration_hours: estimatedDuration ? Number(estimatedDuration) : null,
-      photos: JSON.stringify(photos),
+      photos: photosArray,
       status: 'Open',
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };

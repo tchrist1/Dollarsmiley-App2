@@ -305,6 +305,8 @@ export default function HomeScreen() {
       }
     }
 
+    const featuredImage = service.featured_image_url || (photos.length > 0 ? photos[0] : 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg');
+
     const latitude = service.latitude ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude) : null;
     const longitude = service.longitude ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude) : null;
 
@@ -318,6 +320,7 @@ export default function HomeScreen() {
       latitude,
       longitude,
       photos,
+      featured_image_url: featuredImage,
       created_at: service.created_at,
       base_price: service.base_price,
       pricing_type: service.pricing_type,
@@ -346,6 +349,8 @@ export default function HomeScreen() {
       }
     }
 
+    const featuredImage = job.featured_image_url || (photos.length > 0 ? photos[0] : 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg');
+
     const latitude = job.latitude ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude) : null;
     const longitude = job.longitude ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude) : null;
 
@@ -359,6 +364,7 @@ export default function HomeScreen() {
       latitude,
       longitude,
       photos,
+      featured_image_url: featuredImage,
       created_at: job.created_at,
       budget_min: job.budget_min,
       budget_max: job.budget_max,
@@ -967,22 +973,7 @@ export default function HomeScreen() {
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
 
-    let photos: string[] = [];
-    if (listing.photos) {
-      if (Array.isArray(listing.photos)) {
-        photos = listing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
-      } else if (typeof listing.photos === 'string') {
-        try {
-          const parsed = JSON.parse(listing.photos);
-          photos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
-        } catch (e) {
-          if (listing.photos.trim() !== '') {
-            photos = [listing.photos];
-          }
-        }
-      }
-    }
-    const mainImage = photos.length > 0 ? photos[0] : null;
+    const mainImage = listing.featured_image_url || null;
 
     let priceText = '';
     let priceSuffix = '';
