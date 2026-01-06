@@ -4,7 +4,7 @@ import { decode as base64Decode } from 'base64-arraybuffer';
 export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
   try {
     const base64String = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     const arrayBuffer = base64Decode(base64String);

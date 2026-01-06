@@ -4,17 +4,21 @@ FILE UPLOAD ERROR - FIXED
 ISSUE: "Cannot read property 'Base64' of undefined"
 LOCATIONS: Edit Profile, Contact Provider Messages, All File Uploads
 
-ROOT CAUSE:
+ROOT CAUSES:
 -----------
-Incompatible base64 conversion using 'base-64' package in React Native
+1. Incompatible base64 conversion using 'base-64' package in React Native
+2. FileSystem.EncodingType.Base64 enum undefined in some contexts
 
 SOLUTION:
 ---------
-Replaced 'base-64' with 'base64-arraybuffer' in /lib/file-upload-utils.ts
+1. Replaced 'base-64' with 'base64-arraybuffer' in /lib/file-upload-utils.ts
+2. Changed encoding: FileSystem.EncodingType.Base64 to encoding: 'base64'
 
 CHANGED FUNCTION:
 -----------------
-fileUriToByteArray() - now uses base64-arraybuffer.decode()
+fileUriToByteArray() - now uses:
+  - base64-arraybuffer.decode() for conversion
+  - String literal 'base64' for encoding parameter
 
 FILES AFFECTED (All Fixed):
 ---------------------------
