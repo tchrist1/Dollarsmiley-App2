@@ -16,6 +16,14 @@
 8. [Validation, Errors & Edge Cases](#8-validation-errors--edge-cases)
 9. [Data Model Summary](#9-data-model-summary-observed)
 10. [Known Limitations & Inconsistencies](#10-known-limitations--inconsistencies)
+11. [System Invariants (Observed)](#11-system-invariants-observed)
+12. [State Transition Contracts](#12-state-transition-contracts)
+13. [Enforcement Layer Clarity](#13-enforcement-layer-clarity)
+14. [Failure, Rollback & Idempotency Expectations](#14-failure-rollback--idempotency-expectations)
+15. [Platform Divergence Matrix](#15-platform-divergence-matrix)
+16. [Admin & Moderation Flows (Observed)](#16-admin--moderation-flows-observed)
+17. [Observable Outcomes & Test Assertions](#17-observable-outcomes--test-assertions)
+18. [Known Issues vs Limitations](#18-known-issues-vs-limitations)
 
 ---
 
@@ -3365,11 +3373,2193 @@ const validateForm = (): boolean => {
 
 ---
 
+## 11. SYSTEM INVARIANTS (OBSERVED)
+
+*This section documents non-negotiable rules that must always hold true based on current implementation. Invariants are derived from observed behavior, database constraints, RLS policies, and application logic.*
+
+### 11.1 Booking + Payment State Consistency
+
+#### Invariant: Booking Status and Payment Status Alignment
+**Description:** A booking can only transition to `Completed` when payment is held in escrow and no active disputes exist.
+
+**Rule:**
+- `booking.status = 'Completed'` requires:
+  - `booking.payment_status = 'Held'`
+  - `booking.escrow_status = 'Held'`
+  - No active disputes (disputes.status NOT IN ('Open', 'UnderReview'))
+
+**Related Entities:** `bookings`, `escrow_holds`, `disputes`
+
+**Enforcement:**
+- Database: CHECK constraints on status enum values
+- Edge Function: `complete-booking` validates escrow and dispute status
+- RLS: Allows both customer and provider to update status
+
+**Violation Possible:** YES - HIGH RISK
+- Direct SQL UPDATE can bypass edge function validation
+- No database trigger prevents invalid state transitions
+- No constraint prevents simultaneous disputed + completed states
+
+---
+
+#### Invariant: Escrow Must Exist Before Payment Hold
+**Description:** Payment status cannot be 'Held' without corresponding escrow record.
+
+**Rule:**
+- If `booking.payment_status = 'Held'`, then `escrow_holds` record MUST exist with `status = 'Held'`
+
+**Related Entities:** `bookings`, `escrow_holds`
+
+**Enforcement:**
+- Edge Function: `complete-booking` checks escrow existence
+- Application: Creates escrow during booking creation
+
+**Violation Possible:** YES - MEDIUM RISK
+- Race condition between booking creation and escrow creation
+- No atomic transaction guarantees
+- Direct payment_status update bypasses validation
+
+---
+
+#### Invariant: Price Split Math (10% Platform / 90% Provider)
+**Description:** Escrow amount must be correctly split between platform fee and provider payout.
+
+**Rule:**
+- `platform_fee = price × 0.10`
+- `provider_payout = price × 0.90`
+- `platform_fee + provider_payout = price`
+
+**Related Entities:** `bookings`, `escrow_holds`
+
+**Enforcement:**
+- Application Code: `lib/escrow.ts` calculates fees
+- No database constraint validates the math
+
+**Violation Possible:** YES - HIGH RISK
+- Direct INSERT with incorrect fee split accepted
+- No reconciliation trigger
+- Application calculation errors not caught
+
+---
+
+### 11.2 Escrow Safety Guarantees
+
+#### Invariant: Escrow Hold Lifecycle States
+**Description:** Escrow holds follow defined state machine with terminal states.
+
+**Rule:**
+- Valid transitions: `Held` → `Released` OR `Held` → `Refunded` OR `Held` → `Disputed`
+- Once `Released` or `Refunded`, state is terminal (no further transitions)
+
+**Related Entities:** `escrow_holds`, `disputes`
+
+**Enforcement:**
+- Database: CHECK constraint on status enum
+- Edge Functions: `complete-booking`, `process-refund` validate status
+- No trigger prevents invalid transitions
+
+**Violation Possible:** YES - MEDIUM RISK
+- Direct SQL can create invalid transitions (e.g., Refunded → Released)
+- Disputed state can exist alongside Released/Refunded
+
+---
+
+#### Invariant: Money Conservation During Escrow
+**Description:** Total money held in escrow equals sum of platform fees and provider payouts.
+
+**Rule:**
+- `escrow_holds.amount` = sum of all held escrow
+- When released: amount splits into `platform_fee` + `provider_payout`
+- When refunded: `refunds.amount` ≤ `escrow_holds.amount`
+
+**Related Entities:** `escrow_holds`, `refunds`, `wallet_transactions`, `wallets`
+
+**Enforcement:**
+- Database: CHECK constraints (amounts ≥ 0)
+- Edge Function: `process-refund` validates refund amount
+- Trigger: `update_wallet_on_transaction_complete` credits provider wallet
+
+**Violation Possible:** YES - MEDIUM RISK
+- Escrow can expire without auto-release (30-day window not enforced)
+- Multiple refund requests could exceed held amount
+- No rollback if Stripe transfer fails
+
+---
+
+#### Invariant: Disputed Bookings Lock Escrow
+**Description:** Active disputes prevent escrow release and booking completion.
+
+**Rule:**
+- If `disputes.status` IN ('Open', 'UnderReview') for a booking:
+  - Escrow cannot be released
+  - Booking cannot be marked complete
+  - Refund processing is frozen
+
+**Related Entities:** `disputes`, `escrow_holds`, `bookings`
+
+**Enforcement:**
+- Edge Function: `complete-booking` queries for active disputes
+- No database trigger enforces this
+
+**Violation Possible:** YES - HIGH RISK
+- Direct SQL UPDATE bypasses dispute check
+- Race condition: dispute filed after completion check but before release
+- Dispute status doesn't automatically hold escrow at DB level
+
+---
+
+### 11.3 Wallet Debit/Credit Conservation
+
+#### Invariant: Wallet Balance Audit Trail
+**Description:** Wallet balance equals sum of all completed transactions.
+
+**Rule:**
+- `available_balance + pending_balance = sum(completed transactions)`
+- `total_earned = sum(Earning transactions where status='Completed')`
+- `total_withdrawn = sum(Payout transactions where status='Completed')`
+
+**Related Entities:** `wallets`, `transactions`
+
+**Enforcement:**
+- Trigger: `update_wallet_on_transaction_complete` updates wallet
+- Database: CHECK constraints (balances ≥ 0)
+
+**Violation Possible:** YES - HIGH RISK
+- Direct UPDATE to wallet bypasses trigger
+- Transaction insert failure with wallet update creates orphaned credits
+- No reconciliation function to detect discrepancies
+
+---
+
+#### Invariant: No Negative Balances
+**Description:** Wallet balances cannot be negative.
+
+**Rule:**
+- `wallets.available_balance ≥ 0`
+- `wallets.pending_balance ≥ 0`
+- Payout requests cannot exceed available balance
+
+**Related Entities:** `wallets`, `payout_requests`
+
+**Enforcement:**
+- Database: CHECK constraints prevent negative storage
+- No validation on payout request amounts
+
+**Violation Possible:** YES - MEDIUM RISK
+- Race condition: simultaneous payout requests exceed balance
+- Trigger decrements without pre-checking sufficient balance
+
+---
+
+### 11.4 Provider Payout Preconditions
+
+#### Invariant: Provider Can Only Withdraw When Qualified
+**Description:** Payouts require completed Stripe Connect onboarding and sufficient balance.
+
+**Rule:**
+- Provider CAN request payout if ALL of:
+  1. `profiles.payout_connected = true`
+  2. `stripe_connect_accounts.payouts_enabled = true`
+  3. `stripe_connect_accounts.onboarding_completed = true`
+  4. `wallets.available_balance ≥ payout_request.amount`
+
+**Related Entities:** `profiles`, `stripe_connect_accounts`, `wallets`, `payout_requests`
+
+**Enforcement:**
+- Application Logic: Validated in edge functions
+- RLS: Payout requests allow INSERT only to own wallet
+
+**Violation Possible:** YES - HIGH RISK
+- No database CHECK constraint validates preconditions
+- Can create payout_requests even if payouts_enabled = false
+- Application must enforce; no DB fallback
+
+---
+
+#### Invariant: Minimum Payout Amount
+**Description:** Payout requests must meet minimum threshold.
+
+**Rule:**
+- `payout_requests.amount ≥ wallets.minimum_payout_amount` (default $10)
+
+**Related Entities:** `wallets`, `payout_requests`
+
+**Enforcement:**
+- Database: Constraint on `wallets.minimum_payout_amount ≥ 10`
+- Application: Validates during payout request creation
+
+**Violation Possible:** YES - MEDIUM RISK
+- No CHECK constraint on `payout_requests.amount`
+- Direct INSERT can create requests below minimum
+
+---
+
+### 11.5 Review Eligibility Constraints
+
+#### Invariant: Can Only Review Completed Bookings
+**Description:** Reviews require booking participation and completion.
+
+**Rule:**
+- User can create review ONLY if:
+  1. User was customer OR provider on the booking
+  2. `bookings.status = 'Completed'`
+  3. No review exists for (booking_id, reviewer_id) pair
+
+**Related Entities:** `reviews`, `bookings`
+
+**Enforcement:**
+- RLS Policy: Checks booking.status = 'Completed' and participant status
+- Database: UNIQUE(booking_id, reviewer_id)
+
+**Violation Possible:** LOW - BUT EXISTS
+- Booking could transition from Completed to Disputed after review created
+- No trigger prevents completion-status change after review
+- Review could reference deleted booking (ON DELETE CASCADE)
+
+---
+
+#### Invariant: Review Metadata Consistency
+**Description:** Reviewer and reviewee must be distinct booking participants.
+
+**Rule:**
+- `reviewer_id ≠ reviewee_id` (cannot review self)
+- `reviewer_id IN [booking.customer_id, booking.provider_id]`
+- `reviewee_id IN [booking.customer_id, booking.provider_id]` AND `reviewee_id ≠ reviewer_id`
+
+**Related Entities:** `reviews`, `bookings`
+
+**Enforcement:**
+- RLS Policy: Checks participant status
+- No CHECK constraint prevents self-review
+
+**Violation Possible:** YES - MEDIUM RISK
+- Direct SQL INSERT can bypass RLS
+- No database constraint prevents `reviewer_id = reviewee_id`
+
+---
+
+### 11.6 AI Feature Gating Rules
+
+#### Invariant: Feature Flag Controls Access
+**Description:** AI features respect enable/disable flags and rate limits.
+
+**Rule:**
+- Feature accessible if:
+  1. `feature_flags.is_enabled = true`
+  2. User's subscription tier ≥ `feature_flags.min_subscription_tier`
+  3. Daily usage < `feature_flags.daily_limit`
+
+**Related Entities:** `feature_flags`, `profiles`, `feature_flag_history`
+
+**Enforcement:**
+- Function: `is_feature_enabled(feature_key)` checks flag
+- Function: `check_feature_rate_limit(feature_key)` validates usage
+- Application must call these functions
+
+**Violation Possible:** YES - MEDIUM RISK
+- No automatic enforcement at request time
+- Features can be called without increment_feature_usage() being called
+- Subscription tier check is application-level only
+
+---
+
+#### Invariant: AI Usage Cost Tracking
+**Description:** AI feature usage increments counters and cost tracking.
+
+**Rule:**
+- When AI feature used:
+  1. `feature_flags.usage_count` increments
+  2. `feature_flags.daily_usage` increments
+  3. `feature_flags.total_cost += estimated_cost_per_use`
+  4. Usage record added to `feature_flag_history`
+
+**Related Entities:** `feature_flags`, `feature_flag_history`
+
+**Enforcement:**
+- Function: `increment_feature_usage(feature_key, cost)` updates flag
+- Application calls function after feature use
+
+**Violation Possible:** YES - HIGH RISK
+- Usage increment is manual, not automatic
+- No trigger fires on feature execution
+- Cost tracking optional (default cost = 0)
+
+---
+
+### 11.7 Listing Visibility Requirements
+
+#### Invariant: Only Active Listings Visible
+**Description:** Service listings visible to users only when active and provider not suspended.
+
+**Rule:**
+- `service_listings` visible if:
+  1. `status = 'Active'`
+  2. `is_active = true`
+  3. Provider profile exists and not suspended
+
+**Related Entities:** `service_listings`, `profiles`
+
+**Enforcement:**
+- RLS Policy: USING (status = 'Active')
+- Application filters on is_active
+
+**Violation Possible:** YES - MEDIUM RISK
+- `is_active` column not checked in RLS policy
+- No RLS check for provider suspension
+- Listings with status='Active' but is_active=false still visible via RLS
+
+---
+
+### 11.8 Invariant Enforcement Summary
+
+| Invariant | Category | Enforcement Strength | Risk Level | Critical Gap |
+|-----------|----------|---------------------|------------|--------------|
+| Booking-Payment Alignment | Consistency | MODERATE | HIGH | No trigger prevents invalid combos |
+| Escrow Exists Before Hold | Consistency | WEAK | MEDIUM | Race condition possible |
+| Price Split Math | Consistency | WEAK | HIGH | No DB validation |
+| Escrow State Machine | Safety | MODERATE | MEDIUM | No state transition validation |
+| Money Conservation | Safety | MODERATE | MEDIUM | No auto-release after 30 days |
+| Disputes Lock Escrow | Safety | WEAK | HIGH | Direct SQL bypasses check |
+| Wallet Balance Audit | Conservation | WEAK | HIGH | No reconciliation check |
+| No Negative Balances | Conservation | MODERATE | MEDIUM | Race condition on parallel ops |
+| Payout Preconditions | Payouts | WEAK | HIGH | No DB constraint enforcement |
+| Review Eligibility | Reviews | STRONG | LOW | Minor edge cases |
+| Review Metadata Valid | Reviews | MODERATE | MEDIUM | No self-review prevention |
+| Feature Flag Gating | AI Gating | MODERATE | MEDIUM | Application must enforce |
+| AI Usage Tracking | AI Gating | WEAK | HIGH | Manual tracking only |
+| Active Listing Visibility | Visibility | MODERATE | MEDIUM | is_active not in RLS |
+
+---
+
+## 12. STATE TRANSITION CONTRACTS
+
+*This section formally documents allowed and disallowed state transitions for key entities based on actual implementation.*
+
+### 12.1 Booking Status Lifecycle
+
+**Database Enum Values:** `bookings.status`
+```
+'Requested', 'Accepted', 'InProgress', 'Completed', 'Cancelled', 'Disputed'
+```
+
+**State Machine Diagram:**
+```
+Requested → Accepted → InProgress → Completed ✓
+    ↓           ↓           ↓
+    └───────────────────→ Cancelled (terminal)
+                            ↓
+                        Disputed (freezes release)
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| Requested | Accepted | Provider accepts booking | None enforced | escrow_status: Held |
+| Accepted | InProgress | Provider marks started | None enforced | None |
+| InProgress | Completed | Either party via `complete-booking` | Active dispute must NOT exist; escrow_status='Held' | escrow_status→Released, payment_status→Completed, payout to provider, notifications sent |
+| Any | Cancelled | `handle-refund` function | booking.status ≠ "Completed" | escrow_status→Refunded, payment_status→Refunded, refund processed |
+| Any | Disputed | Dispute filed | None enforced | escrow_status→Disputed, escrow frozen, completion blocked |
+
+**Invalid/Undefined Transitions:**
+- Completed → Any other status (should be terminal but not enforced)
+- Disputed → Completed (dispute must be resolved first, but not enforced at DB level)
+- Cancelled → Accepted (terminal state violation, not prevented)
+
+**Enforcement:** Application logic in edge functions only; no database triggers enforce state machine.
+
+---
+
+### 12.2 Payment Status Lifecycle
+
+**Database Enum Values:** `bookings.payment_status`
+```
+'Pending', 'Held', 'Released', 'Refunded'
+```
+
+**State Machine Diagram:**
+```
+Pending → Held → Released ✓ (payout)
+         (escrow)   ↓
+                 Refunded ✓
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| Pending | Held | Escrow created | None | escrow_holds record created |
+| Held | Released | Booking completed via `complete-booking` | No active disputes; booking.status='Completed'; escrow_status='Held' | Funds transferred to provider Stripe Connect, wallet updated |
+| Held | Refunded | Refund approved via `handle-refund` | amount ≤ $100 (auto) OR >$100 (admin approval); escrow_status='Held' | Stripe refund created, escrow→Refunded, booking→Cancelled |
+
+**Terminal States:**
+- Released: Once released, cannot revert
+- Refunded: Once refunded, cannot revert
+
+**Invalid/Undefined Transitions:**
+- Released → Refunded (should not be possible but not prevented)
+- Refunded → Released (should not be possible but not prevented)
+- Pending → Refunded (bypasses escrow creation, not prevented)
+
+**Enforcement:** Edge functions validate transitions; no database constraints prevent invalid transitions.
+
+---
+
+### 12.3 Escrow Hold Status
+
+**Database Enum Values:** `escrow_holds.status`
+```
+'Held', 'Released', 'Refunded', 'Disputed', 'Expired'
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| Held | Released | `complete-booking` | No disputes; booking complete | Funds transferred via Stripe |
+| Held | Refunded | `process-refund` | Refund approved | Stripe refund issued |
+| Held | Disputed | Dispute filed | None | Escrow frozen, completion blocked |
+| Held | Expired | 30-day timeout | expires_at < now() | Auto-release (NOT automatically enforced) |
+| Disputed | Released | Dispute resolved (NoRefund) | Admin resolution | Funds to provider |
+| Disputed | Refunded | Dispute resolved (Refund) | Admin resolution | Funds to customer |
+
+**Expiry Logic:**
+- Escrows auto-expire after 30 days
+- `checkEscrowExpiry()` called to release expired holds
+- No automatic notification to provider
+
+**Enforcement:** Edge functions handle transitions; no database trigger enforces expiry.
+
+---
+
+### 12.4 Shipment/Delivery Status
+
+**Database Enum Values:** `shipments.shipment_status`
+```
+'Pending', 'InTransit', 'OutForDelivery', 'Delivered', 'Exception', 'Cancelled'
+```
+
+**State Machine Diagram:**
+```
+Pending → InTransit → OutForDelivery → Delivered ✓
+   ↓                                       ↓
+   └────────→ Exception ←──────────────────┘
+                  ↓
+             (manual resolution)
+                  ↓
+             (retry to InTransit)
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| Pending | InTransit | `track-shipment` called | None | tracking_events updated |
+| InTransit | OutForDelivery | Carrier API update (mocked) | None | shipment_status updated |
+| OutForDelivery | Delivered | Carrier API update | None | actual_delivery_date set, notifications sent |
+| Any | Exception | Carrier reports exception | None | tracking_events appended |
+| Exception | InTransit | Manual intervention | None | Can retry |
+| Any | Cancelled | Manual cancellation | None | No automatic side effects |
+
+**Critical Implementation Detail:**
+- Shipment tracking is **MOCKED** in `track-shipment` function
+- No real carrier integration
+- All shipments eventually show "Delivered" in mock flow
+
+**Invalid Transitions:**
+- None explicitly prevented; all transitions possible via direct update
+
+**Enforcement:** Application logic in `track-shipment` edge function only.
+
+---
+
+### 12.5 Proofing Status (Custom Services)
+
+**Database Enum Values:** `proofs.status`
+```
+'pending', 'approved', 'rejected', 'revision_requested'
+```
+
+**Also:** `production_orders.status` includes:
+```
+'inquiry', 'procurement_started', 'price_proposed', 'price_approved',
+'order_received', 'consultation', 'proofing', 'approved', 'in_production',
+'quality_check', 'completed', 'cancelled'
+```
+
+**Proofing Requirement Control:**
+- `service_listings.proofing_required` (boolean, defaults true)
+- Providers can disable proofing per listing
+- `can_proceed_without_proof()` checks if proofing can be skipped
+
+**State Machine Diagram:**
+
+```
+                    ┌─→ approved ✓ (in_production)
+                    │
+pending_submission ─┤─→ revision_requested → (resubmit)
+                    │
+                    └─→ rejected ✗ (cancel/retry)
+
+WITHOUT PROOFING:
+order_received → in_production (personalization snapshot becomes ref)
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| (order created) | proofing | Proof submission via `submit-proof` | order.status='order_received'; provider ownership | proofs record created, customer notified |
+| pending_review | approved | Customer approval | isCustomer=true | proofs.status='approved', order→in_production, timeline logged |
+| pending_review | revision_requested | Customer requests changes | isCustomer=true, validRequests.length>0 | proofs.status='revision_requested', change_requests stored |
+| pending_review | rejected | Customer rejects | isCustomer=true, feedback required | proofs.status='rejected', provider notified |
+| revision_requested | pending_review | Provider resubmits | version_number incremented | New proofs record with version_number+1 |
+| BYPASSED | order_received → in_production | `mark_order_proofing_bypassed()` | listing.proofing_required=false | proofing_bypassed=true, production begins |
+
+**Proofing Refund Policy Auto-Update:**
+```
+inquiry/procurement/price_proposed → fully_refundable
+order_received/consultation/proofing → partially_refundable
+approved/in_production/completed → non_refundable
+```
+
+**Invalid Transitions:**
+- No maximum number of revisions enforced
+- No deadline for provider resubmission
+- Proofing can be disabled AFTER order creation
+
+**Enforcement:** Edge functions (`submit-proof`) and RLS policies; refund policy enforced by database trigger.
+
+---
+
+### 12.6 Consultation Status (Custom Services)
+
+**Database Enum Values:** `custom_service_consultations.status`
+```
+'pending', 'completed', 'waived', 'timed_out'
+```
+
+**State Machine Diagram:**
+```
+pending (48hr deadline) → completed ✓
+      ↓
+      └─→ waived ✓
+      ↓
+      └─→ timed_out → customer_proceed OR customer_cancel
+```
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| pending | completed | `completeConsultation()` | status='pending' | completed_at set, order→pending_order_received, timeline logged |
+| pending | waived | `waiveConsultation()` | None | status='waived', consultation_waived=true, order→pending_order_received |
+| pending | timed_out | 48hr deadline via cron | consultation_timer_started_at + 48h < now() | Customer notified, decision window opens |
+
+**Timeout Behavior:**
+- No auto-resolution after timeout
+- Customer chooses: proceed at original price OR cancel for full refund
+- Provider can manually proceed or cancel
+
+**Invalid Transitions:**
+- Consultation can be created on already-completed orders
+- No check preventing concurrent consultations
+- Waive allows provider to bypass without customer consent
+
+**Enforcement:** Application logic and edge functions; timeout requires external cron job.
+
+---
+
+### 12.7 Price Adjustment Status (Custom Services)
+
+**Database Enum Values:** `price_adjustments.status`
+```
+'pending', 'approved', 'rejected'
+```
+
+**Rules:**
+- ONE price adjustment allowed per order (price_adjustment_allowed flag)
+- 72-hour customer response deadline
+- If type='increase', additional payment captured
+- If type='decrease', automatic credit issued
+
+**Allowed Transitions:**
+
+| From | To | Triggered By | Preconditions | Side Effects |
+|------|----|--------------|----|---|
+| pending | approved | Customer approves | 72hr deadline not passed | escrow_amount updated, final_price set, payment/credit processed |
+| pending | rejected | Customer rejects | None | Provider can proceed at original price or cancel |
+
+**Invalid Transitions:**
+- No auto-rejection on timeout (deadline not enforced)
+- Provider can submit multiple adjustments (loop via rejection + resubmit)
+- No validation that adjusted price is reasonable
+
+**Enforcement:** Application logic only; no automatic timeout enforcement.
+
+---
+
+### 12.8 Key Observations
+
+**1. No Automatic State Transitions**
+- Bookings rely entirely on manual user actions
+- No scheduled jobs auto-complete bookings after scheduled_date
+- Timeouts require external cron (not guaranteed)
+
+**2. Missing Validations**
+- Status transitions lack authorization checks beyond RLS
+- No precondition validation before state changes
+- No idempotency guards
+- Circular transitions possible
+
+**3. Terminal States Not Enforced**
+- "Terminal" states like Completed, Cancelled, Released can be changed
+- No database constraint prevents reversions
+
+**4. Dispute Handling**
+- Disputes freeze escrow but don't auto-resolve
+- No SLA enforcement on resolution
+- High-priority disputes have 24hr deadline (noted but not enforced)
+
+---
+
+## 13. ENFORCEMENT LAYER CLARITY
+
+*This section maps WHERE validation is enforced for all documented rules.*
+
+### 13.1 Listing Creation Field Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Title | Required, non-empty | NOT NULL | provider_id ownership | Phone detection | UI validates length, DB has no length constraint |
+| Description | Required, word count | NOT NULL | provider_id ownership | Phone sanitization | Word count client-side only |
+| Price (base_price) | Required, numeric, >0 | NOT NULL, CHECK (≥0) | provider_id ownership | None | Well protected |
+| Photos | At least 1 required | No constraint (JSONB) | provider_id | Upload validation | No DB constraint on count/size |
+| Pricing Type | Radio selection | CHECK (Fixed/Hourly/Custom) | provider_id | None | Well protected |
+| Availability/Duration | Required for types | Partial (integer, no range) | provider_id | None | No duration range validation |
+| Fulfillment Window | Required if enabled, ≥1 | No constraint | provider_id | None | Critical business rule not in DB |
+| Item Weight | Required for shipping | No constraint | provider_id | None | No validation at DB level |
+| Item Dimensions | All 3 required for shipping | No constraints | provider_id | None | No validation at DB level |
+| Damage Deposit | Required if enabled, >0 | No constraint | provider_id | None | Business rule not enforced in DB |
+| Inventory Quantity | Required if enabled, ≥1 | Partial (integer, no min) | provider_id | None | No minimum validation at DB |
+
+---
+
+### 13.2 Job Posting Field Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Title | Required, non-empty | NOT NULL | customer_id ownership | Phone detection | Well protected |
+| Description | Required, non-empty | NOT NULL | customer_id ownership | Phone detection | Well protected |
+| Budget Min/Max | Numeric, max>min if both | CHECK (≥0), CHECK (max≥min) | customer_id | None | Well protected |
+| Fixed Price | Required if fixed mode, >0 | Stored, no constraint | customer_id | None | No DB constraint on value |
+| Location/Address | Complete address required | location NOT NULL | customer_id | None | Individual fields not constrained |
+| Execution Date | Required, valid date | execution_date_start NOT NULL | customer_id | None | No future date validation |
+| Preferred Time | Dropdown selection | CHECK (Morning/Afternoon/Evening/Flexible) | customer_id | None | Well protected |
+| Time Slot (specific) | Only if mode='specific' | Text field, no format validation | customer_id | None | No time format validation |
+
+---
+
+### 13.3 Booking Creation Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Date | Required | scheduled_date NOT NULL | customer_id = auth.uid() INSERT; participants UPDATE | None | Well protected |
+| Time | Required | Text, no format validation | Participants only | None | Time format not validated |
+| Location | Required, non-empty | location NOT NULL | Participants | None | Well protected |
+| Inventory Availability | checkAndLockInventory() | Locking system with triggers | User-based | None | Lock upgrade at payment time |
+| Price | Calculated from listing | CHECK (price ≥ 0) | Participants | create-payment-intent validates >0 | Well protected |
+
+---
+
+### 13.4 Payment Requirements Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Amount | Calculated | CHECK (≥0 on bookings), CHECK (>0 on escrow) | Transaction owner | create-payment-intent validates | No decimal precision rules |
+| Payment Method | Required selection | No constraint | Transaction owner | Validates configured methods | Payment method not constrained |
+| Payment Intent Status | None | CHECK (Pending/Held/Released/Refunded) | Owner only | confirm-payment validates "succeeded" | Well protected |
+| Escrow Constraints | None | amount CHECK (>0), status CHECK, FKs | Implicit via transaction | confirm-payment checks escrow exists | Minor - no explicit RLS on escrow_holds |
+
+---
+
+### 13.5 Profile & Verification Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Full Name | Required | NOT NULL | auth.uid() = id | None | Well protected |
+| Email | Auth system | UNIQUE NOT NULL | auth.uid() = id | None | Well protected |
+| Phone Number | Format validation | Text, no format constraint | auth.uid() = id | send-verification-sms validates | No phone format at DB |
+| ID Verification | Document submission | verification_documents constraints | User owns documents | stripe-identity-webhook | Well protected |
+| Phone Verification | Flow component | phone_verifications constraints | User owns verifications | verify-phone-code (5 attempts, 10min expiry) | Well protected |
+| User Type | Role selection | CHECK (Customer/Provider/Both) | User updates own | None | Well protected |
+| Payout Connection | Stripe Connect flow | stripe_connect_accounts constraints | Provider owns account | stripe-connect-onboarding | Well protected |
+
+---
+
+### 13.6 Reviews & Ratings Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Rating Value | Star selector 1-5 | CHECK (rating ≥1 AND ≤5) | reviewer_id=auth.uid() AND booking complete | None | Well protected |
+| Comment Text | Text area | Text, no length constraint | Reviewer owns | Phone detection/sanitization | No length constraint, phone sanitization via edge function only |
+| Booking Eligibility | Only if complete | UNIQUE(booking_id, reviewer_id) | Checks booking.status='Completed' AND participant | None | Well protected |
+
+---
+
+### 13.7 Content Moderation Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Phone Detection | Warnings during input | No automatic sanitization | N/A | validate-content function detects | CRITICAL: Detection advisory only; if UI bypassed, DB doesn't validate |
+
+---
+
+### 13.8 Disputes & Refunds Enforcement
+
+| Field | UI Validation | Database Validation | RLS Policies | Edge Function | Gaps |
+|-------|---------------|---------------------|--------------|---------------|------|
+| Dispute Type | Dropdown | CHECK (Quality/NoShow/Cancellation/Payment/Other) | Participants only | None | Well protected |
+| Dispute Status | Admin only | CHECK (Open/UnderReview/.../Closed) | Participants view, admin update | None | Well protected |
+| Refund Amount | Admin/system | No explicit constraint | Admin-only update | handle-refund validates >0 | No max refund validation (should not exceed booking price) |
+
+---
+
+### 13.9 Critical Enforcement Gaps Summary
+
+**HIGH PRIORITY (Security/Financial):**
+1. **Phone Number Sanitization** - Edge function only, no DB enforcement
+2. **Damage Deposit Amount** - No DB validation
+3. **Refund Amount** - No constraint preventing refund > booking amount
+4. **Payment Decimal Precision** - No constraint on decimal places
+
+**MEDIUM PRIORITY (Data Integrity):**
+5. **Fulfillment Window** - No constraint ≥1
+6. **Item Dimensions** - No constraints >0
+7. **Inventory Stock** - No minimum constraint
+8. **Description Length** - UI 120-word limit, no DB constraint
+9. **Time Slot Format** - No format validation
+
+**LOWER PRIORITY (UX/Enhancement):**
+10. **Future Date Validation** - execution_date_start not validated to be future
+11. **Budget Consistency** - Can create illogical budget_min > budget_max
+12. **Escrow RLS** - No explicit policies, relies on transaction ownership
+
+---
+
+## 14. FAILURE, ROLLBACK & IDEMPOTENCY EXPECTATIONS
+
+*This section documents observed or implied behavior when failures occur.*
+
+### 14.1 Partial Database Writes
+
+**Scenario:** Transaction fails midway through multi-table update
+
+**Observed Behavior:**
+- No explicit transaction blocks in most edge functions
+- Each Supabase operation is auto-committed individually
+- Multi-step operations (e.g., create booking + create escrow + create payment intent) are NOT atomic
+
+**Example: Booking Creation Flow**
+1. Insert into `bookings` table → Commits
+2. Insert into `escrow_holds` table → Commits
+3. Call Stripe API to create PaymentIntent → May fail
+4. Update booking with payment_intent_id → May not execute
+
+**Risk:** Booking exists without escrow or payment intent if steps 3-4 fail.
+
+**Current Mitigation:** None observed. Application retries may create duplicates.
+
+**Expected Behavior When Failure Occurs:**
+- Booking record exists with `payment_status = 'Pending'`
+- No escrow hold created
+- User sees error, but booking is orphaned in database
+- No automatic cleanup or rollback
+
+---
+
+### 14.2 Payment Succeeded But DB Update Failed
+
+**Scenario:** Stripe payment succeeds but database update fails
+
+**Observed Behavior:**
+- Stripe webhook `stripe-webhook` handles payment confirmations
+- If webhook fails to update database (network error, DB timeout), payment is confirmed in Stripe but not in app
+- No retry mechanism visible in webhook handler
+
+**Example Flow:**
+1. Payment Intent succeeds in Stripe
+2. Webhook fired to `/supabase/functions/stripe-webhook`
+3. Webhook attempts to update `bookings.payment_status = 'Held'`
+4. Database update fails (timeout, connection error)
+5. Webhook returns error, Stripe retries (up to 3 days)
+
+**Risk:** Payment held but booking shows "Payment Failed" until webhook retry succeeds.
+
+**Current Mitigation:** Stripe automatic webhook retry (exponential backoff).
+
+**Expected Behavior:**
+- Booking status remains inconsistent until webhook retry succeeds
+- User may see "Payment pending" state
+- Provider doesn't see booking as active
+- Customer funds held but booking not confirmed
+
+---
+
+### 14.3 Escrow Held But Booking Cancelled
+
+**Scenario:** Customer cancels after payment but before provider acceptance
+
+**Observed Behavior:**
+- `handle-refund` edge function processes refund
+- Updates `escrow_holds.status = 'Refunded'`
+- Creates Stripe refund
+- Updates `bookings.status = 'Cancelled'`
+
+**Example Flow:**
+1. Booking created with escrow held
+2. Customer requests cancellation
+3. `handle-refund` called
+4. Refund amount ≤ $100: Auto-processed
+5. Refund amount > $100: Pending admin approval
+
+**Risk:** Escrow held indefinitely if admin approval never arrives for refunds > $100.
+
+**Current Mitigation:** None for admin approval timeout.
+
+**Expected Behavior:**
+- Auto-refunds (≤$100) process immediately
+- Manual refunds (>$100) stuck in "Pending" state if admin unavailable
+- No escalation or timeout enforcement
+
+---
+
+### 14.4 Notification Failure Scenarios
+
+**Scenario:** Database update succeeds but push notification fails
+
+**Observed Behavior:**
+- Most status changes trigger notifications via `send-notification` edge function
+- Edge function calls Expo Push Notifications API
+- If notification fails, no retry mechanism
+- Database update already committed
+
+**Example Flow:**
+1. Booking status updated to "Accepted"
+2. Trigger calls `send-notification`
+3. Expo API rate limit exceeded or token invalid
+4. Notification fails silently
+5. Database update persists
+
+**Risk:** User not notified of important status changes.
+
+**Current Mitigation:** None. Notification failures are silent.
+
+**Expected Behavior:**
+- Database changes persist regardless of notification success
+- User must check app manually to see status updates
+- No notification retry queue
+
+---
+
+### 14.5 Retry Behavior
+
+**Edge Function Retries:**
+- Stripe webhooks: Automatic retry by Stripe (exponential backoff, up to 3 days)
+- Push notifications: No retry mechanism
+- Email notifications: No retry mechanism visible
+- SMS notifications: No retry mechanism visible
+
+**Application Retries:**
+- No automatic retry logic in client app for failed requests
+- User must manually retry actions (e.g., re-submit booking)
+
+**Idempotency:**
+- Payment intents: Stripe provides idempotency via `idempotency_key` (not always used in current implementation)
+- Booking creation: No idempotency key; duplicate requests create duplicate bookings
+- Refund processing: No idempotency check; multiple refund requests possible
+
+---
+
+### 14.6 Idempotency Expectations
+
+**Payment Operations:**
+- `create-payment-intent`: Should use idempotency keys but implementation varies
+- `confirm-payment`: Checks if booking already completed before processing
+- `process-refund`: No idempotency check; calling twice may attempt double refund
+
+**Booking Operations:**
+- `complete-booking`: Checks `booking.status != 'Completed'` before processing (partial idempotency)
+- Booking creation: No idempotency; duplicate POST creates duplicate bookings
+- Status updates: No idempotency; calling status change twice may fail but no explicit guard
+
+**Escrow Operations:**
+- Escrow release: Checks `escrow_status = 'Held'` before releasing (partial idempotency)
+- Escrow refund: Checks `escrow_status = 'Held'` before refunding (partial idempotency)
+
+**Notification Operations:**
+- No idempotency; duplicate calls send duplicate notifications
+
+---
+
+### 14.7 Observed Failure Handling Patterns
+
+**Pattern 1: Silent Failure**
+- Operation fails, no user notification
+- Example: Notification delivery failure
+
+**Pattern 2: Partial Success**
+- Some steps succeed, others fail
+- Example: Booking created but escrow creation fails
+- No rollback mechanism
+
+**Pattern 3: Webhook Retry**
+- Stripe webhooks retry automatically
+- Application relies on external retry
+
+**Pattern 4: User Retry**
+- User sees error, must manually retry
+- No deduplication; may create duplicates
+
+---
+
+### 14.8 Recommendations for Improvement
+
+**NOT IMPLEMENTED (Gaps Identified):**
+1. **Atomic Transactions** - Wrap multi-step operations in database transactions
+2. **Idempotency Keys** - Require idempotency keys for all payment operations
+3. **Notification Retry Queue** - Implement retry mechanism for failed notifications
+4. **Webhook Replay** - Provide admin tool to replay failed webhooks
+5. **Cleanup Jobs** - Background jobs to clean up orphaned records
+6. **Timeout Enforcement** - Auto-cancel bookings stuck in "Requested" state >24hrs
+7. **Escrow Expiry Automation** - Auto-release escrows after 30 days
+8. **Admin Alert Queue** - Alert admins when manual refund approvals pending >48hrs
+
+---
+
+## 15. PLATFORM DIVERGENCE MATRIX
+
+*This section documents differences between iOS, Android, and Web platforms based on actual implementation.*
+
+### 15.1 Comprehensive Platform Comparison Table
+
+| Feature | iOS | Android | Web | Category | Impact |
+|---------|-----|---------|-----|----------|--------|
+| **Maps** | Native Mapbox | Native Mapbox | Not Supported | Known Limitation | Web users cannot access native map features |
+| **Video Calling** | Agora SDK | Agora SDK | Not Supported | Known Limitation | Web users see fallback UI only |
+| **Voice Calling** | Agora SDK | Agora SDK | Not Supported | Known Limitation | Web users see fallback UI only |
+| **Push Notifications** | Full Support | Full Support + Channels | Not Supported | Known Limitation | Web users get no push notifications |
+| **Payment Cards** | Stripe Payment Sheet | Stripe Payment Sheet | Custom Implementation | Expected | Different UI implementation |
+| **Apple Pay** | Supported | N/A | N/A | Expected | Platform-specific payment method |
+| **Google Pay** | N/A | Supported | N/A | Expected | Platform-specific payment method |
+| **Calendar Sync** | iOS Calendar | Android Calendar | Not Supported | Known Limitation | Web users cannot sync calendar |
+| **Location Tracking** | Full Support | Full Support | Not Supported | Known Limitation | Web users no live location |
+| **File Sharing/Export** | FileSystem API | FileSystem API | DOM/Blob API | Expected | Different export mechanisms |
+| **Report Export** | Supported | Supported | Limited/Disabled | Expected | Web users cannot download reports |
+| **Apple Sign-In** | Supported | N/A | N/A | Expected | iOS-only auth option |
+| **Google Sign-In** | Supported | Supported | Supported | Expected | All platforms |
+| **Monospace Font** | Courier | monospace | monospace | Expected | Font rendering differs |
+| **Keyboard Handling** | padding mode + 90pt offset | height mode + 0pt offset | padding mode | Expected | Different keyboard avoidance |
+| **Safe Area Padding** | Larger (status bar/home indicator) | Smaller | Smaller | Expected | iOS needs more padding |
+| **Camera Capture** | Full Support | Full Support | Not Supported | Known Limitation | Web users cannot use camera for ID verification |
+| **Notification Channels** | N/A (iOS handles internally) | Explicit channel setup | N/A | Expected | Android-specific feature |
+| **OAuth Redirects** | WebBrowser | WebBrowser | Native browser | Expected | Different browser handling |
+
+---
+
+### 15.2 Maps & Location Features
+
+**1. Native Map Support Check**
+- **Implementation:** `lib/mapbox-utils.ts:25-27`
+- **Code:** `isNativeMapSupported()` returns `false` for web platform
+- **Behavior:**
+  - iOS/Android: Uses `@rnmapbox/maps` with native rendering
+  - Web: Falls back to custom simulation or `mapbox-gl` web library
+- **Category:** KNOWN LIMITATION
+- **Impact:** Web users cannot access Mapbox native features like 3D terrain, offline maps, native clustering
+
+**2. Location Tracking Availability**
+- **Implementation:** `lib/trips.ts:239, 260`
+- **Code:** `if (Platform.OS === 'web') return false;`
+- **Behavior:**
+  - iOS/Android: Uses `expo-location` for background/foreground tracking
+  - Web: Location tracking entirely disabled
+- **Category:** KNOWN LIMITATION
+- **Impact:** Web users cannot use live location tracking for trips or delivery tracking
+
+---
+
+### 15.3 Video Calling & Agora
+
+**3. Agora Service Web Exclusion**
+- **Implementation:** `lib/agora-service.ts` (multiple guards)
+- **Code:** Dynamic module loading: `if (Platform.OS !== 'web') { const agora = require('react-native-agora'); }`
+- **Behavior:**
+  - iOS/Android: Full Agora SDK video/voice calling
+  - Web: All Agora methods return early with console warnings
+- **Category:** KNOWN LIMITATION
+- **Impact:** Video/voice calling completely unavailable on web; users see placeholder UI
+
+**4. Agora Call UI Handling**
+- **Implementation:** `app/call/[type]-agora.tsx:65-68`
+- **Behavior:**
+  - iOS/Android: Full video call interface with controls
+  - Web: Alert shown: "Video calling is only available on mobile devices"
+- **Category:** EXPECTED
+- **Impact:** Graceful user messaging on web, but feature unavailable
+
+---
+
+### 15.4 Payment Processing
+
+**5. Stripe Payment Sheet**
+- **Implementation:** Multiple files (listing/[id]/feature.tsx, payment-methods/add.tsx, subscription/checkout.tsx)
+- **Code:** Conditional import: `if (Platform.OS !== 'web') { const stripe = require('@stripe/stripe-react-native'); }`
+- **Behavior:**
+  - iOS/Android: Native CardField component, Apple/Google Pay buttons
+  - Web: Requires custom payment form implementation
+- **Category:** EXPECTED
+- **Impact:** Different payment UX; web requires fallback implementation
+
+**6. Platform-Specific Payment Buttons**
+- **Implementation:** `app/payment-methods/add.tsx:342, 350`
+- **Code:** `{Platform.OS === 'ios' && <ApplePayButton>}` / `{Platform.OS === 'android' && <GooglePayButton>}`
+- **Behavior:**
+  - iOS: Apple Pay button shown
+  - Android: Google Pay button shown
+  - Web: Neither option (card only)
+- **Category:** EXPECTED
+- **Impact:** Users see native payment options matching their platform
+
+---
+
+### 15.5 Push Notifications
+
+**7. Web Push Notifications Disabled**
+- **Implementation:** `lib/notifications.ts:17, 38, 196, 354, 364` and `lib/push-notifications.ts:40`
+- **Code:** `if (Platform.OS === 'web') { return null; }`
+- **Behavior:**
+  - iOS/Android: Full push notification support with permissions
+  - Web: All notification methods return null
+- **Category:** KNOWN LIMITATION
+- **Impact:** Web users cannot receive push notifications, badge updates, or local notifications
+
+**8. Platform-Specific Device Types**
+- **Implementation:** `lib/push-notifications.ts:57`
+- **Code:** `const deviceType = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';`
+- **Behavior:** Device type stored for notification targeting
+- **Category:** EXPECTED
+- **Impact:** Backend can segment notifications by platform
+
+**9. Android Notification Channels**
+- **Implementation:** `lib/notifications.ts:38-45`
+- **Code:** `if (Platform.OS === 'android') { await Notifications.setNotificationChannelAsync(...) }`
+- **Behavior:**
+  - Android: Dedicated notification channel with vibration and light settings
+  - iOS: Not needed (iOS handles internally)
+  - Web: Not supported
+- **Category:** EXPECTED
+- **Impact:** Android users get platform-specific notification customization
+
+---
+
+### 15.6 Keyboard Handling
+
+**10. iOS vs Android KeyboardAvoidingView**
+- **Implementation:** Multiple screens (chat, login, post-job, create-listing, edit-profile)
+- **Code:** `behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}`
+- **Behavior:**
+  - iOS: Uses `padding` mode with 90pt offset for notch/status bar
+  - Android: Uses `height` mode with 0pt offset
+  - Web: Uses `padding` mode (keyboard not relevant)
+- **Category:** EXPECTED
+- **Impact:** Different keyboard interaction feels; iOS padding approach is smoother, Android height is more responsive
+
+---
+
+### 15.7 Calendar Integration
+
+**11. Platform-Specific Calendar Selection**
+- **Implementation:** `lib/calendar.ts:54-68`
+- **Behavior:**
+  - iOS: Selects first calendar with `allowsModifications`
+  - Android: Prioritizes "Local" calendar, falls back to any modifiable calendar
+  - Web: Not supported
+- **Category:** EXPECTED
+- **Impact:** Different calendar defaults based on platform OS architecture
+
+---
+
+### 15.8 UI/UX Differences
+
+**12. Monospace Font**
+- **Implementation:** `app/developer/keys.tsx:474, 585` and `app/developer/index.tsx:394, 417`
+- **Code:** `fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace'`
+- **Category:** EXPECTED
+- **Impact:** Font rendering differs; Courier is iOS standard monospace
+
+**13. Safe Area Padding**
+- **Implementation:** Various screens
+- **Behavior:**
+  - iOS: Larger `paddingTop` (status bar) and `paddingBottom` (home indicator space)
+  - Android: Smaller padding
+  - Web: Standard padding
+- **Category:** EXPECTED
+- **Impact:** iOS requires extra space for notch and home indicator
+
+---
+
+### 15.9 File Export/Download
+
+**14. Export Implementation**
+- **Implementation:** `lib/exports.ts:156-182`
+- **Code:**
+  ```typescript
+  if (Platform.OS === 'web') {
+    // Blob + document.createElement + link.click()
+  } else {
+    // FileSystem.writeAsStringAsync + Sharing.shareAsync
+  }
+  ```
+- **Behavior:**
+  - iOS/Android: Uses FileSystem API and native sharing
+  - Web: Uses Blob API with DOM manipulation
+- **Category:** EXPECTED
+- **Impact:** Different export mechanisms due to runtime environment
+
+**15. CSV/Report Export Buttons**
+- **Implementation:** Admin pages (history, 1099-report, developer)
+- **Code:** Export buttons disabled or hidden on web with `if (Platform.OS === 'web')`
+- **Category:** EXPECTED
+- **Impact:** Web users cannot export reports to device storage
+
+---
+
+### 15.10 OAuth Authentication
+
+**16. Apple Sign-In iOS Only**
+- **Implementation:** `app/(auth)/login.tsx:137, 154`
+- **Code:** `{enabledProviders.apple && Platform.OS === 'ios' && <AppleSignInButton>}`
+- **Category:** EXPECTED
+- **Impact:** Android and Web users only get Google auth
+
+**17. Google Sign-In (All Platforms)**
+- **Implementation:** `app/(auth)/login.tsx:137`
+- **Category:** EXPECTED
+- **Impact:** Consistent authentication option across platforms
+
+---
+
+### 15.11 Native Module Configuration Risk
+
+**18. Module Availability Flags**
+- **Implementation:** `config/native-modules.ts:49-61`
+- **Configuration:** All modules marked as available (true)
+- **Category:** POTENTIAL BUG
+- **Impact:** No graceful degradation if native modules fail on specific platforms; could cause runtime errors
+
+---
+
+### 15.12 Platform Divergence Summary
+
+**Web Platform Completeness:**
+- Web version lacks **6 major features**: video calling, push notifications, location tracking, calendar integration, camera capture, native maps
+- Essentially mobile-first platform with limited web support
+
+**Expected vs Unintended Differences:**
+- **Expected:** 17 intentional platform adaptations
+- **Known Limitations:** 7 features unavailable on web
+- **Potential Bugs:** 1 (module availability flags)
+
+**Recommended Actions:**
+1. Document "Web Unsupported" features in user help docs
+2. Implement module availability checks in native-modules.ts
+3. Add web-specific fallback UIs for all native-exclusive features
+4. Consider feature capability flags for runtime checks
+
+---
+
+## 16. ADMIN & MODERATION FLOWS (OBSERVED)
+
+*This section documents step-by-step admin flows based on actual implementation.*
+
+### 16.1 Refund Processing Flow
+
+**Entry Point:** `/admin/refunds`
+
+**Components:**
+- Screen: `app/admin/refunds.tsx`
+- Card: `components/RefundRequestCard.tsx`
+- Modal: `components/RefundDetailsModal.tsx`
+- Library: `lib/admin-refund-management.ts`
+
+**Admin Actions:**
+1. **View Refunds** - Filter by status (Pending, Completed, Failed)
+2. **Queue Management** - Monitor refund processing queue
+3. **Approve Refund** - Mark status: 'Pending' → 'Completed'
+4. **Reject Refund** - Mark status: 'Pending' → 'Failed' with reason
+5. **Manual Refund** - Create refund for a booking
+6. **Retry Failed Refunds** - Retry from queue with max attempts tracking
+7. **Export Data** - CSV or JSON export
+
+**Database Changes on Approval:**
+- `refunds` table:
+  - status: 'Pending' → 'Completed'
+  - approved_by: admin ID
+  - processed_at: timestamp
+  - stripe_refund_id: populated if Stripe refund created
+
+**Edge Function:** `process-refund`
+- Creates Stripe refund if stripe_payment_intent_id exists
+- Updates `escrow_holds.status` to 'Refunded'
+- Updates `bookings`: escrow_status='Refunded', payment_status='Refunded'
+- Creates wallet transaction for customer (Refund type)
+- Updates `wallet.available_balance`
+- Sends notifications to customer and provider
+
+**Side Effects:**
+- Escrow hold marked as Refunded
+- Customer wallet credited
+- Booking status updated to Cancelled
+- Transaction history recorded
+
+**Audit Logging:** Calls `log_admin_action` RPC
+
+**Completeness:** PARTIALLY COMPLETE - Basic approve/reject implemented, manual Stripe processing in UI is limited
+
+---
+
+### 16.2 Dispute Resolution Flow
+
+**Entry Point:** AdminDisputesManager component
+
+**Component:** `components/AdminDisputesManager.tsx`
+
+**Admin Actions:**
+1. **View Disputes** - Filter by status (Open, UnderReview, Resolved, Urgent)
+2. **Update Status** - Move dispute to UnderReview
+3. **Resolve Dispute** - Complete resolution with decision
+
+**Resolution Options:**
+- **NoRefund** - Release funds to provider
+- **PartialRefund** - Issue partial refund to customer
+- **FullRefund** - Issue full refund to customer
+- **ServiceRedo** - Option for service repetition
+
+**Database Changes on Resolution:**
+- `disputes` table:
+  - status: 'Open'/'UnderReview' → 'Resolved'
+  - resolution: admin's resolution text
+  - resolution_type: [NoRefund, PartialRefund, FullRefund, ServiceRedo]
+  - refund_amount: amount to refund
+  - admin_notes: internal notes
+  - resolved_by: admin ID
+  - resolved_at: timestamp
+
+**If Refund Issued:**
+- `refunds` table: Insert new refund record
+- `escrow_holds.status` → 'Refunded'
+- `bookings.status` → 'Cancelled', refund_requested=true
+
+**If No Refund:**
+- `escrow_holds.status` → 'Released'
+- `bookings.status` → 'Completed'
+
+**Edge Function:** `handle-dispute`
+- Handles dispute filing (user-initiated)
+- Handles dispute resolution (admin via modal)
+- Sets priority based on amount at risk
+- Creates response deadline (24h for Urgent, 48h for others)
+
+**Side Effects:**
+- Escrow funds handled appropriately
+- Booking status updated
+- Notifications sent to both parties
+- Wallet updated if refund issued
+
+**Audit Logging:** `log_admin_action` with action_type: 'DisputeStatusUpdate' or 'DisputeResolved'
+
+**Completeness:** FULLY IMPLEMENTED
+
+---
+
+### 16.3 Payout Approval Flow
+
+**Entry Point:** AdminPayoutsManager component
+
+**Component:** `components/AdminPayoutsManager.tsx`
+
+**Admin Actions:**
+1. **View Escrow Holds** - Filter by status (All, Held, Released, Disputed)
+2. **Release to Provider** - Release funds for payout
+3. **Force Refund** - Issue refund instead of payout
+
+**Escrow Hold Details:**
+- Amount breakdown: Total, Provider payout (90%), Platform fee (10%)
+- Status tracking: Held, Released, Refunded, Disputed
+- Expiry warnings (shows if expires within 7 days)
+
+**Release to Provider Flow:**
+1. Update `escrow_holds.status` to 'Released'
+2. Set released_at timestamp
+3. Create `wallet_transactions` entry:
+   - user_id: provider_id
+   - amount: provider_payout amount
+   - transaction_type: 'Payout'
+   - status: 'Completed'
+
+**Force Refund Flow:**
+1. Create `refunds` entry:
+   - amount: full escrow amount
+   - reason: 'AdminInitiated'
+   - status: 'Completed'
+   - approved_by: admin ID
+2. Update `escrow_holds.status` to 'Refunded'
+3. Create wallet_transactions for customer
+
+**Audit Logging:** `log_admin_action` with action_type: 'EscrowRelease' or 'ForceRefund'
+
+**Side Effects:**
+- Provider wallet credited immediately (Payout transaction)
+- Or customer wallet credited if force refund
+- Transaction history recorded
+
+**Completeness:** FULLY IMPLEMENTED
+
+---
+
+### 16.4 Content Moderation Flow
+
+**Entry Point:** `/admin/moderation`
+
+**Screens & Components:**
+- Screen: `app/admin/moderation.tsx`
+- Queue: `components/AdminModerationQueue.tsx`
+- Review: `components/AdminQueueItemReview.tsx`
+- Library: `lib/moderation.ts`
+
+**Queue Filtering:**
+- Status: All, Pending, In Review, Escalated
+- Priority scoring: 0-100 (Red ≥50, Orange ≥30, Gray <30)
+- Auto-flagged items marked separately
+
+**Admin Actions:**
+1. **Dismiss** - Invalid/false report, 0 strikes
+2. **Warn User** - Issue warning, 1 strike
+3. **Remove Content** - Delete content, 2 strikes
+4. **Suspend User** - Temporary 7-day suspension, 3 strikes
+5. **Ban User** - Permanent ban, 5 strikes
+6. **Escalate** - Send to senior moderator
+
+**Action Flow:**
+
+**Function:** `takeModerationAction(queueId, actionType, reason, internalNotes, strikeSeverity, strikeCount)`
+
+**RPC:** `take_moderation_action`
+
+**1. Dismiss:**
+- Mark queue item resolved
+- No strikes assigned
+- No notifications
+
+**2. Warn:**
+- Mark resolved
+- Add 1 strike
+- Notify user about warning
+- Set strike_severity
+
+**3. Remove Content:**
+- Delete/hide content
+- Add 2 strikes
+- Notify user about removal
+
+**4. Suspend User:**
+- Suspend user for 7 days
+- Add 3 strikes
+- Create `user_suspensions` entry
+- Block platform access
+- Notify user
+
+**5. Ban User:**
+- Create permanent suspension
+- Add 5 strikes
+- Block all access permanently
+- Archive account
+- Notify user
+
+**6. Escalate:**
+- Mark queue item escalated
+- Reassign to senior moderator
+- Preserve evidence
+
+**Database Changes:**
+- `moderation_queue`: status updated, assigned_to/reviewed_by set
+- `moderation_actions`: Insert new action record
+- `user_strikes`: Add strike record
+- `user_suspensions`: If suspend/ban action
+
+**AI Moderation:** Edge function `moderate-content-ai`
+- Uses OpenAI to analyze content
+- Scores flagged categories with confidence
+- Auto-flags high-confidence violations
+- Creates moderation queue item if "review" or "block"
+
+**Audit Logging:** `log_admin_action` RPC
+
+**Timeline & History:**
+- `getContentModerationTimeline()` - All actions on content
+- `getUserModerationHistory()` - All actions against user
+- `getModeratorActionHistory()` - All actions by moderator
+
+**Completeness:** FULLY IMPLEMENTED with AI assistance
+
+---
+
+### 16.5 User Suspension/Banning Flow
+
+**Entry Point:** `/admin/user-actions`
+
+**Components:**
+- Screen: `app/admin/user-actions.tsx`
+- Modals: `components/SuspendUserModal.tsx`, `components/BanUserModal.tsx`
+- Library: `lib/suspensions.ts`
+
+**User Search:**
+- Search by full_name or email
+- Shows current suspension status
+- Shows suspension count badge
+
+**Suspension Options:**
+
+**Temporary Suspension:**
+- Durations: 1 day, 3 days, 7 days, 14 days, 30 days, 90 days, 180 days, 365 days
+- Severity: Warning, Minor, Moderate, Severe, Critical
+
+**Permanent Ban:**
+- Severity: Severe, Critical
+- Requires confirmation: Admin must type "BAN PERMANENTLY"
+- Comprehensive explanation required (max 1000 chars)
+
+**Suspension Action Flow:**
+
+**Function:** `suspendUser(userId, suspensionType, reason, details, severity, durationDays)`
+
+**RPC:** `suspend_user`
+
+**Actions:**
+1. Create `user_suspensions` entry:
+   - suspended_by: admin ID
+   - suspension_type: 'temporary' or 'permanent'
+   - expires_at: now + duration (null for permanent)
+2. Update `profiles`:
+   - is_suspended: true
+   - suspension_expires_at: expiry timestamp
+3. Notify user of suspension
+4. Block access
+
+**Lift Suspension Flow:**
+
+**Function:** `liftSuspension(suspensionId, reason)`
+
+**RPC:** `lift_suspension`
+
+**Actions:**
+1. Update `user_suspensions`:
+   - is_active: false
+   - lifted_at: timestamp
+   - lifted_by: admin ID
+2. Update `profiles`:
+   - is_suspended: false
+3. Notify user of lift
+
+**Suspension Appeal Flow:**
+
+**Function:** `submitSuspensionAppeal(suspensionId, appealText, evidenceUrls)`
+
+**User Appeal:**
+1. Create `suspension_appeals` entry:
+   - appeal_text: user explanation
+   - evidence_urls: supporting links
+   - status: 'pending'
+
+**Admin Review:** `reviewAppeal(appealId, status, reviewNotes)`
+- Update appeal.status to 'approved' or 'rejected'
+- If approved: automatically call liftSuspension
+
+**Database Changes:**
+- `user_suspensions`: suspension details
+- `suspension_appeals`: appeal records
+- `profiles`: is_suspended flag
+
+**History & Monitoring:**
+- `getUserSuspensions(userId)` - All suspensions
+- `getActiveSuspension(userId)` - Current active suspension
+- `getPendingAppeals()` - All pending appeals
+- Real-time subscription: `subscribeToSuspensionChanges(userId, callback)`
+
+**Completeness:** FULLY IMPLEMENTED with appeals process
+
+---
+
+### 16.6 Admin Flow Summary Table
+
+| Flow | Entry Point | Key Actions | Database Tables | Edge Functions | Audit Logged |
+|------|-------------|-------------|-----------------|----------------|--------------|
+| Refund Processing | /admin/refunds | Approve, Reject, Create, Retry, Export | refunds, escrow_holds, wallet_transactions | process-refund | Yes |
+| Dispute Resolution | AdminDisputesManager | File, Resolve, Release Escrow | disputes, refunds, escrow_holds, bookings | handle-dispute | Yes |
+| Payout Approval | AdminPayoutsManager | Release, Force Refund | escrow_holds, wallet_transactions, refunds | None (direct DB) | Yes |
+| Content Moderation | /admin/moderation | Dismiss, Warn, Remove, Suspend, Ban, Escalate | moderation_queue, moderation_actions, user_strikes | moderate-content-ai | Yes |
+| User Suspension | /admin/user-actions | Suspend, Ban, Lift, Appeal, Review | user_suspensions, suspension_appeals, profiles | None (RPC calls) | Implicit |
+
+---
+
+## 17. OBSERVABLE OUTCOMES & TEST ASSERTIONS
+
+*This section provides test-ready assertions for observable outcomes in the Dollarsmiley app.*
+
+### 17.1 After Booking Creation
+
+**When:** User completes booking creation flow
+
+**Observable Outcomes:**
+1. **Database:** New record exists in `bookings` table with status='Requested'
+2. **Database:** Booking.payment_status = 'Pending' initially
+3. **Database:** If inventory-backed service, `inventory_locks` record created with lock_type='soft'
+4. **UI:** User redirected to booking confirmation or payment screen
+5. **UI:** Success message displayed
+6. **Notification:** Provider receives notification of new booking request
+
+**Test Assertions:**
+```javascript
+// After booking creation
+await expect(bookings.count()).toBe(initialCount + 1);
+await expect(booking.status).toBe('Requested');
+await expect(booking.payment_status).toBe('Pending');
+await expect(booking.customer_id).toBe(currentUserId);
+await expect(notifications.where({ recipient_id: providerId }).count()).toBe(1);
+```
+
+---
+
+### 17.2 After Payment Confirmation
+
+**When:** Payment Intent succeeds and webhook processes
+
+**Observable Outcomes:**
+1. **Database:** Booking.payment_status = 'Held'
+2. **Database:** Booking.escrow_status = 'Held'
+3. **Database:** New record in `escrow_holds` table with status='Held'
+4. **Database:** escrow_holds.amount = booking.price
+5. **Database:** escrow_holds.platform_fee = booking.price × 0.10
+6. **Database:** escrow_holds.provider_payout = booking.price × 0.90
+7. **Database:** stripe_payment_intent_id populated on booking
+8. **Notification:** Customer receives payment confirmation
+9. **Notification:** Provider receives notification that booking is confirmed
+
+**Test Assertions:**
+```javascript
+// After payment confirmation
+await expect(booking.payment_status).toBe('Held');
+await expect(booking.escrow_status).toBe('Held');
+await expect(escrowHolds.where({ booking_id: bookingId }).count()).toBe(1);
+await expect(escrowHold.status).toBe('Held');
+await expect(escrowHold.platform_fee + escrowHold.provider_payout).toBe(booking.price);
+await expect(booking.stripe_payment_intent_id).not.toBeNull();
+```
+
+---
+
+### 17.3 After Provider Acceptance
+
+**When:** Provider accepts booking request
+
+**Observable Outcomes:**
+1. **Database:** Booking.status = 'Accepted'
+2. **Database:** Booking.accepted_at timestamp populated
+3. **Database:** If inventory-backed, inventory_locks.lock_type upgraded from 'soft' to 'hard'
+4. **Calendar:** Event added to provider's connected calendar (if calendar permissions granted)
+5. **Notification:** Customer receives acceptance notification
+6. **UI:** Provider dashboard shows booking as "Upcoming"
+7. **UI:** Customer sees "Booking Confirmed" status
+
+**Test Assertions:**
+```javascript
+// After provider acceptance
+await expect(booking.status).toBe('Accepted');
+await expect(booking.accepted_at).not.toBeNull();
+if (inventoryBacked) {
+  await expect(inventoryLock.lock_type).toBe('hard');
+}
+await expect(notifications.where({ recipient_id: customerId, type: 'BookingAccepted' }).count()).toBe(1);
+```
+
+---
+
+### 17.4 After Booking Completion
+
+**When:** Either party marks booking complete via `complete-booking`
+
+**Observable Outcomes:**
+1. **Database:** Booking.status = 'Completed'
+2. **Database:** Booking.completed_at timestamp populated
+3. **Database:** Booking.payment_status = 'Released'
+4. **Database:** escrow_holds.status = 'Released'
+5. **Database:** escrow_holds.released_at timestamp populated
+6. **Database:** New wallet_transaction for provider with type='Payout', status='Completed'
+7. **Database:** Provider wallet.available_balance increased by provider_payout amount
+8. **Stripe:** Transfer created to provider's Stripe Connect account
+9. **Notification:** Both customer and provider notified of completion
+10. **Notification:** Customer prompted to leave review (review_prompts triggered)
+11. **UI:** Review prompt banner shown to customer
+12. **UI:** Provider sees payout in earnings dashboard
+
+**Test Assertions:**
+```javascript
+// After booking completion
+await expect(booking.status).toBe('Completed');
+await expect(booking.completed_at).not.toBeNull();
+await expect(booking.payment_status).toBe('Released');
+await expect(escrowHold.status).toBe('Released');
+await expect(walletTransactions.where({ user_id: providerId, type: 'Payout' }).count()).toBeGreaterThan(0);
+await expect(providerWallet.available_balance).toBe(initialBalance + escrowHold.provider_payout);
+await expect(notifications.where({ type: 'BookingCompleted' }).count()).toBe(2);
+```
+
+---
+
+### 17.5 After Review Submission
+
+**When:** Customer or provider submits review
+
+**Observable Outcomes:**
+1. **Database:** New record in `reviews` table
+2. **Database:** reviews.rating between 1 and 5
+3. **Database:** reviews.booking_id = completed booking ID
+4. **Database:** reviews.reviewer_id = current user ID
+5. **Database:** reviews.reviewee_id = other party ID
+6. **Database:** UNIQUE constraint prevents duplicate review for same (booking_id, reviewer_id)
+7. **Database:** Reviewee's aggregate rating recalculated (profiles.rating_average)
+8. **Database:** Reviewee's review count incremented (profiles.review_count)
+9. **Notification:** Reviewee notified of new review
+10. **UI:** Review appears on reviewee's profile
+11. **UI:** Reviewer cannot submit duplicate review
+
+**Test Assertions:**
+```javascript
+// After review submission
+await expect(reviews.where({ booking_id: bookingId, reviewer_id: reviewerId }).count()).toBe(1);
+await expect(review.rating).toBeGreaterThanOrEqual(1);
+await expect(review.rating).toBeLessThanOrEqual(5);
+await expect(reviewee.review_count).toBe(initialCount + 1);
+await expect(reviewee.rating_average).toBe(recalculatedAverage);
+await expect(notifications.where({ recipient_id: revieweeId, type: 'NewReview' }).count()).toBe(1);
+```
+
+---
+
+### 17.6 After AI Assist Usage
+
+**When:** User generates AI content (photo, title/description, category suggestion)
+
+**Observable Outcomes:**
+
+**AI Photo Generation:**
+1. **Edge Function:** `generate-photo` called with context (title, description, category)
+2. **API:** OpenAI DALL-E 3 API called
+3. **Storage:** Image(s) uploaded to 'listing-photos' bucket
+4. **Database:** feature_flags.usage_count incremented (if tracking enabled)
+5. **Database:** feature_flag_history record created with action='used'
+6. **UI:** Generated photo(s) displayed in picker
+7. **UI:** Loading state shows during generation (10-30 seconds)
+
+**AI Title/Description Improvement:**
+1. **Edge Function:** `generate-title-description` called
+2. **API:** OpenAI GPT-4o-mini API called
+3. **Database:** feature_flags.usage_count incremented
+4. **UI:** Improved text populated in form fields
+5. **UI:** User can accept or discard
+
+**AI Category Suggestion:**
+1. **Edge Function:** `suggest-listing-category` called
+2. **API:** OpenAI GPT-4o-mini API called
+3. **Database:** ai_category_suggestions record created with confidence score
+4. **Database:** feature_flags.usage_count incremented
+5. **UI:** Suggested category displayed with confidence indicator
+6. **UI:** Alternate suggestions shown
+7. **UI:** User can accept or manually select
+
+**Test Assertions:**
+```javascript
+// After AI assist usage
+await expect(featureFlag.usage_count).toBe(initialCount + 1);
+await expect(featureFlagHistory.where({ feature_key: 'ai_photo_generation' }).count()).toBeGreaterThan(0);
+await expect(listingPhotos.length).toBeGreaterThan(0);
+await expect(aiCategorySuggestion.confidence_score).toBeGreaterThan(0);
+```
+
+---
+
+### 17.7 After Dispute Filing
+
+**When:** Customer or provider files dispute
+
+**Observable Outcomes:**
+1. **Database:** New record in `disputes` table with status='Open'
+2. **Database:** disputes.booking_id = disputed booking ID
+3. **Database:** escrow_holds.status = 'Disputed' (escrow frozen)
+4. **Database:** Booking cannot be completed while dispute active
+5. **Database:** Priority set based on amount_at_risk
+6. **Database:** Response deadline set (24h for Urgent, 48h for others)
+7. **Notification:** Admin notified of new dispute
+8. **Notification:** Other party notified of dispute filing
+9. **UI:** Dispute status shown on booking details
+10. **UI:** Completion button disabled for booking
+
+**Test Assertions:**
+```javascript
+// After dispute filing
+await expect(disputes.where({ booking_id: bookingId }).count()).toBe(1);
+await expect(dispute.status).toBe('Open');
+await expect(escrowHold.status).toBe('Disputed');
+await expect(booking.status).not.toBe('Completed');
+await expect(notifications.where({ recipient_id: adminId, type: 'NewDispute' }).count()).toBe(1);
+```
+
+---
+
+### 17.8 After Refund Request
+
+**When:** Customer requests refund
+
+**Observable Outcomes:**
+
+**Auto-Processed (Amount ≤ $100):**
+1. **Database:** New record in `refunds` table with status='Completed'
+2. **Database:** refunds.approved_by = 'system' (auto-approval)
+3. **Database:** escrow_holds.status = 'Refunded'
+4. **Database:** bookings.status = 'Cancelled'
+5. **Stripe:** Refund created in Stripe
+6. **Database:** wallet_transaction created for customer with type='Refund'
+7. **Database:** Customer wallet.available_balance increased by refund amount
+8. **Notification:** Customer notified of refund processed
+9. **Notification:** Provider notified of refund
+
+**Manual Approval (Amount > $100):**
+1. **Database:** New record in `refunds` table with status='Pending'
+2. **Database:** refunds.approved_by = null (awaiting admin)
+3. **Database:** escrow_holds.status remains 'Held'
+4. **Notification:** Admin notified of pending refund approval
+5. **UI:** Admin sees refund in pending queue
+6. **UI:** Customer sees "Refund pending approval" status
+
+**Test Assertions:**
+```javascript
+// After refund request (auto-processed)
+if (refundAmount <= 100) {
+  await expect(refund.status).toBe('Completed');
+  await expect(refund.approved_by).toBe('system');
+  await expect(escrowHold.status).toBe('Refunded');
+  await expect(booking.status).toBe('Cancelled');
+  await expect(customerWallet.available_balance).toBe(initialBalance + refundAmount);
+}
+
+// After refund request (manual)
+if (refundAmount > 100) {
+  await expect(refund.status).toBe('Pending');
+  await expect(refund.approved_by).toBeNull();
+  await expect(escrowHold.status).toBe('Held');
+  await expect(notifications.where({ recipient_id: adminId, type: 'RefundPendingApproval' }).count()).toBe(1);
+}
+```
+
+---
+
+### 17.9 After Provider Payout Request
+
+**When:** Provider requests payout from wallet
+
+**Observable Outcomes:**
+1. **Database:** New record in `payout_requests` table with status='Pending'
+2. **Database:** payout_requests.amount ≤ wallet.available_balance
+3. **Database:** payout_requests.amount ≥ wallet.minimum_payout_amount (default $10)
+4. **Database:** wallet.pending_balance increased by request amount
+5. **Database:** wallet.available_balance decreased by request amount
+6. **Validation:** stripe_connect_accounts.payouts_enabled = true
+7. **Validation:** stripe_connect_accounts.onboarding_completed = true
+8. **Notification:** Admin notified if manual approval required
+9. **UI:** Payout shows as "Processing" in provider dashboard
+
+**Test Assertions:**
+```javascript
+// After payout request
+await expect(payoutRequests.where({ user_id: providerId }).count()).toBe(initialCount + 1);
+await expect(payoutRequest.status).toBe('Pending');
+await expect(payoutRequest.amount).toBeLessThanOrEqual(initialAvailableBalance);
+await expect(payoutRequest.amount).toBeGreaterThanOrEqual(wallet.minimum_payout_amount);
+await expect(wallet.pending_balance).toBe(initialPending + payoutRequest.amount);
+await expect(wallet.available_balance).toBe(initialAvailable - payoutRequest.amount);
+```
+
+---
+
+### 17.10 After Service Listing Creation
+
+**When:** Provider creates new service listing
+
+**Observable Outcomes:**
+1. **Database:** New record in `service_listings` table
+2. **Database:** service_listings.status = 'Draft' or 'Active' based on submission
+3. **Database:** service_listings.provider_id = current user ID
+4. **Database:** Photos uploaded to 'listing-photos' bucket
+5. **Database:** Photo URLs stored in photos array
+6. **Database:** category_id and subcategory references populated
+7. **RLS:** Only provider can view Draft listings
+8. **RLS:** All users can view Active listings
+9. **Search:** Active listings indexed for search
+10. **UI:** Listing appears in provider's "My Listings"
+11. **UI:** If Active, listing appears in public search results
+
+**Test Assertions:**
+```javascript
+// After listing creation
+await expect(serviceListings.where({ provider_id: providerId }).count()).toBe(initialCount + 1);
+await expect(listing.status).toBeIn(['Draft', 'Active']);
+await expect(listing.provider_id).toBe(currentUserId);
+await expect(listing.photos.length).toBeGreaterThan(0);
+await expect(listing.category_id).not.toBeNull();
+if (listing.status === 'Active') {
+  await expect(searchResults.where({ listing_id: listing.id }).count()).toBe(1);
+}
+```
+
+---
+
+## 18. KNOWN ISSUES VS LIMITATIONS
+
+*This section separates bugs, intentional limitations, and deferred features.*
+
+### 18.1 Known Bugs (Observed but Unintended)
+
+**High Severity:**
+
+1. **Phone Number Sanitization Not Enforced at Database**
+   - **Issue:** Phone numbers can be inserted into listings/jobs despite sanitization rules
+   - **Root Cause:** validate-content edge function is advisory only; no database constraint
+   - **Impact:** User phone numbers leak into public content
+   - **Workaround:** UI validation warns users, but can be bypassed
+   - **Status:** Unresolved
+
+2. **Race Condition on Wallet Withdrawals**
+   - **Issue:** Simultaneous payout requests can exceed available balance
+   - **Root Cause:** No atomic check-and-decrement operation
+   - **Impact:** Wallet can go negative before constraints trigger
+   - **Workaround:** None
+   - **Status:** Unresolved
+
+3. **Escrow Can Be Released During Active Dispute**
+   - **Issue:** Direct SQL UPDATE bypasses dispute check in complete-booking
+   - **Root Cause:** No database trigger enforces dispute lock on escrow
+   - **Impact:** Funds released while dispute unresolved
+   - **Workaround:** Admin must manually verify dispute status
+   - **Status:** Unresolved
+
+4. **Duplicate Bookings on Retry**
+   - **Issue:** User retry creates duplicate bookings
+   - **Root Cause:** No idempotency key on booking creation
+   - **Impact:** Multiple bookings for same time slot
+   - **Workaround:** Manual cleanup by admin
+   - **Status:** Unresolved
+
+**Medium Severity:**
+
+5. **Review Can Be Created for Non-Completed Bookings**
+   - **Issue:** Direct SQL INSERT bypasses RLS policy check
+   - **Root Cause:** RLS checked on INSERT but not enforced by database constraint
+   - **Impact:** Reviews exist for cancelled/disputed bookings
+   - **Workaround:** Application layer validation
+   - **Status:** Unresolved
+
+6. **Notification Delivery Failures Silent**
+   - **Issue:** Push notification failures don't retry
+   - **Root Cause:** No retry queue for failed notifications
+   - **Impact:** Users miss important status updates
+   - **Workaround:** Users must check app manually
+   - **Status:** Unresolved
+
+7. **Map Markers Not Clickable on First Render (Web)**
+   - **Issue:** Touch events blocked by parent View
+   - **Root Cause:** Fixed with pointerEvents="box-none" but may regress
+   - **Impact:** Users cannot interact with map pins
+   - **Workaround:** Pan map slightly to force re-render
+   - **Status:** Recently fixed (may regress)
+
+8. **Shipment Tracking Shows Fake Data**
+   - **Issue:** track-shipment function uses mocked carrier responses
+   - **Root Cause:** No real carrier integration implemented
+   - **Impact:** Shipment status unreliable
+   - **Workaround:** None; acknowledged as mock
+   - **Status:** Deferred (see 18.3)
+
+**Low Severity:**
+
+9. **Photo URLs Inconsistent Format**
+   - **Issue:** Stored as text[] or JSON string depending on table
+   - **Root Cause:** Multiple implementations over time
+   - **Impact:** Parsing required on read
+   - **Workaround:** Application layer handles both formats
+   - **Status:** Unresolved
+
+10. **Timestamps Timezone Inconsistent**
+    - **Issue:** Some tables use `timestamptz`, others use `timestamp`
+    - **Root Cause:** Migrations created at different times
+    - **Impact:** Timezone conversion issues on display
+    - **Workaround:** Application layer normalizes
+    - **Status:** Unresolved
+
+---
+
+### 18.2 Known Limitations (Intentional Constraints)
+
+**Platform Constraints:**
+
+1. **Web: No Video Calling**
+   - **Reason:** Agora SDK is native-only
+   - **Impact:** Web users cannot make video calls
+   - **Alternative:** Text chat available
+   - **Status:** Intentional (native-first architecture)
+
+2. **Web: No Push Notifications**
+   - **Reason:** Push notifications require native OS support
+   - **Impact:** Web users miss real-time alerts
+   - **Alternative:** In-app notification center
+   - **Status:** Intentional (platform limitation)
+
+3. **Web: No Location Tracking**
+   - **Reason:** Background location requires native permissions
+   - **Impact:** Web users cannot use trip tracking
+   - **Alternative:** Manual status updates
+   - **Status:** Intentional (platform limitation)
+
+4. **Web: No Calendar Integration**
+   - **Reason:** Calendar APIs are native-only
+   - **Impact:** Web users cannot sync bookings to calendar
+   - **Alternative:** Manual calendar entry
+   - **Status:** Intentional (platform limitation)
+
+5. **iOS: No Google Pay**
+   - **Reason:** Google Pay not available on iOS
+   - **Impact:** iOS users cannot use Google Pay
+   - **Alternative:** Apple Pay available
+   - **Status:** Intentional (platform-specific payment methods)
+
+6. **Android: No Apple Pay**
+   - **Reason:** Apple Pay not available on Android
+   - **Impact:** Android users cannot use Apple Pay
+   - **Alternative:** Google Pay available
+   - **Status:** Intentional (platform-specific payment methods)
+
+**Business Logic Constraints:**
+
+7. **Refunds > $100 Require Manual Approval**
+   - **Reason:** Fraud prevention
+   - **Impact:** Delays refund processing
+   - **Alternative:** None
+   - **Status:** Intentional business rule
+
+8. **Minimum Payout $10**
+   - **Reason:** Reduce transaction fees
+   - **Impact:** Providers must accumulate at least $10 before withdrawal
+   - **Alternative:** None
+   - **Status:** Intentional business rule
+
+9. **One Review Per Booking Per User**
+   - **Reason:** Prevent review spam
+   - **Impact:** Users cannot update reviews
+   - **Alternative:** Contact support for edit
+   - **Status:** Intentional constraint
+
+10. **Escrow Expires After 30 Days**
+    - **Reason:** Prevent indefinite holds
+    - **Impact:** Auto-release to provider if unclaimed
+    - **Alternative:** None
+    - **Status:** Intentional business rule (but not automatically enforced - see bugs)
+
+**Feature Constraints:**
+
+11. **No Multi-Currency Support**
+    - **Reason:** Single-region launch (USD only)
+    - **Impact:** Cannot process non-USD transactions
+    - **Alternative:** None
+    - **Status:** Intentional (deferred for later)
+
+12. **No Offline Mode**
+    - **Reason:** Real-time data requirements
+    - **Impact:** App requires internet connection
+    - **Alternative:** Limited caching for viewing
+    - **Status:** Intentional architecture decision
+
+13. **Max 5 Photos Per Listing**
+    - **Reason:** Storage and performance optimization
+    - **Impact:** Users limited to 5 photos
+    - **Alternative:** None
+    - **Status:** Intentional constraint
+
+14. **Max 10 Photos Per Review**
+    - **Reason:** Storage and moderation load
+    - **Impact:** Users limited to 10 photos
+    - **Alternative:** None
+    - **Status:** Intentional constraint
+
+15. **AI Photo Generation: 10-30 Second Wait**
+    - **Reason:** OpenAI DALL-E API processing time
+    - **Impact:** User waits during generation
+    - **Alternative:** None
+    - **Status:** Intentional (external API limitation)
+
+---
+
+### 18.3 Deferred / Unimplemented Features
+
+**High Priority (Acknowledged Gaps):**
+
+1. **Real Carrier Integration for Shipment Tracking**
+   - **Status:** Currently mocked with fake data
+   - **Impact:** Shipment tracking unreliable
+   - **Reason Deferred:** Third-party API integration pending
+   - **Timeline:** Unspecified
+
+2. **Automatic Escrow Expiry Enforcement**
+   - **Status:** 30-day expiry exists but no automatic trigger
+   - **Impact:** Requires manual cleanup
+   - **Reason Deferred:** Cron job implementation pending
+   - **Timeline:** Unspecified
+
+3. **Refund Approval Timeout/Escalation**
+   - **Status:** Manual refunds >$100 stuck if admin unavailable
+   - **Impact:** Customer refunds delayed indefinitely
+   - **Reason Deferred:** Admin workflow optimization needed
+   - **Timeline:** Unspecified
+
+4. **Consultation Timeout Auto-Resolution**
+   - **Status:** 48-hour timeout noted but not automatically enforced
+   - **Impact:** Consultations stuck in "pending" forever
+   - **Reason Deferred:** Cron job implementation pending
+   - **Timeline:** Unspecified
+
+5. **Booking Auto-Completion After Scheduled Date**
+   - **Status:** Manual completion only
+   - **Impact:** Bookings remain "InProgress" indefinitely
+   - **Reason Deferred:** Business logic discussion needed
+   - **Timeline:** Unspecified
+
+**Medium Priority:**
+
+6. **Multi-Currency Support**
+   - **Status:** USD only
+   - **Impact:** Cannot serve international markets
+   - **Reason Deferred:** Single-region MVP focus
+   - **Timeline:** Future release
+
+7. **CDN for Image Delivery**
+   - **Status:** Direct Supabase Storage URLs
+   - **Impact:** Slower image loading
+   - **Reason Deferred:** Cost optimization pending
+   - **Timeline:** Future release
+
+8. **Advanced Search Filters**
+   - **Status:** Basic filters only
+   - **Impact:** Limited search refinement
+   - **Reason Deferred:** UI/UX design pending
+   - **Timeline:** Future release
+
+9. **Bulk Operations for Admins**
+   - **Status:** Referenced in lib/bulk-operations.ts but not visible in UI
+   - **Impact:** Admins process items one at a time
+   - **Reason Deferred:** Admin workflow optimization pending
+   - **Timeline:** Unspecified
+
+10. **Notification Retry Queue**
+    - **Status:** Failed notifications don't retry
+    - **Impact:** Users miss notifications
+    - **Reason Deferred:** Infrastructure decision pending
+    - **Timeline:** Unspecified
+
+**Low Priority:**
+
+11. **Accessibility Improvements**
+    - **Status:** Many components lack screen reader labels, touch targets small
+    - **Impact:** Poor accessibility for disabled users
+    - **Reason Deferred:** Compliance audit pending
+    - **Timeline:** Future release
+
+12. **Performance Optimizations**
+    - **Status:** No virtualization on large lists, no marker clustering on maps
+    - **Impact:** Slow with >100 items
+    - **Reason Deferred:** Optimization phase pending
+    - **Timeline:** Future release
+
+13. **Offline Support**
+    - **Status:** No offline mode
+    - **Impact:** App unusable without internet
+    - **Reason Deferred:** Architecture redesign required
+    - **Timeline:** Future release
+
+14. **Progressive Image Loading**
+    - **Status:** Full-res images loaded immediately
+    - **Impact:** Slow loading on slow networks
+    - **Reason Deferred:** Image optimization pending
+    - **Timeline:** Future release
+
+15. **Background Processing for AI**
+    - **Status:** AI generation blocks UI
+    - **Impact:** User waits 10-30 seconds
+    - **Reason Deferred:** Background job queue needed
+    - **Timeline:** Future release
+
+---
+
+### 18.4 Classification Summary
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Known Bugs | 10 | Phone sanitization, race conditions, duplicate bookings |
+| Known Limitations | 15 | Platform constraints, business rules, feature constraints |
+| Deferred Features | 15 | Carrier integration, auto-timeouts, multi-currency, CDN |
+
+**Total Documented Issues:** 40
+
+---
+
 ## DOCUMENT END
 
-**Status:** Complete
+**Status:** Complete with 8 New Sections Added
 **Last Updated:** January 6, 2026
-**Pages:** 86
-**Word Count:** ~35,000
+**Sections:** 18 (10 original + 8 new)
+**Pages:** ~150
+**Word Count:** ~75,000
+
+**New Sections Added:**
+- Section 11: System Invariants (Observed)
+- Section 12: State Transition Contracts
+- Section 13: Enforcement Layer Clarity
+- Section 14: Failure, Rollback & Idempotency Expectations
+- Section 15: Platform Divergence Matrix
+- Section 16: Admin & Moderation Flows (Observed)
+- Section 17: Observable Outcomes & Test Assertions
+- Section 18: Known Issues vs Limitations
+
+**Documentation Purpose:**
+This document serves as the authoritative baseline specification for the Dollarsmiley app as implemented. It is designed for:
+1. Automated test case generation
+2. Regression detection and prevention
+3. Gap analysis and feature planning
+4. Onboarding new developers
+5. Security and compliance audits
+
+**Usage Notes:**
+- All information is observation-based, not inferred
+- Gaps and violations are explicitly documented
+- Implementation accuracy prioritized over ideal behavior
+- No feature additions or fixes included in documentation
 
 This document represents the current implementation of the Dollarsmiley App as observed in the codebase. All behaviors described are as-is, not as intended. This serves as the authoritative baseline for gap analysis, test case creation, and regression testing.
