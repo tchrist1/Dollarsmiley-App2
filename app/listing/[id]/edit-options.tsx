@@ -45,12 +45,20 @@ export default function EditOptionsScreen() {
 
   async function loadExistingOptions() {
     const { data: optionsData } = await supabase
-      .from('service_options')
+      .from('custom_service_options')
       .select('*')
       .eq('listing_id', id);
 
     if (optionsData) {
-      setOptions(optionsData);
+      const mappedOptions = optionsData.map((opt: any) => ({
+        id: opt.id,
+        name: opt.option_name,
+        type: opt.option_type,
+        choices: Array.isArray(opt.option_values) ? opt.option_values : [],
+        price_modifier: 0,
+        is_required: opt.is_required || false,
+      }));
+      setOptions(mappedOptions);
     }
 
     const { data: vasData } = await supabase
