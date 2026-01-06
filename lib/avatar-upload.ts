@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { fileUriToByteArray } from './file-upload-utils';
+import { fileUriToByteArray, getFileExtension, getContentType } from './file-upload-utils';
 
 export interface AvatarUploadResult {
   success: boolean;
@@ -62,9 +62,9 @@ export async function uploadAvatar(
   try {
     const byteArray = await fileUriToByteArray(imageUri);
 
-    const fileExt = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileExt = getFileExtension(imageUri);
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
-    const contentType = `image/${fileExt === 'jpg' ? 'jpeg' : fileExt}`;
+    const contentType = getContentType(fileExt);
 
     const { data, error } = await supabase.storage
       .from('avatars')

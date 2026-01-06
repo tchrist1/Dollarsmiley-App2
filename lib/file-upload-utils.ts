@@ -3,6 +3,22 @@ import { decode as base64Decode } from 'base64-arraybuffer';
 
 export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
   try {
+    if (fileUri.startsWith('data:')) {
+      const base64Data = fileUri.split(',')[1];
+      if (!base64Data) {
+        throw new Error('Invalid data URI format');
+      }
+      const arrayBuffer = base64Decode(base64Data);
+      return new Uint8Array(arrayBuffer);
+    }
+
+    if (fileUri.startsWith('http://') || fileUri.startsWith('https://')) {
+      const response = await fetch(fileUri);
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
+    }
+
     const base64String = await FileSystem.readAsStringAsync(fileUri, {
       encoding: 'base64',
     });
@@ -16,7 +32,15 @@ export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
 }
 
 export function getFileExtension(uri: string): string {
-  return uri.split('.').pop()?.toLowerCase() || 'bin';
+  if (uri.startsWith('data:')) {
+    const match = uri.match(/data:image\/(\w+);/);
+    if (match && match[1]) {
+      return match[1].toLowerCase();
+    }
+    return 'jpg';
+  }
+
+  return uri.split('.').pop()?.toLowerCase() || 'jpg';
 }
 
 export function getContentType(extension: string): string {
