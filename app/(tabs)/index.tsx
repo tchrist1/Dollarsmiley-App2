@@ -53,6 +53,7 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [searchLocation, setSearchLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isLoadingMoreRef = useRef(false);
 
   // Carousel sections
   const [recommendedListings, setRecommendedListings] = useState<MarketplaceListing[]>([]);
@@ -386,9 +387,11 @@ export default function HomeScreen() {
     if (reset) {
       setLoading(true);
       setListings([]);
+      isLoadingMoreRef.current = false;
     } else {
-      if (!hasMore || loadingMore) return;
+      if (!hasMore || loadingMore || isLoadingMoreRef.current) return;
       setLoadingMore(true);
+      isLoadingMoreRef.current = true;
     }
 
     const currentPage = reset ? 0 : page;
@@ -537,10 +540,11 @@ export default function HomeScreen() {
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching listings:', error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      isLoadingMoreRef.current = false;
     }
-
-    setLoading(false);
-    setLoadingMore(false);
   };
 
   const buildFeedData = () => {
@@ -648,7 +652,7 @@ export default function HomeScreen() {
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading) {
+    if (!loadingMore && hasMore && !loading && !isLoadingMoreRef.current) {
       fetchListings(false);
     }
   };

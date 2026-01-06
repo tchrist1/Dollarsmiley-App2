@@ -367,7 +367,7 @@ export default function InteractiveMapView({
                   top: position.y - 60,
                 },
               ]}
-              pointerEvents="box-none"
+              pointerEvents="auto"
             >
               <MapMarkerPin
                 type={marker.listingType || 'Service'}
