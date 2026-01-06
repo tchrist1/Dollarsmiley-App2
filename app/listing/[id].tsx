@@ -156,7 +156,32 @@ export default function ListingDetailScreen() {
       return;
     }
 
-    router.push(`/booking/${id}`);
+    if (!listing) return;
+
+    const listingType = listing.listing_type || 'Service';
+    const isCustomService = listingType === 'CustomService';
+
+    if (isCustomService) {
+      router.push({
+        pathname: '/book-service/[listingId]',
+        params: {
+          listingId: id,
+          type: 'custom',
+          providerId: listing.provider_id,
+          price: listing.base_price || 0,
+        },
+      } as any);
+    } else {
+      router.push({
+        pathname: '/book-service/[listingId]',
+        params: {
+          listingId: id,
+          type: 'standard',
+          providerId: listing.provider_id,
+          price: listing.base_price || 0,
+        },
+      } as any);
+    }
   };
 
   const handleRequestQuote = async () => {

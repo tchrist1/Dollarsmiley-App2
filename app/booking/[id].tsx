@@ -160,9 +160,30 @@ export default function BookingDetailScreen() {
           setPriceAdjustment(adjustmentData);
         }
       }
-    }
+      setLoading(false);
+    } else {
+      const { data: listingData } = await supabase
+        .from('service_listings')
+        .select('id, listing_type, provider_id, base_price')
+        .eq('id', id)
+        .maybeSingle();
 
-    setLoading(false);
+      if (listingData) {
+        const isCustomService = listingData.listing_type === 'CustomService';
+        router.replace({
+          pathname: '/book-service/[listingId]',
+          params: {
+            listingId: id,
+            type: isCustomService ? 'custom' : 'standard',
+            providerId: listingData.provider_id,
+            price: listingData.base_price || 0,
+          },
+        } as any);
+        return;
+      }
+
+      setLoading(false);
+    }
   };
 
   const isCustomer = profile?.id === booking?.customer_id;
