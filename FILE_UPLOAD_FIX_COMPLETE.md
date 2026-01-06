@@ -35,7 +35,7 @@ export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
 
 **After:**
 ```typescript
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode as base64Decode } from 'base64-arraybuffer';
 
 export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
@@ -55,22 +55,27 @@ export async function fileUriToByteArray(fileUri: string): Promise<Uint8Array> {
 
 ## Key Changes
 
-### 1. Package Replacement
+### 1. Expo SDK v54 Legacy Import
+- **Changed:** `import * as FileSystem from 'expo-file-system'`
+- **To:** `import * as FileSystem from 'expo-file-system/legacy'`
+- **Reason:** Expo SDK v54 deprecated the old FileSystem API. The legacy import path ensures `readAsStringAsync` continues to work without migration to the new File/Directory API
+
+### 2. Package Replacement
 - **Removed:** `decode` from `'base-64'` package
 - **Added:** `decode as base64Decode` from `'base64-arraybuffer'` package
 - **Reason:** `base64-arraybuffer` is specifically designed to convert base64 strings to ArrayBuffers, providing better compatibility with React Native and typed arrays
 
-### 2. Encoding Type String Literal
+### 3. Encoding Type String Literal
 - **Before:** `encoding: FileSystem.EncodingType.Base64` (enum reference)
 - **After:** `encoding: 'base64'` (string literal)
 - **Reason:** The enum may be undefined in certain contexts. The Expo FileSystem API accepts both enum values and string literals ('base64' | 'utf8'), so using the string literal is more reliable across all platforms
 
-### 3. Simplified Conversion Logic
+### 4. Simplified Conversion Logic
 - **Before:** Manual character-by-character conversion using `charCodeAt()`
 - **After:** Direct ArrayBuffer to Uint8Array conversion
 - **Benefit:** More efficient, less error-prone, and more reliable across platforms
 
-### 4. Enhanced Error Handling
+### 5. Enhanced Error Handling
 - Added try-catch block for better error reporting
 - Provides clear error messages with context
 - Logs errors for debugging purposes

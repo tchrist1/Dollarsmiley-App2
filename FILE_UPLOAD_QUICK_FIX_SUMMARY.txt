@@ -1,22 +1,25 @@
 FILE UPLOAD ERROR - FIXED
 =============================
 
-ISSUE: "Cannot read property 'Base64' of undefined"
+ISSUE: "Cannot read property 'Base64' of undefined" + "Method readAsStringAsync deprecated"
 LOCATIONS: Edit Profile, Contact Provider Messages, All File Uploads
 
 ROOT CAUSES:
 -----------
 1. Incompatible base64 conversion using 'base-64' package in React Native
 2. FileSystem.EncodingType.Base64 enum undefined in some contexts
+3. Expo SDK v54 deprecated readAsStringAsync in main expo-file-system export
 
 SOLUTION:
 ---------
 1. Replaced 'base-64' with 'base64-arraybuffer' in /lib/file-upload-utils.ts
 2. Changed encoding: FileSystem.EncodingType.Base64 to encoding: 'base64'
+3. Updated import to 'expo-file-system/legacy' for Expo SDK v54 compatibility
 
 CHANGED FUNCTION:
 -----------------
 fileUriToByteArray() - now uses:
+  - import from 'expo-file-system/legacy' (Expo SDK v54)
   - base64-arraybuffer.decode() for conversion
   - String literal 'base64' for encoding parameter
 
