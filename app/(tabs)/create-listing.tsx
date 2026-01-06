@@ -233,6 +233,21 @@ export default function CreateListingScreen() {
       return;
     }
 
+    if (profile.user_type === 'Customer') {
+      Alert.alert(
+        'Upgrade Required',
+        'Only Provider and Hybrid accounts can create listings. Would you like to upgrade your account?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Upgrade',
+            onPress: () => router.push('/settings/account-type' as any),
+          },
+        ]
+      );
+      return;
+    }
+
     setLoading(true);
 
     const newListingId = uuid.v4() as string;
