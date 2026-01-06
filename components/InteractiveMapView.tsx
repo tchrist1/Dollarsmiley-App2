@@ -271,12 +271,12 @@ export default function InteractiveMapView({
       {/* Map Canvas */}
       <View style={styles.mapCanvas} ref={mapContainerRef}>
         {/* Grid Background */}
-        <View style={styles.gridBackground}>
+        <View style={styles.gridBackground} pointerEvents="none">
           <View style={styles.gridLines} />
         </View>
 
         {/* Center Crosshair */}
-        <View style={styles.crosshair}>
+        <View style={styles.crosshair} pointerEvents="none">
           <View style={styles.crosshairVertical} />
           <View style={styles.crosshairHorizontal} />
         </View>
@@ -367,6 +367,7 @@ export default function InteractiveMapView({
                   top: position.y - 60,
                 },
               ]}
+              pointerEvents="box-none"
             >
               <MapMarkerPin
                 type={marker.listingType || 'Service'}
@@ -564,7 +565,7 @@ export default function InteractiveMapView({
       )}
 
       {/* Map Stats - Positioned below the toggle */}
-      <View style={styles.statsBar}>
+      <View style={styles.statsBar} pointerEvents="none">
         <View style={styles.statItem}>
           <MapPin size={14} color={colors.white} />
           <Text style={styles.statText}>
@@ -629,6 +630,8 @@ const styles = StyleSheet.create({
   markerContainer: {
     position: 'absolute',
     alignItems: 'center',
+    zIndex: 100,
+    elevation: 100,
   },
   marker: {
     width: 40,
@@ -715,6 +718,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.md,
     top: spacing.xxl + spacing.lg + 52 + spacing.sm + 36,
+    zIndex: 10,
   },
   controlsColumn: {
     gap: spacing.xs,
@@ -736,6 +740,8 @@ const styles = StyleSheet.create({
     bottom: spacing.lg,
     left: spacing.md,
     right: spacing.md,
+    zIndex: 50,
+    elevation: 50,
   },
   markerInfoCard: {
     backgroundColor: colors.white,

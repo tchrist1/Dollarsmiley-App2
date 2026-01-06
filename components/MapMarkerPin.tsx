@@ -50,7 +50,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+      hitSlop={{ top: 20, bottom: 30, left: 20, right: 20 }}
       style={styles.container}
     >
       <View
