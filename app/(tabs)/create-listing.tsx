@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAiAssist, meetsAiThreshold } from '@/hooks/useAiAssist';
 import { supabase } from '@/lib/supabase';
+import { uploadMultipleListingPhotos } from '@/lib/listing-photo-upload';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { TextArea } from '@/components/TextArea';
@@ -17,6 +18,7 @@ import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import AIPhotoAssistModal from '@/components/AIPhotoAssistModal';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock, CheckCircle2 } from 'lucide-react-native';
+import uuid from 'react-native-uuid';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -233,14 +235,27 @@ export default function CreateListingScreen() {
 
     setLoading(true);
 
+    const newListingId = uuid.v4() as string;
+
+    let photoUrls: string[] = [];
+    if (photos.length > 0) {
+      const uploadResult = await uploadMultipleListingPhotos(newListingId, photos);
+      if (!uploadResult.success) {
+        setLoading(false);
+        Alert.alert('Error', 'Failed to upload photos. Please try again.');
+        console.error('Photo upload errors:', uploadResult.errors);
+        return;
+      }
+      photoUrls = uploadResult.urls;
+    }
+
     const tagsList = tags
       .split(',')
       .map((t) => t.trim())
       .filter((t) => t.length > 0);
 
-    const photosArray = photos.length > 0 ? photos : [];
-
     const listingData: any = {
+      id: newListingId,
       provider_id: profile.id,
       category_id: categoryId,
       title: title.trim(),
@@ -249,7 +264,7 @@ export default function CreateListingScreen() {
       base_price: Number(price),
       price: Number(price),
       estimated_duration: duration ? Number(duration) : null,
-      photos: photosArray,
+      photos: photoUrls,
       availability: JSON.stringify(availableDays),
       tags: tagsList,
       is_active: true,
@@ -291,11 +306,9 @@ export default function CreateListingScreen() {
       }
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('service_listings')
-      .insert(listingData)
-      .select()
-      .single();
+      .insert(listingData);
 
     if (error) {
       setLoading(false);
@@ -304,11 +317,11 @@ export default function CreateListingScreen() {
       return;
     }
 
-    setListingId(data.id);
+    setListingId(newListingId);
 
     if (requiresFulfilment && fulfillmentType.length > 0) {
       const fulfillmentOptions = fulfillmentType.map(type => ({
-        listing_id: data.id,
+        listing_id: newListingId,
         fulfillment_type: type,
         is_active: true,
       }));
@@ -331,7 +344,7 @@ export default function CreateListingScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.push(`/listing/${data.id}/edit-options` as any),
+            onPress: () => router.push(`/listing/${newListingId}/edit-options` as any),
           },
         ]
       );
