@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles, Briefcase } from 'lucide-react-native';
+import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1205,14 +1205,6 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>Discover Services</Text>
-          <TouchableOpacity
-            style={styles.browseJobsButton}
-            onPress={() => router.push('/jobs/index' as any)}
-            activeOpacity={0.7}
-          >
-            <Briefcase size={16} color={colors.white} />
-            <Text style={styles.browseJobsText}>Browse Jobs</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBarWrapper}>
@@ -1542,7 +1534,6 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
     paddingHorizontal: spacing.lg,
@@ -1551,20 +1542,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700' as const,
     color: '#006634',
-  },
-  browseJobsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
-  },
-  browseJobsText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.white,
   },
   searchBarWrapper: {
     marginBottom: spacing.md,
