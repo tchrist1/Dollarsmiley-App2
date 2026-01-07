@@ -5,6 +5,7 @@ import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock,
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 import { FilterModal } from '@/components/FilterModal';
 import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
@@ -67,6 +68,8 @@ export default function HomeScreen() {
     priceMin: '',
     priceMax: '',
     minRating: 0,
+    distance: 25,
+    availability: 'any',
     sortBy: 'relevance',
     verified: false,
     instant_booking: false,
@@ -487,6 +490,53 @@ export default function HomeScreen() {
         }
       }
 
+      // Apply distance filtering if distance is specified
+      if (filters.distance && filters.distance > 0) {
+        let referenceLocation: { latitude: number; longitude: number } | null = null;
+
+        // Try to get reference location from user's profile first
+        if (userLocation) {
+          referenceLocation = userLocation;
+        }
+        // If location filter is specified, try to geocode it
+        else if (filters.location.trim()) {
+          try {
+            const geocoded = await geocodeAddress(filters.location);
+            if (geocoded) {
+              referenceLocation = geocoded;
+            }
+          } catch (error) {
+            console.error('Error geocoding location:', error);
+          }
+        }
+
+        // If we have a reference location, calculate distances and filter
+        if (referenceLocation) {
+          allResults = allResults
+            .map(listing => {
+              // Calculate distance if listing has coordinates
+              if (listing.latitude != null && listing.longitude != null) {
+                const distance = calculateDistance(
+                  referenceLocation!.latitude,
+                  referenceLocation!.longitude,
+                  listing.latitude,
+                  listing.longitude
+                );
+                return { ...listing, distance_miles: distance };
+              }
+              return listing;
+            })
+            .filter(listing => {
+              // Only include listings within the distance radius
+              // Keep listings without coordinates (they'll appear at the end)
+              if (listing.distance_miles !== undefined) {
+                return listing.distance_miles <= filters.distance!;
+              }
+              return false; // Exclude listings without valid coordinates
+            });
+        }
+      }
+
       if (filters.minRating > 0) {
         allResults = allResults.filter(listing => {
           const profile = listing.provider || listing.customer;
@@ -521,6 +571,13 @@ export default function HomeScreen() {
           break;
         case 'recent':
           allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          break;
+        case 'distance':
+          allResults.sort((a, b) => {
+            const distA = a.distance_miles !== undefined ? a.distance_miles : Number.MAX_VALUE;
+            const distB = b.distance_miles !== undefined ? b.distance_miles : Number.MAX_VALUE;
+            return distA - distB;
+          });
           break;
         default:
           allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -642,6 +699,7 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++; // Count if distance is set and not default
     return count;
   };
 
@@ -1295,6 +1353,12 @@ export default function HomeScreen() {
                   priceMin: '',
                   priceMax: '',
                   minRating: 0,
+                  distance: 25,
+                  availability: 'any',
+                  sortBy: 'relevance',
+                  verified: false,
+                  instant_booking: false,
+                  listingType: 'all',
                 })
               }
             >
@@ -1500,6 +1564,12 @@ export default function HomeScreen() {
                   priceMin: '',
                   priceMax: '',
                   minRating: 0,
+                  distance: 25,
+                  availability: 'any',
+                  sortBy: 'relevance',
+                  verified: false,
+                  instant_booking: false,
+                  listingType: 'all',
                 });
               }}
               style={styles.resetButton}
