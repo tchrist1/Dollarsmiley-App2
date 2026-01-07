@@ -251,12 +251,19 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
     setPriceMax('');
     setSliderMinPrice(0);
     setSliderMaxPrice(50000);
+    setUseSlider(true);
     setMinRating(0);
     setDistance(25);
     setAvailability('any');
     setSortBy('relevance');
     setVerified(false);
     setInstantBooking(false);
+    setListingType('all');
+    setFulfillmentTypes([]);
+    setShippingMode('all');
+    setHasVAS(false);
+    setSelectedTags([]);
+    setUseCurrentLocation(false);
     setSelectedPreset(null);
   }, []);
 
