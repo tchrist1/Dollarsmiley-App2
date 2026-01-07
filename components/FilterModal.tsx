@@ -265,7 +265,10 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
     setSelectedTags([]);
     setUseCurrentLocation(false);
     setSelectedPreset(null);
-  }, []);
+
+    onApply(defaultFilters);
+    onClose();
+  }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
     setSliderMinPrice(min);

@@ -362,12 +362,13 @@ export default function InteractiveMapView({
               key={marker.id}
               style={[
                 styles.markerContainer,
+                styles.markerContainerListing,
                 {
                   left: position.x - 24,
                   top: position.y - 60,
                 },
               ]}
-              pointerEvents="auto"
+              pointerEvents="box-none"
             >
               <MapMarkerPin
                 type={marker.listingType || 'Service'}
@@ -632,6 +633,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 100,
     elevation: 100,
+  },
+  markerContainerListing: {
+    zIndex: 150,
+    elevation: 150,
   },
   marker: {
     width: 40,

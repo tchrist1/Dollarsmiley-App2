@@ -50,8 +50,9 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      hitSlop={{ top: 20, bottom: 30, left: 20, right: 20 }}
+      hitSlop={{ top: 25, bottom: 35, left: 25, right: 25 }}
       style={styles.container}
+      pointerEvents="box-only"
     >
       <View
         style={[
@@ -63,6 +64,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
           },
           isSelected && styles.bubbleSelected,
         ]}
+        pointerEvents="none"
       >
         <Icon
           size={20}
@@ -71,7 +73,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
         />
       </View>
 
-      <View style={[styles.pointer, { borderTopColor: config.bubbleColor }]} />
+      <View style={[styles.pointer, { borderTopColor: config.bubbleColor }]} pointerEvents="none" />
 
       {price !== undefined && (
         <View
@@ -82,6 +84,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
               borderColor: config.bubbleColor,
             },
           ]}
+          pointerEvents="none"
         >
           <Text
             style={[
@@ -101,6 +104,8 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 48,
+    minHeight: 80,
   },
   bubble: {
     width: 48,
