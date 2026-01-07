@@ -345,11 +345,11 @@ export default function InteractiveMapView({
                     </View>
                   )}
                 </View>
-                {marker.rating && (
+                {marker.rating !== undefined && marker.rating !== null && (
                   <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
                     <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
                     <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
-                      {marker.rating.toFixed(1)}
+                      {Number(marker.rating).toFixed(1)}
                     </Text>
                   </View>
                 )}
@@ -465,15 +465,15 @@ export default function InteractiveMapView({
             {selectedMarker.type === 'provider' ? (
               <>
                 {/* Rating and Reviews */}
-                {selectedMarker.rating !== undefined && (
+                {selectedMarker.rating !== undefined && selectedMarker.rating !== null && (
                   <View style={styles.providerRatingRow}>
                     <View style={styles.providerRatingStars}>
                       <Star size={16} color={colors.warning} fill={colors.warning} />
-                      <Text style={styles.providerRatingValue}>{selectedMarker.rating.toFixed(1)}</Text>
+                      <Text style={styles.providerRatingValue}>{Number(selectedMarker.rating).toFixed(1)}</Text>
                     </View>
-                    {selectedMarker.reviewCount !== undefined && (
+                    {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
                       <Text style={styles.providerReviewCount}>
-                        ({selectedMarker.reviewCount} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                        ({String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
                       </Text>
                     )}
                   </View>
@@ -484,7 +484,7 @@ export default function InteractiveMapView({
                   <View style={styles.providerCategories}>
                     {selectedMarker.categories.slice(0, 3).map((category, index) => (
                       <View key={index} style={styles.providerCategoryBadge}>
-                        <Text style={styles.providerCategoryText}>{category}</Text>
+                        <Text style={styles.providerCategoryText}>{String(category || '')}</Text>
                       </View>
                     ))}
                     {selectedMarker.categories.length > 3 && (
@@ -500,13 +500,13 @@ export default function InteractiveMapView({
                   {selectedMarker.responseTime && (
                     <View style={styles.providerStat}>
                       <Clock size={14} color={colors.textSecondary} />
-                      <Text style={styles.providerStatText}>{selectedMarker.responseTime}</Text>
+                      <Text style={styles.providerStatText}>{String(selectedMarker.responseTime)}</Text>
                     </View>
                   )}
-                  {selectedMarker.completionRate !== undefined && (
+                  {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && (
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
-                      <Text style={styles.providerStatText}>{selectedMarker.completionRate}% complete</Text>
+                      <Text style={styles.providerStatText}>{String(selectedMarker.completionRate)}% complete</Text>
                     </View>
                   )}
                 </View>

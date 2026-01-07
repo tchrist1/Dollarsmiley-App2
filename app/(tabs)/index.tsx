@@ -738,6 +738,7 @@ export default function HomeScreen() {
                 providerListings
                   .map((l) => l.category?.name)
                   .filter(Boolean)
+                  .filter((name) => typeof name === 'string')
               )
             ).slice(0, 5);
 
@@ -745,15 +746,15 @@ export default function HomeScreen() {
               id: profile.id,
               latitude: profile.latitude,
               longitude: profile.longitude,
-              title: profile.full_name,
-              subtitle: (profile as any).business_name || 'Service Provider',
+              title: String(profile.full_name || 'Provider'),
+              subtitle: String((profile as any).business_name || 'Service Provider'),
               type: 'provider' as const,
-              rating: profile.rating_average,
+              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
               isVerified: profile.is_verified,
-              reviewCount: profile.rating_count || 0,
+              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
               categories: categories,
-              responseTime: (profile as any).response_time || 'Within 24 hours',
-              completionRate: (profile as any).completion_rate || 95,
+              responseTime: String((profile as any).response_time || 'Within 24 hours'),
+              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
             });
           }
         }
