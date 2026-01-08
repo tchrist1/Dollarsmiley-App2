@@ -182,7 +182,11 @@ export default function InterestedProvidersScreen() {
   };
 
   const handleViewProfile = (providerId: string) => {
-    Alert.alert('View Profile', 'Provider profile coming soon!', [{ text: 'OK' }]);
+    const acceptance = sortedAcceptances.find((a) => a.provider_id === providerId);
+    if (acceptance) {
+      setSelectedAcceptance(acceptance);
+      setDetailModalVisible(true);
+    }
   };
 
   const handleContactProvider = (providerId: string) => {
