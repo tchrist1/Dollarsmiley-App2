@@ -287,50 +287,62 @@ export default function MyJobsScreen() {
 
       <View style={styles.actionButtons}>
         {item.status === 'Open' && (
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => router.push(`/jobs/${item.id}/edit` as any)}
-          >
-            <Edit size={16} color={colors.primary} />
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
+          <>
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => router.push(`/jobs/${item.id}/edit` as any)}
+              >
+                <Edit size={16} color={colors.primary} />
+                <Text style={styles.editButtonText} numberOfLines={1}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.timelineButton}
+                onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
+              >
+                <GitBranch size={16} color={colors.textSecondary} />
+                <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.actionRow}>
+              {item.pricing_type === 'quote_based' && item._count && item._count.quotes > 0 && (
+                <TouchableOpacity
+                  style={styles.viewProvidersButton}
+                  onPress={() => handleViewQuotes(item.id)}
+                >
+                  <MessageCircle size={16} color={colors.primary} />
+                  <Text style={styles.viewProvidersText} numberOfLines={1}>View Quotes</Text>
+                </TouchableOpacity>
+              )}
+              {item.pricing_type === 'fixed_price' && item._count && item._count.acceptances > 0 && (
+                <TouchableOpacity
+                  style={styles.viewProvidersButton}
+                  onPress={() => handleViewInterestedProviders(item.id)}
+                >
+                  <CheckCircle size={16} color={colors.primary} />
+                  <Text style={styles.viewProvidersText} numberOfLines={1}>Providers</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => handleCancelJob(item.id)}
+              >
+                <Text style={styles.cancelText} numberOfLines={1}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
 
-        <TouchableOpacity
-          style={styles.timelineButton}
-          onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
-        >
-          <GitBranch size={16} color={colors.textSecondary} />
-          <Text style={styles.timelineText}>Timeline</Text>
-        </TouchableOpacity>
-
-        {item.status === 'Open' && (
-          <>
-            {item.pricing_type === 'quote_based' && item._count && item._count.quotes > 0 && (
-              <TouchableOpacity
-                style={styles.viewQuotesButton}
-                onPress={() => handleViewQuotes(item.id)}
-              >
-                <MessageCircle size={16} color={colors.primary} />
-                <Text style={styles.viewQuotesText}>View Quotes</Text>
-              </TouchableOpacity>
-            )}
-            {item.pricing_type === 'fixed_price' && item._count && item._count.acceptances > 0 && (
-              <TouchableOpacity
-                style={styles.viewQuotesButton}
-                onPress={() => handleViewInterestedProviders(item.id)}
-              >
-                <CheckCircle size={16} color={colors.primary} />
-                <Text style={styles.viewQuotesText}>View Providers</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => handleCancelJob(item.id)}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </>
+        {item.status !== 'Open' && (
+          <TouchableOpacity
+            style={styles.timelineButtonFull}
+            onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
+          >
+            <GitBranch size={16} color={colors.textSecondary} />
+            <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
+          </TouchableOpacity>
         )}
       </View>
     </TouchableOpacity>
@@ -582,67 +594,92 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionButtons: {
-    flexDirection: 'row',
     marginTop: spacing.md,
     gap: spacing.sm,
-    flexWrap: 'wrap',
   },
-  timelineButton: {
+  actionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
-  timelineText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.textSecondary,
-  },
-  viewQuotesButton: {
+  editButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     backgroundColor: colors.primary + '20',
     borderRadius: borderRadius.md,
     gap: spacing.xs,
-  },
-  viewQuotesText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.primary,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.primary + '20',
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
+    minHeight: 40,
   },
   editButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.primary,
   },
-  cancelButton: {
-    paddingHorizontal: spacing.md,
+  timelineButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    minHeight: 40,
+  },
+  timelineButtonFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    minHeight: 40,
+  },
+  timelineText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  viewProvidersButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.primary + '20',
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    minHeight: 40,
+  },
+  viewProvidersText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
+  cancelButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     borderWidth: 1,
     borderColor: colors.error,
     borderRadius: borderRadius.md,
+    minHeight: 40,
   },
   cancelText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.error,
+    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',
