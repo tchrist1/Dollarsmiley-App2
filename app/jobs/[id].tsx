@@ -33,8 +33,6 @@ interface Job {
   id: string;
   title: string;
   description: string;
-  pricing_type: 'fixed_price' | 'quote_based';
-  fixed_price?: number;
   budget_min: number | null;
   budget_max: number | null;
   location: string;

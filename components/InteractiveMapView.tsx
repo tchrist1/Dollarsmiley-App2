@@ -345,11 +345,11 @@ export default function InteractiveMapView({
                     </View>
                   )}
                 </View>
-                {marker.rating !== undefined && marker.rating !== null && (
+                {marker.rating && (
                   <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
                     <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
                     <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
-                      {Number(marker.rating).toFixed(1)}
+                      {marker.rating.toFixed(1)}
                     </Text>
                   </View>
                 )}
@@ -362,7 +362,6 @@ export default function InteractiveMapView({
               key={marker.id}
               style={[
                 styles.markerContainer,
-                styles.markerContainerListing,
                 {
                   left: position.x - 24,
                   top: position.y - 60,
@@ -465,15 +464,15 @@ export default function InteractiveMapView({
             {selectedMarker.type === 'provider' ? (
               <>
                 {/* Rating and Reviews */}
-                {selectedMarker.rating !== undefined && selectedMarker.rating !== null && (
+                {selectedMarker.rating !== undefined && (
                   <View style={styles.providerRatingRow}>
                     <View style={styles.providerRatingStars}>
                       <Star size={16} color={colors.warning} fill={colors.warning} />
-                      <Text style={styles.providerRatingValue}>{Number(selectedMarker.rating).toFixed(1)}</Text>
+                      <Text style={styles.providerRatingValue}>{selectedMarker.rating.toFixed(1)}</Text>
                     </View>
-                    {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
+                    {selectedMarker.reviewCount !== undefined && (
                       <Text style={styles.providerReviewCount}>
-                        ({String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                        ({selectedMarker.reviewCount} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
                       </Text>
                     )}
                   </View>
@@ -484,7 +483,7 @@ export default function InteractiveMapView({
                   <View style={styles.providerCategories}>
                     {selectedMarker.categories.slice(0, 3).map((category, index) => (
                       <View key={index} style={styles.providerCategoryBadge}>
-                        <Text style={styles.providerCategoryText}>{String(category || '')}</Text>
+                        <Text style={styles.providerCategoryText}>{category}</Text>
                       </View>
                     ))}
                     {selectedMarker.categories.length > 3 && (
@@ -500,13 +499,13 @@ export default function InteractiveMapView({
                   {selectedMarker.responseTime && (
                     <View style={styles.providerStat}>
                       <Clock size={14} color={colors.textSecondary} />
-                      <Text style={styles.providerStatText}>{String(selectedMarker.responseTime)}</Text>
+                      <Text style={styles.providerStatText}>{selectedMarker.responseTime}</Text>
                     </View>
                   )}
-                  {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && (
+                  {selectedMarker.completionRate !== undefined && (
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
-                      <Text style={styles.providerStatText}>{String(selectedMarker.completionRate)}% complete</Text>
+                      <Text style={styles.providerStatText}>{selectedMarker.completionRate}% complete</Text>
                     </View>
                   )}
                 </View>
@@ -633,10 +632,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 100,
     elevation: 100,
-  },
-  markerContainerListing: {
-    zIndex: 150,
-    elevation: 150,
   },
   marker: {
     width: 40,
