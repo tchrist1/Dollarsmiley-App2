@@ -13,6 +13,7 @@ export type ShipmentStatus = 'Pending' | 'InTransit' | 'OutForDelivery' | 'Deliv
 export type OrderType = 'Job' | 'Service' | 'CustomService';
 export type PayoutStatus = 'Pending' | 'Scheduled' | 'Processing' | 'Completed' | 'Failed';
 export type CommunicationType = 'Text' | 'Voice' | 'Video';
+export type TimeExtensionStatus = 'pending' | 'approved' | 'declined' | 'cancelled';
 
 export interface Profile {
   id: string;
@@ -139,6 +140,24 @@ export interface Job {
   updated_at: string;
   customer?: Profile;
   category?: Category;
+}
+
+export interface TimeExtensionRequest {
+  id: string;
+  job_id: string;
+  provider_id: string;
+  requested_additional_hours: number;
+  reason: string;
+  status: TimeExtensionStatus;
+  requested_at: string;
+  responded_at?: string;
+  responded_by?: string;
+  customer_response_notes?: string;
+  proposed_price_adjustment?: number;
+  approved_additional_hours?: number;
+  original_estimated_duration?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Booking {
