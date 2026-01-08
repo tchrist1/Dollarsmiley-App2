@@ -41,7 +41,10 @@ interface Job {
   location: string;
   execution_date_start: string;
   execution_date_end: string | null;
-  preferred_time: string;
+  preferred_time: string | null;
+  time_window_start: string | null;
+  time_window_end: string | null;
+  estimated_duration: number | null;
   status: string;
   photos: any;
   created_at: string;
@@ -219,7 +222,9 @@ export default function JobDetailScreen() {
               title: job.title,
               description: `Quote for: ${job.title}`,
               scheduled_date: job.execution_date_start,
-              scheduled_time: job.preferred_time,
+              scheduled_time: job.time_window_start && job.time_window_end
+                ? `${job.time_window_start} - ${job.time_window_end}`
+                : job.preferred_time || 'Flexible',
               location: job.location,
               price: Number(price),
               status: 'Requested',
@@ -381,10 +386,28 @@ export default function JobDetailScreen() {
             <View style={styles.detailRow}>
               <Clock size={20} color={colors.primary} />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Preferred Time</Text>
-                <Text style={styles.detailValue}>{job.preferred_time}</Text>
+                <Text style={styles.detailLabel}>
+                  {job.time_window_start && job.time_window_end ? 'Specific Time Slot' : 'Preferred Time'}
+                </Text>
+                <Text style={styles.detailValue}>
+                  {job.time_window_start && job.time_window_end
+                    ? `${job.time_window_start} - ${job.time_window_end}`
+                    : job.preferred_time || 'Flexible'}
+                </Text>
               </View>
             </View>
+
+            {job.estimated_duration && (
+              <View style={styles.detailRow}>
+                <Clock size={20} color={colors.primary} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Estimated Duration</Text>
+                  <Text style={styles.detailValue}>
+                    {job.estimated_duration} {job.estimated_duration === 1 ? 'hour' : 'hours'}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             <View style={styles.detailRow}>
               <MapPin size={20} color={colors.primary} />
