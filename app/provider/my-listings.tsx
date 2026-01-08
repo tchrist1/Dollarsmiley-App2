@@ -220,7 +220,7 @@ export default function MyListingsScreen() {
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={[styles.actionButton, styles.editButton]}
-              onPress={() => router.push(`/listing/${listing.id}/edit-options` as any)}
+              onPress={() => router.push(`/listing/${listing.id}/edit` as any)}
               activeOpacity={0.7}
             >
               <Edit size={16} color={colors.primary} />

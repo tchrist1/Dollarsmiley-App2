@@ -286,7 +286,11 @@ export default function EditListingScreen() {
         <Text style={styles.headerTitle}>Edit Listing</Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
 
@@ -654,6 +658,26 @@ export default function EditListingScreen() {
             </View>
           </>
         )}
+
+        {listingType === 'CustomService' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Custom Service Options</Text>
+            <TouchableOpacity
+              style={styles.editOptionsButton}
+              onPress={() => router.push(`/listing/${id}/edit-options` as any)}
+            >
+              <View style={styles.editOptionsContent}>
+                <View>
+                  <Text style={styles.editOptionsTitle}>Service Options & Add-Ons</Text>
+                  <Text style={styles.editOptionsSubtitle}>
+                    Manage customization options and add-on services
+                  </Text>
+                </View>
+                <ArrowLeft size={20} color={colors.textSecondary} style={{ transform: [{ rotate: '180deg' }] }} />
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
@@ -884,5 +908,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  editOptionsButton: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editOptionsContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editOptionsTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  editOptionsSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
 });

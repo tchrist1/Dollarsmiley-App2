@@ -9,6 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/Button';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -33,6 +34,7 @@ interface ValueAddedService {
 
 export default function EditOptionsScreen() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [options, setOptions] = useState<ServiceOption[]>([]);
   const [vas, setVas] = useState<ValueAddedService[]>([]);
@@ -203,7 +205,11 @@ export default function EditOptionsScreen() {
         <Text style={styles.headerTitle}>Custom Options</Text>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Service Options</Text>
@@ -339,7 +345,7 @@ export default function EditOptionsScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md }]}>
         <Button
           title="Save Options"
           onPress={handleSave}
