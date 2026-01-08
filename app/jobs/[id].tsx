@@ -403,7 +403,7 @@ export default function JobDetailScreen() {
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Estimated Duration</Text>
                   <Text style={styles.detailValue}>
-                    {job.estimated_duration} {job.estimated_duration === 1 ? 'hour' : 'hours'}
+                    {`${job.estimated_duration} ${job.estimated_duration === 1 ? 'hour' : 'hours'}`}
                   </Text>
                 </View>
               </View>
