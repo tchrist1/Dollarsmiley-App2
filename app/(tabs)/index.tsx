@@ -850,6 +850,17 @@ export default function HomeScreen() {
     return stars;
   };
 
+  const getListingTypeLabel = (item: MarketplaceListing) => {
+    if (item.marketplace_type === 'Job') {
+      return { text: 'JOB', color: colors.primary };
+    }
+    const listing = item as any;
+    if (listing.listing_type === 'CustomService') {
+      return { text: 'CUSTOM SERVICE', color: '#8B5CF6' };
+    }
+    return { text: 'SERVICE', color: colors.success };
+  };
+
   const renderCarouselSection = (title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
     if (data.length === 0) return null;
 
@@ -870,6 +881,7 @@ export default function HomeScreen() {
           renderItem={({ item }) => {
             const isJob = item.marketplace_type === 'Job';
             const profile = isJob ? item.customer : item.provider;
+            const typeLabel = getListingTypeLabel(item);
             let price = '';
             if (isJob) {
               price = item.fixed_price ? formatCurrency(item.fixed_price) : (item.budget_min ? formatCurrency(item.budget_min) : 'TBD');
@@ -887,11 +899,9 @@ export default function HomeScreen() {
                     <Text style={styles.carouselCardTitle} numberOfLines={2}>
                       {item.title}
                     </Text>
-                    {isJob && (
-                      <View style={{ backgroundColor: colors.primary, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2 }}>
-                        <Text style={{ color: '#fff', fontSize: 8, fontWeight: '600' }}>JOB</Text>
-                      </View>
-                    )}
+                    <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2 }}>
+                      <Text style={{ color: '#fff', fontSize: 8, fontWeight: '600' }}>{typeLabel.text}</Text>
+                    </View>
                   </View>
                   <Text style={styles.carouselCardLocation} numberOfLines={1}>
                     {item.location || 'Remote'}
@@ -962,6 +972,7 @@ export default function HomeScreen() {
     const isJob = item.marketplace_type === 'Job';
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
+    const typeLabel = getListingTypeLabel(item);
 
     let priceText = '';
     if (isJob) {
@@ -990,11 +1001,9 @@ export default function HomeScreen() {
             <Text style={styles.listingTitle} numberOfLines={2}>
               {item.title}
             </Text>
-            {isJob && (
-              <View style={{ backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>JOB</Text>
-              </View>
-            )}
+            <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+            </View>
           </View>
           <Text style={styles.listingDescription} numberOfLines={2}>
             {item.description}
@@ -1052,6 +1061,7 @@ export default function HomeScreen() {
     const isJob = item.marketplace_type === 'Job';
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
+    const typeLabel = getListingTypeLabel(item);
 
     const mainImage = listing.featured_image_url || null;
 
@@ -1096,11 +1106,9 @@ export default function HomeScreen() {
             </Text>
           </View>
         )}
-        {isJob && (
-          <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>JOB</Text>
-          </View>
-        )}
+        <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        </View>
         <View style={styles.gridCardContent}>
           <View style={styles.gridHeader}>
             {profile?.avatar_url ? (
@@ -1193,6 +1201,7 @@ export default function HomeScreen() {
               }
               const carouselMainImage = carouselPhotos.length > 0 ? carouselPhotos[0] : null;
               const isJob = carouselListing.marketplace_type === 'Job';
+              const carouselTypeLabel = getListingTypeLabel(carouselItem);
 
               return (
                 <TouchableOpacity
@@ -1213,6 +1222,9 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                   )}
+                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: carouselTypeLabel.color, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 3, zIndex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{carouselTypeLabel.text}</Text>
+                  </View>
                   <View style={styles.embeddedCarouselCardContent}>
                     <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
                       {carouselItem.title}
