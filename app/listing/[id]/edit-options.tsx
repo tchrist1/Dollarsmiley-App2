@@ -45,12 +45,20 @@ export default function EditOptionsScreen() {
 
   async function loadExistingOptions() {
     const { data: optionsData } = await supabase
-      .from('service_options')
+      .from('custom_service_options')
       .select('*')
       .eq('listing_id', id);
 
     if (optionsData) {
-      setOptions(optionsData);
+      const mappedOptions = optionsData.map((opt: any) => ({
+        id: opt.id,
+        name: opt.option_name,
+        type: opt.option_type,
+        choices: Array.isArray(opt.option_values) ? opt.option_values : [],
+        price_modifier: 0,
+        is_required: opt.is_required || false,
+      }));
+      setOptions(mappedOptions);
     }
 
     const { data: vasData } = await supabase
@@ -142,47 +150,31 @@ export default function EditOptionsScreen() {
     setLoading(true);
 
     try {
-      await supabase
-        .from('service_options')
-        .delete()
-        .eq('listing_id', id);
+      const optionsData = validOptions.map(opt => ({
+        name: opt.name,
+        type: opt.type,
+        choices: opt.choices.filter(c => c.trim()),
+        price_modifier: opt.price_modifier,
+        is_required: opt.is_required,
+      }));
 
-      await supabase
-        .from('value_added_services')
-        .delete()
-        .eq('listing_id', id);
+      const vasData = validVas.map(v => ({
+        name: v.name,
+        description: v.description,
+        price: v.price,
+        is_active: v.is_active,
+      }));
 
-      if (validOptions.length > 0) {
-        const optionsToInsert = validOptions.map(opt => ({
-          listing_id: id,
-          name: opt.name,
-          type: opt.type,
-          choices: opt.choices.filter(c => c.trim()),
-          price_modifier: opt.price_modifier,
-          is_required: opt.is_required,
-        }));
+      const { data, error } = await supabase.rpc('update_service_options_atomic', {
+        p_listing_id: id,
+        p_options: optionsData,
+        p_vas: vasData,
+      });
 
-        const { error: optionsError } = await supabase
-          .from('service_options')
-          .insert(optionsToInsert);
+      if (error) throw error;
 
-        if (optionsError) throw optionsError;
-      }
-
-      if (validVas.length > 0) {
-        const vasToInsert = validVas.map(v => ({
-          listing_id: id,
-          name: v.name,
-          description: v.description,
-          price: v.price,
-          is_active: v.is_active,
-        }));
-
-        const { error: vasError } = await supabase
-          .from('value_added_services')
-          .insert(vasToInsert);
-
-        if (vasError) throw vasError;
+      if (data && !data.success) {
+        throw new Error(data.error || 'Failed to save options');
       }
 
       Alert.alert(

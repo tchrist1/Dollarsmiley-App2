@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles, Briefcase } from 'lucide-react-native';
+import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 import { FilterModal } from '@/components/FilterModal';
 import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
@@ -53,6 +54,7 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [searchLocation, setSearchLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isLoadingMoreRef = useRef(false);
 
   // Carousel sections
   const [recommendedListings, setRecommendedListings] = useState<MarketplaceListing[]>([]);
@@ -66,6 +68,8 @@ export default function HomeScreen() {
     priceMin: '',
     priceMax: '',
     minRating: 0,
+    distance: 25,
+    availability: 'any',
     sortBy: 'relevance',
     verified: false,
     instant_booking: false,
@@ -386,9 +390,11 @@ export default function HomeScreen() {
     if (reset) {
       setLoading(true);
       setListings([]);
+      isLoadingMoreRef.current = false;
     } else {
-      if (!hasMore || loadingMore) return;
+      if (!hasMore || loadingMore || isLoadingMoreRef.current) return;
       setLoadingMore(true);
+      isLoadingMoreRef.current = true;
     }
 
     const currentPage = reset ? 0 : page;
@@ -484,6 +490,53 @@ export default function HomeScreen() {
         }
       }
 
+      // Apply distance filtering if distance is specified
+      if (filters.distance && filters.distance > 0) {
+        let referenceLocation: { latitude: number; longitude: number } | null = null;
+
+        // Try to get reference location from user's profile first
+        if (userLocation) {
+          referenceLocation = userLocation;
+        }
+        // If location filter is specified, try to geocode it
+        else if (filters.location.trim()) {
+          try {
+            const geocoded = await geocodeAddress(filters.location);
+            if (geocoded) {
+              referenceLocation = geocoded;
+            }
+          } catch (error) {
+            console.error('Error geocoding location:', error);
+          }
+        }
+
+        // If we have a reference location, calculate distances and filter
+        if (referenceLocation) {
+          allResults = allResults
+            .map(listing => {
+              // Calculate distance if listing has coordinates
+              if (listing.latitude != null && listing.longitude != null) {
+                const distance = calculateDistance(
+                  referenceLocation!.latitude,
+                  referenceLocation!.longitude,
+                  listing.latitude,
+                  listing.longitude
+                );
+                return { ...listing, distance_miles: distance };
+              }
+              return listing;
+            })
+            .filter(listing => {
+              // Only include listings within the distance radius
+              // Keep listings without coordinates (they'll appear at the end)
+              if (listing.distance_miles !== undefined) {
+                return listing.distance_miles <= filters.distance!;
+              }
+              return false; // Exclude listings without valid coordinates
+            });
+        }
+      }
+
       if (filters.minRating > 0) {
         allResults = allResults.filter(listing => {
           const profile = listing.provider || listing.customer;
@@ -519,6 +572,13 @@ export default function HomeScreen() {
         case 'recent':
           allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
           break;
+        case 'distance':
+          allResults.sort((a, b) => {
+            const distA = a.distance_miles !== undefined ? a.distance_miles : Number.MAX_VALUE;
+            const distB = b.distance_miles !== undefined ? b.distance_miles : Number.MAX_VALUE;
+            return distA - distB;
+          });
+          break;
         default:
           allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       }
@@ -537,10 +597,11 @@ export default function HomeScreen() {
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
     } catch (error) {
       console.error('Error fetching listings:', error);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      isLoadingMoreRef.current = false;
     }
-
-    setLoading(false);
-    setLoadingMore(false);
   };
 
   const buildFeedData = () => {
@@ -638,6 +699,7 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++; // Count if distance is set and not default
     return count;
   };
 
@@ -648,7 +710,7 @@ export default function HomeScreen() {
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore && !loading) {
+    if (!loadingMore && hasMore && !loading && !isLoadingMoreRef.current) {
       fetchListings(false);
     }
   };
@@ -676,6 +738,7 @@ export default function HomeScreen() {
                 providerListings
                   .map((l) => l.category?.name)
                   .filter(Boolean)
+                  .filter((name) => typeof name === 'string')
               )
             ).slice(0, 5);
 
@@ -683,15 +746,15 @@ export default function HomeScreen() {
               id: profile.id,
               latitude: profile.latitude,
               longitude: profile.longitude,
-              title: profile.full_name,
-              subtitle: (profile as any).business_name || 'Service Provider',
+              title: String(profile.full_name || 'Provider'),
+              subtitle: String((profile as any).business_name || 'Service Provider'),
               type: 'provider' as const,
-              rating: profile.rating_average,
+              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
               isVerified: profile.is_verified,
-              reviewCount: profile.rating_count || 0,
+              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
               categories: categories,
-              responseTime: (profile as any).response_time || 'Within 24 hours',
-              completionRate: (profile as any).completion_rate || 95,
+              responseTime: String((profile as any).response_time || 'Within 24 hours'),
+              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
             });
           }
         }
@@ -1201,14 +1264,6 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>Discover Services</Text>
-          <TouchableOpacity
-            style={styles.browseJobsButton}
-            onPress={() => router.push('/jobs/index' as any)}
-            activeOpacity={0.7}
-          >
-            <Briefcase size={16} color={colors.white} />
-            <Text style={styles.browseJobsText}>Browse Jobs</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBarWrapper}>
@@ -1299,6 +1354,12 @@ export default function HomeScreen() {
                   priceMin: '',
                   priceMax: '',
                   minRating: 0,
+                  distance: 25,
+                  availability: 'any',
+                  sortBy: 'relevance',
+                  verified: false,
+                  instant_booking: false,
+                  listingType: 'all',
                 })
               }
             >
@@ -1504,6 +1565,12 @@ export default function HomeScreen() {
                   priceMin: '',
                   priceMax: '',
                   minRating: 0,
+                  distance: 25,
+                  availability: 'any',
+                  sortBy: 'relevance',
+                  verified: false,
+                  instant_booking: false,
+                  listingType: 'all',
                 });
               }}
               style={styles.resetButton}
@@ -1538,7 +1605,6 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
     paddingHorizontal: spacing.lg,
@@ -1547,20 +1613,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700' as const,
     color: '#006634',
-  },
-  browseJobsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
-  },
-  browseJobsText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.white,
   },
   searchBarWrapper: {
     marginBottom: spacing.md,
