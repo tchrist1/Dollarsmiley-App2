@@ -27,6 +27,7 @@ import {
   PlusCircle,
   BarChart3,
   GitBranch,
+  Edit,
 } from 'lucide-react-native';
 
 interface Job {
@@ -285,6 +286,16 @@ export default function MyJobsScreen() {
       </View>
 
       <View style={styles.actionButtons}>
+        {item.status === 'Open' && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => router.push(`/jobs/${item.id}/edit` as any)}
+          >
+            <Edit size={16} color={colors.primary} />
+            <Text style={styles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.timelineButton}
           onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
@@ -602,6 +613,21 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   viewQuotesText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primary + '20',
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  editButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.primary,

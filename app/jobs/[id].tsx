@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   MessageCircle,
   AlertCircle,
+  Edit,
 } from 'lucide-react-native';
 
 interface Job {
@@ -469,9 +470,18 @@ export default function JobDetailScreen() {
         )}
 
         {isOwnJob && (
-          <View style={styles.ownJobNotice}>
-            <AlertCircle size={20} color={colors.textSecondary} />
-            <Text style={styles.ownJobText}>This is your job posting</Text>
+          <View style={styles.actionSection}>
+            <Button
+              title="Edit Job"
+              onPress={() => router.push(`/jobs/${id}/edit` as any)}
+              variant="primary"
+              style={styles.actionButton}
+              leftIcon={<Edit size={20} color={colors.white} />}
+            />
+            <View style={styles.ownJobNotice}>
+              <AlertCircle size={20} color={colors.textSecondary} />
+              <Text style={styles.ownJobText}>This is your job posting</Text>
+            </View>
           </View>
         )}
       </ScrollView>

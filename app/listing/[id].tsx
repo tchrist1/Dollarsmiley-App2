@@ -32,6 +32,8 @@ import {
   Share2,
   Shield,
   Calendar,
+  Edit,
+  MessageCircle,
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -482,20 +484,32 @@ export default function ListingDetailScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.lg }]}>
-        <Button
-          title="Book Now"
-          onPress={handleBookNow}
-          style={styles.bookButton}
-          textStyle={styles.footerButtonText}
-          leftIcon={<Calendar size={20} color={colors.white} />}
-        />
-        <Button
-          title="Request Quote"
-          onPress={handleRequestQuote}
-          variant="outline"
-          style={styles.quoteButton}
-          textStyle={styles.footerButtonText}
-        />
+        {listing?.provider_id === profile?.id ? (
+          <Button
+            title="Edit Listing"
+            onPress={() => router.push(`/listing/${id}/edit` as any)}
+            style={styles.bookButton}
+            textStyle={styles.footerButtonText}
+            leftIcon={<Edit size={20} color={colors.white} />}
+          />
+        ) : (
+          <>
+            <Button
+              title="Book Now"
+              onPress={handleBookNow}
+              style={styles.bookButton}
+              textStyle={styles.footerButtonText}
+              leftIcon={<Calendar size={20} color={colors.white} />}
+            />
+            <Button
+              title="Request Quote"
+              onPress={handleRequestQuote}
+              variant="outline"
+              style={styles.quoteButton}
+              textStyle={styles.footerButtonText}
+            />
+          </>
+        )}
         <Button
           title="Contact"
           onPress={handleContactProvider}
