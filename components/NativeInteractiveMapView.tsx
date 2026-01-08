@@ -546,7 +546,7 @@ export default function NativeInteractiveMapView({
                   <View style={styles.providerCategories}>
                     {selectedMarker.categories.slice(0, 3).map((category, index) => (
                       <View key={index} style={styles.providerCategoryBadge}>
-                        <Text style={styles.providerCategoryText}>{category}</Text>
+                        <Text style={styles.providerCategoryText}>{String(category || '')}</Text>
                       </View>
                     ))}
                   </View>

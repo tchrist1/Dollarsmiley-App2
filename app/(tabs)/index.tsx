@@ -757,7 +757,7 @@ export default function HomeScreen() {
                   .filter(Boolean)
                   .filter((name) => typeof name === 'string')
               )
-            ).slice(0, 5);
+            ).slice(0, 5).map(cat => String(cat));
 
             providersMap.set(profile.id, {
               id: profile.id,
