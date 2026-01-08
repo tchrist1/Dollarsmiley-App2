@@ -35,6 +35,8 @@ interface Job {
   description: string;
   budget_min: number | null;
   budget_max: number | null;
+  pricing_type: 'quote_based' | 'fixed_price';
+  fixed_price: number | null;
   location: string;
   execution_date_start: string;
   preferred_time: string;
@@ -45,6 +47,7 @@ interface Job {
   };
   _count?: {
     quotes: number;
+    acceptances: number;
   };
 }
 
@@ -100,24 +103,38 @@ export default function MyJobsScreen() {
     const { data, error } = await query;
 
     if (data && !error) {
-      const jobsWithQuotes = await Promise.all(
+      const jobsWithCounts = await Promise.all(
         data.map(async (job) => {
-          const { count } = await supabase
-            .from('bookings')
-            .select('*', { count: 'exact', head: true })
-            .eq('job_id', job.id)
-            .eq('status', 'Requested');
+          let quotes = 0;
+          let acceptances = 0;
+
+          if (job.pricing_type === 'quote_based') {
+            const { count } = await supabase
+              .from('bookings')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id)
+              .eq('status', 'Requested');
+            quotes = count || 0;
+          } else if (job.pricing_type === 'fixed_price') {
+            const { count } = await supabase
+              .from('job_acceptances')
+              .select('*', { count: 'exact', head: true })
+              .eq('job_id', job.id)
+              .eq('status', 'pending');
+            acceptances = count || 0;
+          }
 
           return {
             ...job,
             _count: {
-              quotes: count || 0,
+              quotes,
+              acceptances,
             },
           };
         })
       );
 
-      setJobs(jobsWithQuotes as any);
+      setJobs(jobsWithCounts as any);
     }
 
     setLoading(false);
@@ -156,6 +173,10 @@ export default function MyJobsScreen() {
     router.push(`/my-jobs/${jobId}/quotes` as any);
   };
 
+  const handleViewInterestedProviders = (jobId: string) => {
+    router.push(`/my-jobs/${jobId}/interested-providers` as any);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Open':
@@ -190,11 +211,15 @@ export default function MyJobsScreen() {
     }
   };
 
-  const formatBudget = (min: number | null, max: number | null) => {
-    if (!min && !max) return 'Flexible';
-    if (min && max) return `$${min}-$${max}`;
-    if (min) return `$${min}+`;
-    if (max) return `Up to $${max}`;
+  const formatBudget = (job: Job) => {
+    if (job.pricing_type === 'fixed_price' && job.fixed_price) {
+      return `$${Math.round(job.fixed_price).toLocaleString('en-US')} (Fixed)`;
+    }
+    const { budget_min, budget_max } = job;
+    if (!budget_min && !budget_max) return 'Flexible';
+    if (budget_min && budget_max) return `$${budget_min}-$${budget_max}`;
+    if (budget_min) return `$${budget_min}+`;
+    if (budget_max) return `Up to $${budget_max}`;
     return 'Flexible';
   };
 
@@ -215,6 +240,12 @@ export default function MyJobsScreen() {
           <View style={styles.quoteBadge}>
             <MessageCircle size={12} color={colors.white} />
             <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
+          </View>
+        )}
+        {item._count && item._count.acceptances > 0 && (
+          <View style={styles.quoteBadge}>
+            <CheckCircle size={12} color={colors.white} />
+            <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
           </View>
         )}
       </View>
@@ -243,7 +274,7 @@ export default function MyJobsScreen() {
       <View style={styles.jobFooter}>
         <View style={styles.budgetContainer}>
           <DollarSign size={16} color={colors.primary} />
-          <Text style={styles.budgetText}>{formatBudget(item.budget_min, item.budget_max)}</Text>
+          <Text style={styles.budgetText}>{formatBudget(item)}</Text>
         </View>
         <View style={styles.locationContainer}>
           <MapPin size={14} color={colors.textSecondary} />
@@ -264,13 +295,22 @@ export default function MyJobsScreen() {
 
         {item.status === 'Open' && (
           <>
-            {item._count && item._count.quotes > 0 && (
+            {item.pricing_type === 'quote_based' && item._count && item._count.quotes > 0 && (
               <TouchableOpacity
                 style={styles.viewQuotesButton}
                 onPress={() => handleViewQuotes(item.id)}
               >
                 <MessageCircle size={16} color={colors.primary} />
                 <Text style={styles.viewQuotesText}>View Quotes</Text>
+              </TouchableOpacity>
+            )}
+            {item.pricing_type === 'fixed_price' && item._count && item._count.acceptances > 0 && (
+              <TouchableOpacity
+                style={styles.viewQuotesButton}
+                onPress={() => handleViewInterestedProviders(item.id)}
+              >
+                <CheckCircle size={16} color={colors.primary} />
+                <Text style={styles.viewQuotesText}>View Providers</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
