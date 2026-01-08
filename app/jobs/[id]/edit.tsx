@@ -168,6 +168,14 @@ export default function EditJobScreen() {
       }
     }
 
+    if (!estimatedDuration.trim()) {
+      newErrors.estimatedDuration = 'Estimated duration is required';
+    } else if (isNaN(Number(estimatedDuration))) {
+      newErrors.estimatedDuration = 'Invalid duration';
+    } else if (Number(estimatedDuration) <= 0) {
+      newErrors.estimatedDuration = 'Duration must be greater than 0';
+    }
+
     if (!address.street_address.trim()) newErrors.address = 'Street address is required';
     if (!address.city.trim()) newErrors.city = 'City is required';
     if (!address.state.trim()) newErrors.state = 'State is required';
@@ -373,13 +381,17 @@ export default function EditJobScreen() {
           )}
 
           <Input
-            label="Estimated Duration (Hours, Optional)"
-            placeholder="e.g., 2"
+            label="Estimated Duration (hours)"
+            placeholder="e.g., 2 or 4.5"
             value={estimatedDuration}
             onChangeText={setEstimatedDuration}
             keyboardType="decimal-pad"
             leftIcon={<Clock size={20} color={colors.textSecondary} />}
+            error={errors.estimatedDuration}
           />
+          <Text style={styles.helperText}>
+            Required. Helps providers price and schedule your job accurately.
+          </Text>
         </View>
 
         <View style={styles.section}>
@@ -612,6 +624,12 @@ const styles = StyleSheet.create({
   timeOptionButtonTextActive: {
     color: colors.white,
     fontWeight: fontWeight.semibold,
+  },
+  helperText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
   },
   footer: {
     padding: spacing.lg,

@@ -154,9 +154,12 @@ export default function PostJobScreen() {
       if (fixedPrice && Number(fixedPrice) <= 0) newErrors.fixedPrice = 'Price must be greater than 0';
     }
 
-    if (estimatedDuration) {
-      if (isNaN(Number(estimatedDuration))) newErrors.estimatedDuration = 'Invalid duration';
-      if (Number(estimatedDuration) <= 0) newErrors.estimatedDuration = 'Duration must be greater than 0';
+    if (!estimatedDuration.trim()) {
+      newErrors.estimatedDuration = 'Estimated duration is required';
+    } else if (isNaN(Number(estimatedDuration))) {
+      newErrors.estimatedDuration = 'Invalid duration';
+    } else if (Number(estimatedDuration) <= 0) {
+      newErrors.estimatedDuration = 'Duration must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -421,7 +424,7 @@ export default function PostJobScreen() {
               error={errors.estimatedDuration}
             />
             <Text style={styles.helperText}>
-              How many hours do you estimate this job will take? (Optional but helps providers)
+              Required. Helps providers price and schedule your job accurately.
             </Text>
           </>
         ) : (
@@ -445,7 +448,7 @@ export default function PostJobScreen() {
               error={errors.estimatedDuration}
             />
             <Text style={styles.helperText}>
-              Estimated time to complete (helps providers plan their schedule)
+              Required. Helps providers price and schedule your job accurately.
             </Text>
           </>
         )}
