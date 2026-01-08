@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { safeGoBack } from '@/lib/navigation-utils';
@@ -65,6 +66,7 @@ interface Job {
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams();
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -316,7 +318,11 @@ export default function JobDetailScreen() {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.jobHeader}>
           <View style={styles.headerRow}>
             <View style={styles.categoryBadge}>

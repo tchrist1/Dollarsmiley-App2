@@ -10,6 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -58,6 +59,7 @@ type SortOption = 'rating' | 'experience' | 'recent';
 export default function InterestedProvidersScreen() {
   const { id } = useLocalSearchParams();
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [job, setJob] = useState<Job | null>(null);
   const [acceptances, setAcceptances] = useState<Acceptance[]>([]);
   const [sortedAcceptances, setSortedAcceptances] = useState<Acceptance[]>([]);
@@ -455,7 +457,10 @@ export default function InterestedProvidersScreen() {
             data={sortedAcceptances}
             renderItem={renderProviderCard}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
+            contentContainerStyle={[
+              styles.listContainer,
+              { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.xxl }
+            ]}
             showsVerticalScrollIndicator={false}
           />
         </>
@@ -486,7 +491,7 @@ export default function InterestedProvidersScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.modalBody}>
+              <View style={[styles.modalBody, { paddingBottom: Math.max(insets.bottom, spacing.lg) + spacing.md }]}>
                 <View style={styles.modalAvatar}>
                   <Text style={styles.modalAvatarText}>
                     {selectedAcceptance.provider.full_name.charAt(0).toUpperCase()}
