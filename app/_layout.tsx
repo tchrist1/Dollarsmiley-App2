@@ -11,19 +11,54 @@ LogBox.ignoreLogs([
   'Unable to activate keep awake',
   'Uncaught (in promise',
   'keep awake',
+  'Error: Uncaught',
+  'Unable to activate',
+  'keepawake',
+  'KeepAwake',
 ]);
 
-if (typeof window !== 'undefined') {
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
   const originalHandler = window.onunhandledrejection;
   window.onunhandledrejection = (event: any) => {
     const message = event?.reason?.message || event?.reason || '';
-    if (String(message).includes('keep awake') || String(message).includes('Unable to activate')) {
+    const messageStr = String(message).toLowerCase();
+    if (
+      messageStr.includes('keep awake') ||
+      messageStr.includes('unable to activate') ||
+      messageStr.includes('keepawake')
+    ) {
       event.preventDefault();
       return;
     }
     if (originalHandler) {
       originalHandler.call(window, event);
     }
+  };
+
+  const originalConsoleError = console.error;
+  console.error = (...args: any[]) => {
+    const message = args.join(' ').toLowerCase();
+    if (
+      message.includes('keep awake') ||
+      message.includes('unable to activate') ||
+      message.includes('keepawake')
+    ) {
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    const message = args.join(' ').toLowerCase();
+    if (
+      message.includes('keep awake') ||
+      message.includes('unable to activate') ||
+      message.includes('keepawake')
+    ) {
+      return;
+    }
+    originalConsoleWarn.apply(console, args);
   };
 }
 
