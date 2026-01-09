@@ -1300,7 +1300,7 @@ export default function HomeScreen() {
             <Search size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for event-party services and jobs near you"
+              placeholder="Search for event services, party providers, and local jobs"
               placeholderTextColor="#7A7A7A"
               value={searchQuery}
               onChangeText={handleSearchChange}
