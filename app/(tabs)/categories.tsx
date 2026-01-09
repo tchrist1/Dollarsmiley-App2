@@ -156,7 +156,7 @@ export default function CategoriesScreen() {
             <Search size={20} color={colors.textSecondary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search for event services, party providers, and local jobs"
+              placeholder="Search for event-party services and jobs near you"
               placeholderTextColor="#7A7A7A"
               value={searchQuery}
               onChangeText={setSearchQuery}
