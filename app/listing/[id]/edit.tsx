@@ -416,8 +416,8 @@ export default function EditListingScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Availability</Text>
           <AvailabilityCalendar
-            availableDays={availableDays}
-            onAvailabilityChange={setAvailableDays}
+            selectedDays={availableDays}
+            onDaysChange={setAvailableDays}
           />
         </View>
 
