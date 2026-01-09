@@ -313,17 +313,18 @@ export default function EditListingScreen() {
           />
 
           <CategoryPicker
-            selectedCategoryId={categoryId}
-            selectedCategoryName={categoryName}
-            selectedSubcategoryId={subcategoryId}
-            selectedSubcategoryName={subcategoryName}
-            onCategorySelect={(id, name) => {
+            label="Category"
+            value={categoryId}
+            onSelect={(id, name, subcatId, subcatName) => {
               setCategoryId(id);
               setCategoryName(name);
-            }}
-            onSubcategorySelect={(id, name) => {
-              setSubcategoryId(id);
-              setSubcategoryName(name);
+              if (subcatId && subcatName) {
+                setSubcategoryId(subcatId);
+                setSubcategoryName(subcatName);
+              } else {
+                setSubcategoryId('');
+                setSubcategoryName('');
+              }
             }}
             error={errors.category || errors.subcategory}
           />
