@@ -101,6 +101,7 @@ export default function CreateListingScreen() {
   const clearAllFields = () => {
     Keyboard.dismiss();
 
+    setListingId(null);
     setTitle('');
     setDescription('');
     setCategoryId('');
@@ -133,6 +134,7 @@ export default function CreateListingScreen() {
     setTurnaroundHours('2');
     setErrors({});
     setShowAiPhotoModal(false);
+    setLoading(false);
   };
 
   const handleClearAll = () => {
@@ -362,12 +364,14 @@ export default function CreateListingScreen() {
       'Your listing has been saved as a draft. You can publish it later from My Listings.',
       [
         {
-          text: 'View Drafts',
-          onPress: () => router.push('/provider/my-listings' as any),
+          text: 'Create Another Listing',
+          onPress: () => {
+            clearAllFields();
+          },
         },
         {
-          text: 'Continue Editing',
-          onPress: () => router.push(`/listing/${newListingId}/edit` as any),
+          text: 'View My Listings',
+          onPress: () => router.push('/provider/my-listings' as any),
         },
       ]
     );
@@ -458,23 +462,51 @@ export default function CreateListingScreen() {
 
     if (listingType === 'CustomService') {
       Alert.alert(
-        'Almost Done!',
-        'Now add custom options for your customers to choose from.',
+        'Service Created!',
+        'Your custom service has been published. Add custom options to let customers personalize their order.',
         [
           {
-            text: 'OK',
+            text: 'Add Options Now',
             onPress: () => router.push(`/listing/${newListingId}/edit-options` as any),
+          },
+          {
+            text: 'Skip for Now',
+            style: 'cancel',
+            onPress: () => {
+              Alert.alert(
+                'What would you like to do next?',
+                '',
+                [
+                  {
+                    text: 'Create Another Listing',
+                    onPress: () => {
+                      clearAllFields();
+                    },
+                  },
+                  {
+                    text: 'View My Listings',
+                    onPress: () => router.push('/provider/my-listings' as any),
+                  },
+                ]
+              );
+            },
           },
         ]
       );
     } else {
       Alert.alert(
-        'Success!',
-        'Your service listing has been created successfully and is now visible to customers.',
+        'Service Published!',
+        'Your service listing is now live and visible to customers.',
         [
           {
-            text: 'OK',
-            onPress: () => router.back(),
+            text: 'Create Another Listing',
+            onPress: () => {
+              clearAllFields();
+            },
+          },
+          {
+            text: 'View My Listings',
+            onPress: () => router.push('/provider/my-listings' as any),
           },
         ]
       );
@@ -1281,9 +1313,20 @@ export default function CreateListingScreen() {
               listingId={listingId}
               onSave={() => {
                 Alert.alert(
-                  'Success!',
-                  'Your custom service listing has been created successfully.',
-                  [{ text: 'OK', onPress: () => router.back() }]
+                  'Options Saved!',
+                  'Your custom service options have been saved successfully.',
+                  [
+                    {
+                      text: 'Create Another Listing',
+                      onPress: () => {
+                        clearAllFields();
+                      },
+                    },
+                    {
+                      text: 'View My Listings',
+                      onPress: () => router.push('/provider/my-listings' as any),
+                    },
+                  ]
                 );
               }}
             />

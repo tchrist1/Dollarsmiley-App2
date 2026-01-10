@@ -180,12 +180,16 @@ export default function EditOptionsScreen() {
       }
 
       Alert.alert(
-        'Success!',
-        'Your custom service options have been saved.',
+        'Options Saved!',
+        'Your custom service options have been saved successfully.',
         [
           {
-            text: 'OK',
-            onPress: () => router.back(),
+            text: 'Create Another Listing',
+            onPress: () => router.push('/(tabs)/create-listing' as any),
+          },
+          {
+            text: 'View My Listings',
+            onPress: () => router.push('/provider/my-listings' as any),
           },
         ]
       );
