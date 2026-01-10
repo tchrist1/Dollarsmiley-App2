@@ -12,7 +12,8 @@ import { CategoryPicker } from '@/components/CategoryPicker';
 import { PhotoPicker } from '@/components/PhotoPicker';
 import { AvailabilityCalendar } from '@/components/AvailabilityCalendar';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { ArrowLeft, Save, DollarSign, Clock, Package, Truck, CheckCircle2, FileText } from 'lucide-react-native';
+import { ArrowLeft, Save, DollarSign, Clock, Package, Truck, CheckCircle2, FileText, Pause, Play, Archive, RotateCcw } from 'lucide-react-native';
+import { ListingStatus, updateListingStatus, validateListingForPublish, publishListing, archiveListing, restoreListing } from '@/lib/listing-status-manager';
 
 export default function EditListingScreen() {
   const { id } = useLocalSearchParams();
@@ -20,6 +21,7 @@ export default function EditListingScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<ListingStatus>('Active');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -84,6 +86,7 @@ export default function EditListingScreen() {
       return;
     }
 
+    setCurrentStatus((data.status as ListingStatus) || 'Active');
     setTitle(data.title || '');
     setDescription(data.description || '');
     setCategoryId(data.category_id || '');
@@ -264,6 +267,143 @@ export default function EditListingScreen() {
     } else {
       setFulfillmentType([...fulfillmentType, type]);
     }
+  };
+
+  const handlePublish = async () => {
+    const validationResult = validateListingForPublish({
+      title,
+      category_id: categoryId,
+      photos,
+      base_price: price ? Number(price) : 0,
+      pricing_type: priceType === 'hourly' ? 'Hourly' : 'Fixed',
+      listing_type: listingType,
+    });
+
+    if (!validationResult.valid) {
+      const errorMessages = validationResult.errors.map(e => e.message).join('\n');
+      Alert.alert('Cannot Publish', errorMessages);
+      return;
+    }
+
+    setSaving(true);
+    const result = await publishListing(id as string);
+    setSaving(false);
+
+    if (result.success) {
+      setCurrentStatus('Active');
+      Alert.alert('Success', 'Listing has been published and is now visible to customers');
+    } else {
+      Alert.alert('Error', result.error || 'Failed to publish listing');
+    }
+  };
+
+  const handlePause = async () => {
+    Alert.alert(
+      'Pause Listing',
+      'Are you sure you want to pause this listing? Customers will not be able to see or book it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Pause',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            const result = await updateListingStatus(id as string, 'Paused');
+            setSaving(false);
+
+            if (result.success) {
+              setCurrentStatus('Paused');
+              Alert.alert('Success', 'Listing has been paused');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to pause listing');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleActivate = async () => {
+    const validationResult = validateListingForPublish({
+      title,
+      category_id: categoryId,
+      photos,
+      base_price: price ? Number(price) : 0,
+      pricing_type: priceType === 'hourly' ? 'Hourly' : 'Fixed',
+      listing_type: listingType,
+    });
+
+    if (!validationResult.valid) {
+      const errorMessages = validationResult.errors.map(e => e.message).join('\n');
+      Alert.alert('Cannot Activate', errorMessages);
+      return;
+    }
+
+    setSaving(true);
+    const result = await updateListingStatus(id as string, 'Active');
+    setSaving(false);
+
+    if (result.success) {
+      setCurrentStatus('Active');
+      Alert.alert('Success', 'Listing is now active and visible to customers');
+    } else {
+      Alert.alert('Error', result.error || 'Failed to activate listing');
+    }
+  };
+
+  const handleArchive = async () => {
+    Alert.alert(
+      'Archive Listing',
+      'Archive this listing? Customers will no longer see it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            const result = await archiveListing(id as string);
+            setSaving(false);
+
+            if (result.success) {
+              setCurrentStatus('Archived');
+              Alert.alert('Success', 'Listing has been archived');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to archive listing');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRestore = async () => {
+    Alert.alert(
+      'Restore Listing',
+      'Restore this listing? It will return to your listings as Paused.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Restore',
+          onPress: async () => {
+            setSaving(true);
+            const result = await restoreListing(id as string, 'Paused');
+            setSaving(false);
+
+            if (result.success) {
+              setCurrentStatus('Paused');
+              Alert.alert('Success', 'Listing has been restored as Paused. You can activate it when ready.');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to restore listing');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleSaveDraft = async () => {
+    await handleSave();
   };
 
   if (loading) {
@@ -682,12 +822,97 @@ export default function EditListingScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <Button
-          title="Save Changes"
-          onPress={handleSave}
-          loading={saving}
-          leftIcon={<Save size={20} color={colors.white} />}
-        />
+        {currentStatus === 'Draft' && (
+          <>
+            <Button
+              title="Publish"
+              onPress={handlePublish}
+              loading={saving}
+              leftIcon={<CheckCircle2 size={20} color={colors.white} />}
+            />
+            <Button
+              title="Save Draft"
+              onPress={handleSaveDraft}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Save size={20} color={colors.primary} />}
+              style={styles.secondaryButton}
+            />
+            <Button
+              title="Archive"
+              onPress={handleArchive}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Archive size={20} color={colors.textSecondary} />}
+              style={styles.secondaryButton}
+            />
+          </>
+        )}
+
+        {currentStatus === 'Active' && (
+          <>
+            <Button
+              title="Save Changes"
+              onPress={handleSave}
+              loading={saving}
+              leftIcon={<Save size={20} color={colors.white} />}
+            />
+            <Button
+              title="Pause"
+              onPress={handlePause}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Pause size={20} color={colors.warning} />}
+              style={styles.secondaryButton}
+            />
+            <Button
+              title="Archive"
+              onPress={handleArchive}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Archive size={20} color={colors.textSecondary} />}
+              style={styles.secondaryButton}
+            />
+          </>
+        )}
+
+        {currentStatus === 'Paused' && (
+          <>
+            <Button
+              title="Activate"
+              onPress={handleActivate}
+              loading={saving}
+              leftIcon={<Play size={20} color={colors.white} />}
+            />
+            <Button
+              title="Save Changes"
+              onPress={handleSave}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Save size={20} color={colors.primary} />}
+              style={styles.secondaryButton}
+            />
+            <Button
+              title="Archive"
+              onPress={handleArchive}
+              variant="outline"
+              loading={saving}
+              leftIcon={<Archive size={20} color={colors.textSecondary} />}
+              style={styles.secondaryButton}
+            />
+          </>
+        )}
+
+        {currentStatus === 'Archived' && (
+          <>
+            <Button
+              title="Restore"
+              onPress={handleRestore}
+              loading={saving}
+              leftIcon={<RotateCcw size={20} color={colors.white} />}
+            />
+          </>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -909,6 +1134,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  secondaryButton: {
+    marginTop: spacing.md,
   },
   editOptionsButton: {
     backgroundColor: colors.white,

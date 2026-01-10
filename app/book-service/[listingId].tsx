@@ -80,6 +80,15 @@ export default function BookingScreen() {
       .single();
 
     if (listingData && !error) {
+      if (listingData.status !== 'Active') {
+        Alert.alert(
+          'Listing Unavailable',
+          'This listing is no longer available for booking.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        return;
+      }
+
       setListing(listingData as any);
       setLocation(listingData.location || '');
 

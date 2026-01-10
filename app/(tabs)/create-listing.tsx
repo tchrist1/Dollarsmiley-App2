@@ -17,8 +17,9 @@ import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import AIPhotoAssistModal from '@/components/AIPhotoAssistModal';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock, CheckCircle2 } from 'lucide-react-native';
+import { DollarSign, Clock, Package, Truck, RotateCcw, Sparkles, ArrowLeftRight, Users, FileText, Boxes, CalendarClock, CheckCircle2, Save } from 'lucide-react-native';
 import uuid from 'react-native-uuid';
+import { validateListingForPublish, ListingStatus } from '@/lib/listing-status-manager';
 
 export default function CreateListingScreen() {
   const { profile } = useAuth();
@@ -222,44 +223,14 @@ export default function CreateListingScreen() {
     }
   }
 
-  const handleSubmit = async () => {
-    if (!validate()) {
-      Alert.alert('Validation Error', 'Please fix the errors before submitting');
-      return;
-    }
-
-    if (!profile) {
-      Alert.alert('Error', 'You must be logged in to create a listing');
-      return;
-    }
-
-    if (profile.user_type === 'Customer') {
-      Alert.alert(
-        'Upgrade Required',
-        'Only Provider and Hybrid accounts can create listings. Would you like to upgrade your account?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Upgrade',
-            onPress: () => router.push('/settings/account-type' as any),
-          },
-        ]
-      );
-      return;
-    }
-
-    setLoading(true);
-
-    const newListingId = uuid.v4() as string;
-
+  const createListingData = async (newListingId: string, targetStatus: ListingStatus) => {
     let photoUrls: string[] = [];
     if (photos.length > 0) {
       const uploadResult = await uploadMultipleListingPhotos(newListingId, photos);
       if (!uploadResult.success) {
-        setLoading(false);
         Alert.alert('Error', 'Failed to upload photos. Please try again.');
         console.error('Photo upload errors:', uploadResult.errors);
-        return;
+        return null;
       }
       photoUrls = uploadResult.urls;
     }
@@ -271,19 +242,19 @@ export default function CreateListingScreen() {
 
     const listingData: any = {
       id: newListingId,
-      provider_id: profile.id,
-      category_id: categoryId,
+      provider_id: profile!.id,
+      category_id: categoryId || null,
       title: title.trim(),
       description: description.trim(),
       pricing_type: priceType === 'hourly' ? 'Hourly' : 'Fixed',
-      base_price: Number(price),
-      price: Number(price),
+      base_price: price ? Number(price) : 0,
+      price: price ? Number(price) : 0,
       estimated_duration: duration ? Number(duration) : null,
       photos: photoUrls,
       availability: JSON.stringify(availableDays),
       tags: tagsList,
-      is_active: true,
-      status: 'Active',
+      is_active: targetStatus === 'Active',
+      status: targetStatus,
       listing_type: listingType,
       requires_fulfilment: requiresFulfilment,
       requires_agreement: requiresAgreement,
@@ -291,9 +262,9 @@ export default function CreateListingScreen() {
       damage_deposit_amount: requiresDamageDeposit ? Number(damageDepositAmount) : 0,
       proofing_required: listingType === 'CustomService' ? proofingRequired : false,
       inventory_mode: inventoryEnabled ? inventoryMode : 'none',
-      location: profile.location || null,
-      latitude: profile.latitude || null,
-      longitude: profile.longitude || null,
+      location: profile!.location || null,
+      latitude: profile!.latitude || null,
+      longitude: profile!.longitude || null,
     };
 
     if (inventoryEnabled) {
@@ -319,6 +290,139 @@ export default function CreateListingScreen() {
           };
         }
       }
+    }
+
+    return listingData;
+  };
+
+  const handleSaveDraft = async () => {
+    if (!profile) {
+      Alert.alert('Error', 'You must be logged in to create a listing');
+      return;
+    }
+
+    if (profile.user_type === 'Customer') {
+      Alert.alert(
+        'Upgrade Required',
+        'Only Provider and Hybrid accounts can create listings. Would you like to upgrade your account?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Upgrade',
+            onPress: () => router.push('/settings/account-type' as any),
+          },
+        ]
+      );
+      return;
+    }
+
+    setLoading(true);
+
+    const newListingId = uuid.v4() as string;
+    const listingData = await createListingData(newListingId, 'Draft');
+
+    if (!listingData) {
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('service_listings')
+      .insert(listingData);
+
+    if (error) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to save draft. Please try again.');
+      console.error('Draft creation error:', error);
+      return;
+    }
+
+    setListingId(newListingId);
+
+    if (requiresFulfilment && fulfillmentType.length > 0) {
+      const fulfillmentOptions = fulfillmentType.map(type => ({
+        listing_id: newListingId,
+        fulfillment_type: type,
+        is_active: true,
+      }));
+
+      const { error: fulfillmentError } = await supabase
+        .from('fulfillment_options')
+        .insert(fulfillmentOptions);
+
+      if (fulfillmentError) {
+        console.error('Fulfillment options error:', fulfillmentError);
+      }
+    }
+
+    setLoading(false);
+
+    Alert.alert(
+      'Draft Saved',
+      'Your listing has been saved as a draft. You can publish it later from My Listings.',
+      [
+        {
+          text: 'View Drafts',
+          onPress: () => router.push('/provider/my-listings' as any),
+        },
+        {
+          text: 'Continue Editing',
+          onPress: () => router.push(`/listing/${newListingId}/edit` as any),
+        },
+      ]
+    );
+  };
+
+  const handlePublish = async () => {
+    if (!validate()) {
+      Alert.alert('Validation Error', 'Please fix the errors before publishing');
+      return;
+    }
+
+    if (!profile) {
+      Alert.alert('Error', 'You must be logged in to create a listing');
+      return;
+    }
+
+    if (profile.user_type === 'Customer') {
+      Alert.alert(
+        'Upgrade Required',
+        'Only Provider and Hybrid accounts can create listings. Would you like to upgrade your account?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Upgrade',
+            onPress: () => router.push('/settings/account-type' as any),
+          },
+        ]
+      );
+      return;
+    }
+
+    const newListingId = uuid.v4() as string;
+
+    const validationResult = validateListingForPublish({
+      title,
+      category_id: categoryId,
+      photos,
+      base_price: price ? Number(price) : 0,
+      pricing_type: priceType === 'hourly' ? 'Hourly' : 'Fixed',
+      listing_type: listingType,
+    });
+
+    if (!validationResult.valid) {
+      const errorMessages = validationResult.errors.map(e => e.message).join('\n');
+      Alert.alert('Cannot Publish', errorMessages);
+      return;
+    }
+
+    setLoading(true);
+
+    const listingData = await createListingData(newListingId, 'Active');
+
+    if (!listingData) {
+      setLoading(false);
+      return;
     }
 
     const { error } = await supabase
@@ -1148,7 +1252,20 @@ export default function CreateListingScreen() {
 
         {!listingId && (
           <View style={styles.buttonContainer}>
-            <Button title="Create Listing" onPress={handleSubmit} loading={loading} />
+            <Button
+              title="Publish"
+              onPress={handlePublish}
+              loading={loading}
+              leftIcon={<CheckCircle2 size={20} color={colors.white} />}
+            />
+            <Button
+              title="Save Draft"
+              onPress={handleSaveDraft}
+              variant="outline"
+              loading={loading}
+              leftIcon={<Save size={20} color={colors.primary} />}
+              style={styles.draftButton}
+            />
             <Button
               title="Cancel"
               onPress={() => router.back()}
@@ -1412,6 +1529,9 @@ const styles = StyleSheet.create({
   buttonContainer: {
     marginTop: spacing.lg,
     marginBottom: spacing.xl,
+  },
+  draftButton: {
+    marginTop: spacing.md,
   },
   cancelButton: {
     marginTop: spacing.md,

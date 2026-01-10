@@ -6,8 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { Button } from '@/components/Button';
-import { PlusCircle, Edit, Eye, TrendingUp, Star, MapPin, Calendar, DollarSign, Package, Power, PowerOff, MoreVertical, Trash2 } from 'lucide-react-native';
+import { PlusCircle, Edit, Eye, TrendingUp, Star, MapPin, Calendar, DollarSign, Package, Power, PowerOff, MoreVertical, Trash2, CheckCircle2, Archive, RotateCcw, Pause } from 'lucide-react-native';
 import { formatCurrency } from '@/lib/currency-utils';
+import { ListingStatus, updateListingStatus, publishListing, archiveListing, restoreListing } from '@/lib/listing-status-manager';
 
 interface ServiceListing {
   id: string;
@@ -38,7 +39,7 @@ export default function MyListingsScreen() {
   const [listings, setListings] = useState<ServiceListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'active' | 'paused' | 'draft'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'paused' | 'draft' | 'archived'>('all');
 
   useEffect(() => {
     if (profile) {
@@ -79,22 +80,66 @@ export default function MyListingsScreen() {
     fetchListings();
   };
 
-  const toggleListingStatus = async (listingId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Active' ? 'Paused' : 'Active';
-
-    const { error } = await supabase
-      .from('service_listings')
-      .update({
-        status: newStatus,
-        is_active: newStatus === 'Active'
-      })
-      .eq('id', listingId);
-
-    if (error) {
-      Alert.alert('Error', 'Failed to update listing status');
-      console.error('Error updating listing:', error);
-    } else {
+  const handlePublish = async (listingId: string) => {
+    const result = await publishListing(listingId);
+    if (result.success) {
+      Alert.alert('Success', 'Listing has been published and is now visible to customers');
       fetchListings();
+    } else if (result.validationErrors) {
+      const errorMessages = result.validationErrors.map(e => e.message).join('\n');
+      Alert.alert('Cannot Publish', errorMessages);
+    } else {
+      Alert.alert('Error', result.error || 'Failed to publish listing');
+    }
+  };
+
+  const handlePause = async (listingId: string) => {
+    const result = await updateListingStatus(listingId, 'Paused');
+    if (result.success) {
+      fetchListings();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to pause listing');
+    }
+  };
+
+  const handleActivate = async (listingId: string) => {
+    const result = await updateListingStatus(listingId, 'Active');
+    if (result.success) {
+      fetchListings();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to activate listing');
+    }
+  };
+
+  const handleArchive = async (listingId: string, listingTitle: string) => {
+    Alert.alert(
+      'Archive Listing',
+      `Archive "${listingTitle}"? Customers will no longer see it.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Archive',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await archiveListing(listingId);
+            if (result.success) {
+              fetchListings();
+            } else {
+              Alert.alert('Error', result.error || 'Failed to archive listing');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRestore = async (listingId: string) => {
+    const result = await restoreListing(listingId, 'Paused');
+    if (result.success) {
+      Alert.alert('Success', 'Listing has been restored as Paused');
+      fetchListings();
+    } else {
+      Alert.alert('Error', result.error || 'Failed to restore listing');
     }
   };
 
@@ -218,50 +263,126 @@ export default function MyListingsScreen() {
           </View>
 
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
-              onPress={() => router.push(`/listing/${listing.id}/edit` as any)}
-              activeOpacity={0.7}
-            >
-              <Edit size={16} color={colors.primary} />
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+            {listing.status === 'Draft' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => router.push(`/listing/${listing.id}/edit` as any)}
+                  activeOpacity={0.7}
+                >
+                  <Edit size={16} color={colors.primary} />
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.toggleButton,
-                listing.status === 'Active' ? styles.pauseButton : styles.activateButton
-              ]}
-              onPress={() => toggleListingStatus(listing.id, listing.status)}
-              activeOpacity={0.7}
-            >
-              {listing.status === 'Active' ? (
-                <>
-                  <PowerOff size={16} color={colors.warning} />
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.publishButton]}
+                  onPress={() => handlePublish(listing.id)}
+                  activeOpacity={0.7}
+                >
+                  <CheckCircle2 size={16} color={colors.success} />
+                  <Text style={[styles.toggleButtonText, { color: colors.success }]}>Publish</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.archiveButton]}
+                  onPress={() => handleArchive(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Archive size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </>
+            )}
+
+            {listing.status === 'Active' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => router.push(`/listing/${listing.id}/edit` as any)}
+                  activeOpacity={0.7}
+                >
+                  <Edit size={16} color={colors.primary} />
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.pauseButton]}
+                  onPress={() => handlePause(listing.id)}
+                  activeOpacity={0.7}
+                >
+                  <Pause size={16} color={colors.warning} />
                   <Text style={[styles.toggleButtonText, { color: colors.warning }]}>Pause</Text>
-                </>
-              ) : (
-                <>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.archiveButton]}
+                  onPress={() => handleArchive(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Archive size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </>
+            )}
+
+            {listing.status === 'Paused' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
+                  onPress={() => router.push(`/listing/${listing.id}/edit` as any)}
+                  activeOpacity={0.7}
+                >
+                  <Edit size={16} color={colors.primary} />
+                  <Text style={styles.editButtonText}>Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.activateButton]}
+                  onPress={() => handleActivate(listing.id)}
+                  activeOpacity={0.7}
+                >
                   <Power size={16} color={colors.success} />
                   <Text style={[styles.toggleButtonText, { color: colors.success }]}>Activate</Text>
-                </>
-              )}
-            </TouchableOpacity>
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.viewButton]}
-              onPress={() => router.push(`/listing/${listing.id}`)}
-              activeOpacity={0.7}
-            >
-              <Eye size={16} color={colors.textSecondary} />
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.archiveButton]}
+                  onPress={() => handleArchive(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Archive size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </>
+            )}
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
-              onPress={() => deleteListing(listing.id, listing.title)}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={16} color={colors.error} />
-            </TouchableOpacity>
+            {listing.status === 'Archived' && (
+              <>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.viewButton]}
+                  onPress={() => router.push(`/listing/${listing.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <Eye size={16} color={colors.textSecondary} />
+                  <Text style={styles.viewButtonText}>View</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.restoreButton]}
+                  onPress={() => handleRestore(listing.id)}
+                  activeOpacity={0.7}
+                >
+                  <RotateCcw size={16} color={colors.primary} />
+                  <Text style={[styles.toggleButtonText, { color: colors.primary }]}>Restore</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteButton]}
+                  onPress={() => deleteListing(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={16} color={colors.error} />
+                </TouchableOpacity>
+              </>
+            )}
+
           </View>
         </View>
       </View>
@@ -272,6 +393,7 @@ export default function MyListingsScreen() {
   const activeCount = listings.filter(l => l.status === 'Active').length;
   const pausedCount = listings.filter(l => l.status === 'Paused').length;
   const draftCount = listings.filter(l => l.status === 'Draft').length;
+  const archivedCount = listings.filter(l => l.status === 'Archived').length;
 
   return (
     <View style={styles.container}>
@@ -332,6 +454,17 @@ export default function MyListingsScreen() {
             <View style={[styles.filterDot, { backgroundColor: colors.textLight }]} />
             <Text style={[styles.filterText, filter === 'draft' && styles.filterTextActive]}>
               Drafts ({draftCount})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.filterChip, filter === 'archived' && styles.filterChipActive]}
+            onPress={() => setFilter('archived')}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.filterDot, { backgroundColor: colors.error }]} />
+            <Text style={[styles.filterText, filter === 'archived' && styles.filterTextActive]}>
+              Archived ({archivedCount})
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -578,6 +711,18 @@ const styles = StyleSheet.create({
   },
   activateButton: {
     backgroundColor: `${colors.success}10`,
+  },
+  publishButton: {
+    flex: 1,
+    backgroundColor: `${colors.success}10`,
+  },
+  archiveButton: {
+    paddingHorizontal: spacing.md,
+    backgroundColor: `${colors.textSecondary}10`,
+  },
+  restoreButton: {
+    flex: 1,
+    backgroundColor: `${colors.primary}10`,
   },
   toggleButtonText: {
     fontSize: fontSize.sm,

@@ -76,6 +76,16 @@ export default function ListingDetailScreen() {
       return;
     }
 
+    if (listingData.status !== 'Active' && listingData.provider_id !== profile?.id) {
+      Alert.alert(
+        'Listing Unavailable',
+        'This listing is no longer available.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+      setLoading(false);
+      return;
+    }
+
     setListing(listingData);
 
     const { data: providerData } = await supabase
