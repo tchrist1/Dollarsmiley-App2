@@ -560,9 +560,12 @@ export default function AIPhotoAssistModal({
             {generatedImages.length > 0 && !loading && (
               <View style={styles.resultContainer}>
                 <View style={styles.resultHeader}>
-                  <Text style={styles.resultLabel}>
-                    Generated {generatedImages.length === 1 ? 'Photo' : 'Photos'}
-                  </Text>
+                  <View style={styles.resultLabelContainer}>
+                    <Text style={styles.resultLabel}>
+                      Generated {generatedImages.length === 1 ? 'Photo' : 'Photos'}.{' '}
+                      <Text style={styles.resultLabelHint}>Tap photo to select.</Text>
+                    </Text>
+                  </View>
                   {generatedImages.length > 1 && (
                     <Text style={styles.selectionCount}>
                       {selectedPhotos.size} selected
@@ -637,12 +640,6 @@ export default function AIPhotoAssistModal({
                       </TouchableOpacity>
                     ))}
                   </View>
-                )}
-
-                {generatedImages.length > 1 && (
-                  <Text style={styles.selectionHint}>
-                    Tap photos to select. You can add up to {remainingSlots} more.
-                  </Text>
                 )}
 
                 {currentImage?.revisedPrompt && (
@@ -868,10 +865,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  resultLabelContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
   resultLabel: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text,
+    flexWrap: 'wrap',
+  },
+  resultLabelHint: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.regular,
+    color: colors.textSecondary,
+    opacity: 0.7,
   },
   selectionCount: {
     fontSize: fontSize.sm,
@@ -954,12 +962,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  selectionHint: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: spacing.md,
   },
   revisedPromptContainer: {
     backgroundColor: colors.surface,
