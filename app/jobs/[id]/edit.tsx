@@ -415,8 +415,8 @@ export default function EditJobScreen() {
 
           <DatePicker
             label="Execution Date"
-            date={executionDate}
-            onDateChange={setExecutionDate}
+            value={executionDate}
+            onChange={setExecutionDate}
             error={errors.date}
             minimumDate={new Date()}
           />
