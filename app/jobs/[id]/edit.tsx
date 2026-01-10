@@ -86,7 +86,7 @@ export default function EditJobScreen() {
     setBudgetMax(data.budget_max?.toString() || '');
     setPricingType(data.pricing_type || 'quote_based');
     setFixedPrice(data.fixed_price?.toString() || '');
-    setEstimatedDuration(data.estimated_duration?.toString() || '');
+    setEstimatedDuration(data.estimated_duration_hours?.toString() || '');
 
     setAddress({
       street_address: data.street_address || '',
@@ -222,7 +222,7 @@ export default function EditJobScreen() {
         time_window_start: timeWindowStart,
         time_window_end: timeWindowEnd,
         photos: photos.length > 0 ? JSON.stringify(photos) : null,
-        estimated_duration: estimatedDuration ? parseFloat(estimatedDuration) : null,
+        estimated_duration_hours: estimatedDuration ? parseFloat(estimatedDuration) : null,
       };
 
       if (pricingType === 'fixed_price') {

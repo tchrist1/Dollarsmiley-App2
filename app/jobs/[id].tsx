@@ -45,7 +45,7 @@ interface Job {
   preferred_time: string | null;
   time_window_start: string | null;
   time_window_end: string | null;
-  estimated_duration: number | null;
+  estimated_duration_hours: number | null;
   status: string;
   photos: any;
   created_at: string;
@@ -403,13 +403,13 @@ export default function JobDetailScreen() {
               </View>
             </View>
 
-            {job.estimated_duration && (
+            {job.estimated_duration_hours && (
               <View style={styles.detailRow}>
                 <Clock size={20} color={colors.primary} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Estimated Duration</Text>
                   <Text style={styles.detailValue}>
-                    {`${job.estimated_duration} ${job.estimated_duration === 1 ? 'hour' : 'hours'}`}
+                    {`${job.estimated_duration_hours} ${job.estimated_duration_hours === 1 ? 'hour' : 'hours'}`}
                   </Text>
                 </View>
               </View>

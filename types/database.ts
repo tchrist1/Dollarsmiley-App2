@@ -120,6 +120,7 @@ export interface Job {
   id: string;
   customer_id: string;
   category_id: string;
+  subcategory_id?: string;
   title: string;
   description: string;
   pricing_type: 'fixed_price' | 'quote_based';
@@ -127,11 +128,19 @@ export interface Job {
   budget_min?: number;
   budget_max?: number;
   location: string;
+  street_address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  country?: string;
   latitude?: number;
   longitude?: number;
   execution_date_start: string;
   execution_date_end?: string;
   preferred_time?: PreferredTime;
+  time_window_start?: string;
+  time_window_end?: string;
+  estimated_duration_hours?: number;
   photos: string[];
   status: JobStatus;
   expires_at?: string;
