@@ -266,11 +266,11 @@ export default function NativeInteractiveMapView({
               </View>
             )}
           </View>
-          {marker.rating && (
+          {marker.rating !== undefined && marker.rating !== null && (
             <View style={[styles.markerPrice, isSelected && styles.markerPriceSelected]}>
               <Star size={8} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
               <Text style={[styles.markerPriceText, isSelected && styles.markerPriceTextSelected]}>
-                {marker.rating.toFixed(1)}
+                {typeof marker.rating === 'number' ? marker.rating.toFixed(1) : String(marker.rating)}
               </Text>
             </View>
           )}
@@ -302,10 +302,10 @@ export default function NativeInteractiveMapView({
           />
         </View>
         <View style={[styles.markerPointer, { borderTopColor: config.bubbleColor }]} />
-        {marker.price && (
+        {marker.price !== undefined && marker.price !== null && (
           <View style={[styles.markerPrice, { borderColor: config.bubbleColor, backgroundColor: isSelected ? config.bubbleColor : colors.white }, isSelected && styles.markerPriceSelected]}>
             <Text style={[styles.markerPriceText, { color: isSelected ? colors.white : config.bubbleColor }, isSelected && styles.markerPriceTextSelected]}>
-              {formatCurrency(marker.price)}
+              {typeof marker.price === 'number' ? formatCurrency(marker.price) : String(marker.price)}
             </Text>
           </View>
         )}
@@ -528,15 +528,17 @@ export default function NativeInteractiveMapView({
 
             {selectedMarker.type === 'provider' ? (
               <>
-                {selectedMarker.rating !== undefined && (
+                {selectedMarker.rating !== undefined && selectedMarker.rating !== null && (
                   <View style={styles.providerRatingRow}>
                     <View style={styles.providerRatingStars}>
                       <Star size={16} color={colors.warning} fill={colors.warning} />
-                      <Text style={styles.providerRatingValue}>{selectedMarker.rating.toFixed(1)}</Text>
+                      <Text style={styles.providerRatingValue}>
+                        {typeof selectedMarker.rating === 'number' ? selectedMarker.rating.toFixed(1) : String(selectedMarker.rating)}
+                      </Text>
                     </View>
-                    {selectedMarker.reviewCount !== undefined && (
+                    {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
                       <Text style={styles.providerReviewCount}>
-                        ({selectedMarker.reviewCount} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                        ({typeof selectedMarker.reviewCount === 'number' ? selectedMarker.reviewCount : String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
                       </Text>
                     )}
                   </View>
@@ -546,7 +548,9 @@ export default function NativeInteractiveMapView({
                   <View style={styles.providerCategories}>
                     {selectedMarker.categories.slice(0, 3).map((category, index) => (
                       <View key={index} style={styles.providerCategoryBadge}>
-                        <Text style={styles.providerCategoryText}>{String(category || '')}</Text>
+                        <Text style={styles.providerCategoryText}>
+                          {typeof category === 'string' ? category : String(category || '')}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -556,21 +560,30 @@ export default function NativeInteractiveMapView({
                   {selectedMarker.responseTime && (
                     <View style={styles.providerStat}>
                       <Clock size={14} color={colors.textSecondary} />
-                      <Text style={styles.providerStatText}>{selectedMarker.responseTime}</Text>
+                      <Text style={styles.providerStatText}>
+                        {String(selectedMarker.responseTime)}
+                      </Text>
                     </View>
                   )}
-                  {selectedMarker.completionRate !== undefined && (
+                  {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && (
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
-                      <Text style={styles.providerStatText}>{selectedMarker.completionRate}%</Text>
+                      <Text style={styles.providerStatText}>
+                        {typeof selectedMarker.completionRate === 'number' ? selectedMarker.completionRate : String(selectedMarker.completionRate)}%
+                      </Text>
                     </View>
                   )}
                 </View>
               </>
             ) : (
               <View style={styles.markerInfoDetails}>
-                {selectedMarker.price && (
-                  <Text style={styles.markerInfoPrice}>${Math.round(selectedMarker.price).toLocaleString('en-US')}</Text>
+                {selectedMarker.price !== undefined && selectedMarker.price !== null && (
+                  <Text style={styles.markerInfoPrice}>
+                    {typeof selectedMarker.price === 'number'
+                      ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
+                      : String(selectedMarker.price)
+                    }
+                  </Text>
                 )}
               </View>
             )}
@@ -595,7 +608,9 @@ export default function NativeInteractiveMapView({
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statText}>Zoom: {zoomLevel.toFixed(1)}</Text>
+          <Text style={styles.statText}>
+            Zoom: {typeof zoomLevel === 'number' ? zoomLevel.toFixed(1) : '0.0'}
+          </Text>
         </View>
       </View>
     </View>
@@ -719,6 +734,9 @@ const styles = StyleSheet.create({
   },
   markerPrice: {
     marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.white,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
@@ -787,7 +805,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    ...shadows.xl,
+    ...shadows.lg,
     maxWidth: 400,
   },
   styleSelectorHeader: {
