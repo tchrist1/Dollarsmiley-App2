@@ -11,6 +11,7 @@ import {
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { CustomServiceOption } from '../types/database';
 import { ValueAddedServicesManager } from '../lib/value-added-services';
+import { colors } from '../constants/theme';
 
 interface Props {
   listingId: string;
@@ -499,7 +500,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -508,20 +509,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addButtonText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
   },
   saveButton: {
-    backgroundColor: '#34C759',
+    backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 32,
   },
   saveButtonText: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 16,
     fontWeight: '700',
   },
