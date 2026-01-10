@@ -662,7 +662,7 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeGoBack('/(tabs)/messages')} style={styles.backButton}>
+        <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>

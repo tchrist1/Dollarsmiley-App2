@@ -438,7 +438,7 @@ export default function WalletScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeGoBack('/(tabs)/profile')} style={styles.backButton}>
+        <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Wallet</Text>

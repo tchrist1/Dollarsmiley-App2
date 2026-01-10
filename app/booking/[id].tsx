@@ -528,7 +528,7 @@ export default function BookingDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack('/bookings')}>
+        <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>

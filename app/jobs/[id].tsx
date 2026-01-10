@@ -311,7 +311,7 @@ export default function JobDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack('/jobs')}>
+        <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Job Details</Text>

@@ -332,7 +332,7 @@ export default function ListingDetailScreen() {
           )}
 
           <View style={styles.photoOverlay}>
-            <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack()}>
+            <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
               <ArrowLeft size={24} color={colors.white} />
             </TouchableOpacity>
             <View style={styles.photoActions}>

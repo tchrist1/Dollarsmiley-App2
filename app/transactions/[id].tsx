@@ -161,7 +161,7 @@ export default function PaymentDetailsScreen() {
             headerShown: true,
             title: 'Payment Details',
             headerLeft: () => (
-              <TouchableOpacity onPress={() => safeGoBack('/transactions')}>
+              <TouchableOpacity onPress={safeGoBack}>
                 <ArrowLeft size={24} color={colors.text} />
               </TouchableOpacity>
             ),
@@ -183,7 +183,7 @@ export default function PaymentDetailsScreen() {
             headerShown: true,
             title: 'Payment Details',
             headerLeft: () => (
-              <TouchableOpacity onPress={() => safeGoBack('/transactions')}>
+              <TouchableOpacity onPress={safeGoBack}>
                 <ArrowLeft size={24} color={colors.text} />
               </TouchableOpacity>
             ),

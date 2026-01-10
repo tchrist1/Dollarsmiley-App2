@@ -1,21 +1,24 @@
 import { router } from 'expo-router';
 
 /**
- * Navigates back to the previous screen.
- * Uses router.back() to return to the immediately previous screen in the navigation stack.
+ * Navigates back to the previous screen in the navigation stack.
  *
- * This function ignores any fallback routes and always uses router.back().
- * Expo Router maintains its own navigation stack, and router.back() will:
- * - Go to the previous screen if there is navigation history
- * - Stay on the current screen if there's no history (edge case)
- * - Never force navigation to Home unless Home was actually the previous screen
+ * This function uses Expo Router's built-in `router.back()` which:
+ * - Navigates to the immediately previous screen if there is navigation history
+ * - Stays on the current screen if there's no history (edge case)
+ * - NEVER forces navigation to Home unless Home was actually the previous screen
+ *
+ * This ensures consistent back navigation behavior across the entire app,
+ * preventing unexpected jumps to the Home screen.
  *
  * Usage:
  * ```tsx
  * import { safeGoBack } from '@/lib/navigation-utils';
- * <TouchableOpacity onPress={() => safeGoBack()}>
+ * <TouchableOpacity onPress={safeGoBack}>
+ *   <ArrowLeft size={24} />
+ * </TouchableOpacity>
  * ```
  */
-export function safeGoBack(_fallbackRoute?: string) {
+export function safeGoBack() {
   router.back();
 }

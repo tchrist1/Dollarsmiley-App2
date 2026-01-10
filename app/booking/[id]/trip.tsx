@@ -268,7 +268,7 @@ export default function TripTrackingScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(`/booking/${id}`)}>
+          <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
             <ArrowLeft size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Trip Tracking</Text>
@@ -288,7 +288,7 @@ export default function TripTrackingScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(`/booking/${id}`)}>
+        <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Trip Tracking</Text>

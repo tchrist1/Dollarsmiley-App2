@@ -174,7 +174,7 @@ export default function RefundHistoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack('/(tabs)/profile')}>
+        <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Refund History</Text>

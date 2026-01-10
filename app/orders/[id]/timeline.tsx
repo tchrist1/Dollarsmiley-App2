@@ -254,7 +254,7 @@ export default function OrderTimelineScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(`/orders/${id}`)}>
+        <TouchableOpacity style={styles.backButton} onPress={safeGoBack}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerContent}>

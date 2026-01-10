@@ -133,7 +133,7 @@ export default function AdminUserActionsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => safeGoBack('/admin')} style={styles.backButton}>
+        <TouchableOpacity onPress={safeGoBack} style={styles.backButton}>
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title}>User Actions</Text>

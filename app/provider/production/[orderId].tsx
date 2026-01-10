@@ -282,7 +282,7 @@ export default function ProviderProductionOrderDetail() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => safeGoBack('/provider/production')}
+          onPress={safeGoBack}
         >
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
