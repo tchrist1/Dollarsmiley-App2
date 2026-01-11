@@ -22,8 +22,8 @@ interface CustomerProfile {
 interface Job {
   id: string;
   title: string;
-  budget_type: string;
-  budget: number;
+  pricing_type: string;
+  fixed_price: number | null;
   status: string;
   photos: string[];
   time_window_start: string;
@@ -152,7 +152,11 @@ export default function CustomerJobBoardScreen() {
 
           <View style={styles.priceRow}>
             <Text style={styles.priceText}>
-              {job.budget_type === 'Fixed' ? formatCurrency(job.budget) : 'Quote Required'}
+              {job.pricing_type === 'fixed_price' && job.fixed_price
+                ? formatCurrency(job.fixed_price)
+                : job.pricing_type === 'quote_based'
+                ? 'Quote Required'
+                : 'Price Not Set'}
             </Text>
           </View>
 
