@@ -1307,29 +1307,44 @@ export default function CreateListingScreen() {
           </View>
         )}
 
-        {listingId && listingType === 'CustomService' && (
+        {listingType === 'CustomService' && (
           <View style={styles.customOptionsSection}>
-            <CustomServiceOptionsForm
-              listingId={listingId}
-              onSave={() => {
-                Alert.alert(
-                  'Options Saved!',
-                  'Your custom service options have been saved successfully.',
-                  [
-                    {
-                      text: 'Create Another Listing',
-                      onPress: () => {
-                        clearAllFields();
+            <View style={styles.customOptionsSectionHeader}>
+              <Text style={styles.customOptionsSectionTitle}>Custom Service Options</Text>
+              <Text style={styles.customOptionsSectionSubtitle}>
+                Let customers personalize their orders with custom options
+              </Text>
+            </View>
+
+            {!listingId ? (
+              <View style={styles.customOptionsPlaceholder}>
+                <Text style={styles.placeholderText}>
+                  Publish or save as draft to add custom options like size, color, material, etc.
+                </Text>
+              </View>
+            ) : (
+              <CustomServiceOptionsForm
+                listingId={listingId}
+                onSave={() => {
+                  Alert.alert(
+                    'Options Saved!',
+                    'Your custom service options have been saved successfully.',
+                    [
+                      {
+                        text: 'Create Another Listing',
+                        onPress: () => {
+                          clearAllFields();
+                        },
                       },
-                    },
-                    {
-                      text: 'View My Listings',
-                      onPress: () => router.push('/provider/my-listings' as any),
-                    },
-                  ]
-                );
-              }}
-            />
+                      {
+                        text: 'View My Listings',
+                        onPress: () => router.push('/provider/my-listings' as any),
+                      },
+                    ]
+                  );
+                }}
+              />
+            )}
           </View>
         )}
       </ScrollView>
@@ -1568,6 +1583,39 @@ const styles = StyleSheet.create({
   },
   customOptionsSection: {
     marginTop: spacing.lg,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  customOptionsSectionHeader: {
+    marginBottom: spacing.md,
+  },
+  customOptionsSectionTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  customOptionsSectionSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  customOptionsPlaceholder: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  placeholderText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   buttonContainer: {
     marginTop: spacing.lg,
