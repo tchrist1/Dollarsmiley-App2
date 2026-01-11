@@ -16,9 +16,10 @@ import { colors } from '../constants/theme';
 interface Props {
   listingId: string;
   onSave?: () => void;
+  embedded?: boolean;
 }
 
-export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
+export default function CustomServiceOptionsForm({ listingId, onSave, embedded = false }: Props) {
   const [options, setOptions] = useState<CustomServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOptions, setExpandedOptions] = useState<Set<string>>(new Set());
@@ -137,14 +138,16 @@ export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
 
   if (loading && options.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={embedded ? styles.embeddedContainer : styles.container}>
         <Text style={styles.loadingText}>Loading options...</Text>
       </View>
     );
   }
 
+  const Container = embedded ? View : ScrollView;
+
   return (
-    <ScrollView style={styles.container}>
+    <Container style={embedded ? styles.embeddedContainer : styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Custom Service Options</Text>
         <Text style={styles.subtitle}>
@@ -303,13 +306,17 @@ export default function CustomServiceOptionsForm({ listingId, onSave }: Props) {
           {loading ? 'Saving...' : 'Save Options'}
         </Text>
       </TouchableOpacity>
-    </ScrollView>
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 16,
+    backgroundColor: '#F5F5F5',
+  },
+  embeddedContainer: {
     padding: 16,
     backgroundColor: '#F5F5F5',
   },

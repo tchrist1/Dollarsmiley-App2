@@ -1311,6 +1311,7 @@ export default function CreateListingScreen() {
           <View style={styles.customOptionsSection}>
             <CustomServiceOptionsForm
               listingId={listingId}
+              embedded={true}
               onSave={() => {
                 Alert.alert(
                   'Options Saved!',
