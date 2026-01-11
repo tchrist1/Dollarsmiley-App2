@@ -1650,7 +1650,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   addOptionButton: {
-    backgroundColor: colors.info,
+    backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
