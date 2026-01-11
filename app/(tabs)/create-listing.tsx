@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Alert, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import { CategoryPicker } from '@/components/CategoryPicker';
 import { PhotoPicker } from '@/components/PhotoPicker';
 import { AvailabilityCalendar } from '@/components/AvailabilityCalendar';
 import CustomServiceOptionsForm from '@/components/CustomServiceOptionsForm';
+import CustomServiceOptionsFormAutoSave from '@/components/CustomServiceOptionsFormAutoSave';
 import AICategorySuggestion from '@/components/AICategorySuggestion';
 import AITitleDescriptionAssist from '@/components/AITitleDescriptionAssist';
 import AIPhotoAssistModal from '@/components/AIPhotoAssistModal';
@@ -67,6 +68,64 @@ export default function CreateListingScreen() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showAiPhotoModal, setShowAiPhotoModal] = useState(false);
+  const [autoSaveDraftCreated, setAutoSaveDraftCreated] = useState(false);
+  const [hasCustomOptions, setHasCustomOptions] = useState(false);
+
+  React.useEffect(() => {
+    if (listingType === 'CustomService' && !listingId && !autoSaveDraftCreated && profile) {
+      createAutoDraft();
+    }
+  }, [listingType, listingId, autoSaveDraftCreated, profile]);
+
+  const createAutoDraft = async () => {
+    if (!profile) return;
+
+    const newListingId = uuid.v4() as string;
+    setListingId(newListingId);
+
+    const minimalDraft: any = {
+      id: newListingId,
+      provider_id: profile.id,
+      category_id: null,
+      title: title.trim() || 'Untitled Custom Service',
+      description: description.trim() || '',
+      pricing_type: 'Fixed',
+      base_price: 0,
+      price: 0,
+      estimated_duration: null,
+      photos: [],
+      availability: JSON.stringify([]),
+      tags: [],
+      is_active: false,
+      status: 'Draft',
+      listing_type: 'CustomService',
+      requires_fulfilment: false,
+      requires_agreement: false,
+      requires_damage_deposit: false,
+      damage_deposit_amount: 0,
+      proofing_required: proofingRequired,
+      inventory_mode: 'none',
+      location: profile.location || null,
+      latitude: profile.latitude || null,
+      longitude: profile.longitude || null,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('service_listings')
+        .insert(minimalDraft);
+
+      if (error) {
+        console.error('Auto-draft creation error:', error);
+        setListingId(null);
+      } else {
+        setAutoSaveDraftCreated(true);
+      }
+    } catch (error) {
+      console.error('Auto-draft creation failed:', error);
+      setListingId(null);
+    }
+  };
 
   const hasFormData = () => {
     return (
@@ -135,6 +194,8 @@ export default function CreateListingScreen() {
     setErrors({});
     setShowAiPhotoModal(false);
     setLoading(false);
+    setAutoSaveDraftCreated(false);
+    setHasCustomOptions(false);
   };
 
   const handleClearAll = () => {
@@ -320,30 +381,42 @@ export default function CreateListingScreen() {
 
     setLoading(true);
 
-    const newListingId = uuid.v4() as string;
-    const listingData = await createListingData(newListingId, 'Draft');
+    const draftListingId = listingId || (uuid.v4() as string);
+    const listingData = await createListingData(draftListingId, 'Draft');
 
     if (!listingData) {
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase
-      .from('service_listings')
-      .insert(listingData);
+    let error;
+    if (listingId && autoSaveDraftCreated) {
+      const { error: updateError } = await supabase
+        .from('service_listings')
+        .update(listingData)
+        .eq('id', listingId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('service_listings')
+        .insert(listingData);
+      error = insertError;
+    }
 
     if (error) {
       setLoading(false);
       Alert.alert('Error', 'Failed to save draft. Please try again.');
-      console.error('Draft creation error:', error);
+      console.error('Draft save error:', error);
       return;
     }
 
-    setListingId(newListingId);
+    if (!listingId) {
+      setListingId(draftListingId);
+    }
 
     if (requiresFulfilment && fulfillmentType.length > 0) {
       const fulfillmentOptions = fulfillmentType.map(type => ({
-        listing_id: newListingId,
+        listing_id: draftListingId,
         fulfillment_type: type,
         is_active: true,
       }));
@@ -403,8 +476,6 @@ export default function CreateListingScreen() {
       return;
     }
 
-    const newListingId = uuid.v4() as string;
-
     const validationResult = validateListingForPublish({
       title,
       category_id: categoryId,
@@ -422,29 +493,42 @@ export default function CreateListingScreen() {
 
     setLoading(true);
 
-    const listingData = await createListingData(newListingId, 'Active');
+    const publishListingId = listingId || (uuid.v4() as string);
+    const listingData = await createListingData(publishListingId, 'Active');
 
     if (!listingData) {
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase
-      .from('service_listings')
-      .insert(listingData);
+    let error;
+    if (listingId && autoSaveDraftCreated) {
+      const { error: updateError } = await supabase
+        .from('service_listings')
+        .update(listingData)
+        .eq('id', listingId);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from('service_listings')
+        .insert(listingData);
+      error = insertError;
+    }
 
     if (error) {
       setLoading(false);
-      Alert.alert('Error', 'Failed to create listing. Please try again.');
-      console.error('Listing creation error:', error);
+      Alert.alert('Error', 'Failed to publish listing. Please try again.');
+      console.error('Listing publish error:', error);
       return;
     }
 
-    setListingId(newListingId);
+    if (!listingId) {
+      setListingId(publishListingId);
+    }
 
     if (requiresFulfilment && fulfillmentType.length > 0) {
       const fulfillmentOptions = fulfillmentType.map(type => ({
-        listing_id: newListingId,
+        listing_id: publishListingId,
         fulfillment_type: type,
         is_active: true,
       }));
@@ -462,34 +546,20 @@ export default function CreateListingScreen() {
 
     if (listingType === 'CustomService') {
       Alert.alert(
-        'Service Created!',
-        'Your custom service has been published. Add custom options to let customers personalize their order.',
+        'Custom Service Published!',
+        hasCustomOptions
+          ? 'Your custom service is now live with customization options.'
+          : 'Your custom service is now live. Customers can book it immediately.',
         [
           {
-            text: 'Add Options Now',
-            onPress: () => router.push(`/listing/${newListingId}/edit-options` as any),
+            text: 'Create Another Listing',
+            onPress: () => {
+              clearAllFields();
+            },
           },
           {
-            text: 'Skip for Now',
-            style: 'cancel',
-            onPress: () => {
-              Alert.alert(
-                'What would you like to do next?',
-                '',
-                [
-                  {
-                    text: 'Create Another Listing',
-                    onPress: () => {
-                      clearAllFields();
-                    },
-                  },
-                  {
-                    text: 'View My Listings',
-                    onPress: () => router.push('/provider/my-listings' as any),
-                  },
-                ]
-              );
-            },
+            text: 'View My Listings',
+            onPress: () => router.push('/provider/my-listings' as any),
           },
         ]
       );
@@ -1285,70 +1355,28 @@ export default function CreateListingScreen() {
               <Text style={styles.customOptionsSectionSubtitle}>
                 Add customization options for customers to choose from
               </Text>
+              {autoSaveDraftCreated && (
+                <View style={styles.draftSavedBadge}>
+                  <Text style={styles.draftSavedText}>Draft saved automatically</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.helperBox}>
+              <Text style={styles.helperBoxText}>
+                Custom options help customers personalize their order and reduce back-and-forth. Examples: size, color, material, quantity, add-ons.
+              </Text>
             </View>
 
             {listingId ? (
-              <CustomServiceOptionsForm
+              <CustomServiceOptionsFormAutoSave
                 listingId={listingId}
-                onSave={() => {
-                  Alert.alert(
-                    'Options Saved!',
-                    'Your custom service options have been saved successfully.',
-                    [
-                      {
-                        text: 'Create Another Listing',
-                        onPress: () => {
-                          clearAllFields();
-                        },
-                      },
-                      {
-                        text: 'View My Listings',
-                        onPress: () => router.push('/provider/my-listings' as any),
-                      },
-                    ]
-                  );
-                }}
+                onOptionsChange={setHasCustomOptions}
               />
             ) : (
-              <View style={styles.customOptionsInlineForm}>
-                <TouchableOpacity
-                  style={styles.addOptionButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Save as Draft First',
-                      'Please save your listing as a draft first, then you can add custom options.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Save Draft',
-                          onPress: handleSaveDraft,
-                        },
-                      ]
-                    );
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.addOptionButtonText}>+ Add Custom Option</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveOptionsButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Save as Draft First',
-                      'Please save your listing as a draft first, then you can add custom options.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Save Draft',
-                          onPress: handleSaveDraft,
-                        },
-                      ]
-                    );
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.saveOptionsButtonText}>Save Options</Text>
-                </TouchableOpacity>
+              <View style={styles.loadingOptionsContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingOptionsText}>Preparing options...</Text>
               </View>
             )}
           </View>
@@ -1646,34 +1674,42 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderStyle: 'dashed',
   },
-  customOptionsInlineForm: {
-    gap: spacing.md,
+  draftSavedBadge: {
+    backgroundColor: colors.success,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.xs,
+    alignSelf: 'flex-start',
   },
-  addOptionButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addOptionButtonText: {
+  draftSavedText: {
     color: colors.white,
-    fontSize: fontSize.md,
+    fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
   },
-  saveOptionsButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+  helperBox: {
+    backgroundColor: colors.surface,
+    padding: spacing.md,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  helperBoxText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  loadingOptionsContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
   },
-  saveOptionsButtonText: {
-    color: colors.white,
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+  loadingOptionsText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
   placeholderText: {
     fontSize: fontSize.sm,
