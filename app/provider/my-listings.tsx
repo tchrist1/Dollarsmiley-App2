@@ -314,11 +314,19 @@ export default function MyListingsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.archiveButton]}
-                  onPress={() => handleArchive(listing.id, listing.title)}
+                  style={[styles.actionButton, styles.iconButton]}
+                  onPress={() => router.push(`/listing/${listing.id}` as any)}
                   activeOpacity={0.7}
                 >
-                  <Archive size={16} color={colors.textSecondary} />
+                  <Eye size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteIconButton]}
+                  onPress={() => deleteListing(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={20} color={colors.error} />
                 </TouchableOpacity>
               </>
             )}
@@ -344,11 +352,19 @@ export default function MyListingsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.archiveButton]}
-                  onPress={() => handleArchive(listing.id, listing.title)}
+                  style={[styles.actionButton, styles.iconButton]}
+                  onPress={() => router.push(`/listing/${listing.id}` as any)}
                   activeOpacity={0.7}
                 >
-                  <Archive size={16} color={colors.textSecondary} />
+                  <Eye size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteIconButton]}
+                  onPress={() => deleteListing(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Trash2 size={20} color={colors.error} />
                 </TouchableOpacity>
               </>
             )}
@@ -731,6 +747,19 @@ const styles = StyleSheet.create({
   viewButton: {
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
+  },
+  viewButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium as any,
+    color: colors.textSecondary,
+  },
+  iconButton: {
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.background,
+  },
+  deleteIconButton: {
+    paddingHorizontal: spacing.md,
+    backgroundColor: `${colors.error}10`,
   },
   deleteButton: {
     paddingHorizontal: spacing.md,
