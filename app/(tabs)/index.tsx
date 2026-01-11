@@ -896,13 +896,25 @@ export default function HomeScreen() {
               >
                 <View style={styles.carouselCardContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                    <Text style={styles.carouselCardTitle} numberOfLines={2}>
-                      {item.title}
+                    {profile?.avatar_url ? (
+                      <Image source={{ uri: profile.avatar_url }} style={styles.carouselAvatar} />
+                    ) : (
+                      <View style={[styles.carouselAvatar, styles.carouselAvatarPlaceholder]}>
+                        <Text style={styles.carouselAvatarText}>
+                          {(profile?.full_name || 'P').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.carouselAccountName} numberOfLines={1}>
+                      {profile?.full_name || 'Provider'}
                     </Text>
                     <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2 }}>
                       <Text style={{ color: '#fff', fontSize: 8, fontWeight: '600' }}>{typeLabel.text}</Text>
                     </View>
                   </View>
+                  <Text style={styles.carouselCardTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
                   <Text style={styles.carouselCardLocation} numberOfLines={1}>
                     {item.location || 'Remote'}
                   </Text>
@@ -1120,6 +1132,11 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+            {profile && (
+              <Text style={styles.gridAccountName} numberOfLines={1}>
+                {profile.full_name}
+              </Text>
+            )}
             {profile && profile.rating_average > 0 && (
               <View style={styles.gridRating}>
                 <Star size={10} color={colors.warning} fill={colors.warning} />
@@ -1226,11 +1243,25 @@ export default function HomeScreen() {
                     <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{carouselTypeLabel.text}</Text>
                   </View>
                   <View style={styles.embeddedCarouselCardContent}>
+                    <View style={styles.embeddedCarouselProfileRow}>
+                      {(carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url) ? (
+                        <Image
+                          source={{ uri: carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url }}
+                          style={styles.embeddedCarouselAvatar}
+                        />
+                      ) : (
+                        <View style={[styles.embeddedCarouselAvatar, styles.embeddedCarouselAvatarPlaceholder]}>
+                          <Text style={styles.embeddedCarouselAvatarText}>
+                            {(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'P').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
+                        {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
+                      </Text>
+                    </View>
                     <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
                       {carouselItem.title}
-                    </Text>
-                    <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
-                      {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
                     </Text>
                     <View style={styles.embeddedCarouselCardFooter}>
                       <Text style={styles.embeddedCarouselCardPrice}>
@@ -1996,13 +2027,13 @@ const styles = StyleSheet.create({
   },
   gridHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
   gridAvatar: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: borderRadius.full,
   },
   gridAvatarPlaceholder: {
@@ -2014,6 +2045,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.white,
+  },
+  gridAccountName: {
+    fontSize: 13,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    flex: 1,
   },
   gridRating: {
     flexDirection: 'row',
@@ -2165,7 +2202,28 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   carouselCardContent: {
-    padding: spacing.md,
+    padding: spacing.sm,
+  },
+  carouselAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: borderRadius.full,
+  },
+  carouselAvatarPlaceholder: {
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  carouselAvatarText: {
+    fontSize: 10,
+    fontWeight: fontWeight.semibold,
+    color: colors.white,
+  },
+  carouselAccountName: {
+    fontSize: 11,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+    flex: 1,
   },
   carouselCardTitle: {
     fontSize: fontSize.sm,
@@ -2256,6 +2314,27 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     minHeight: 140,
   },
+  embeddedCarouselProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  embeddedCarouselAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: borderRadius.full,
+  },
+  embeddedCarouselAvatarPlaceholder: {
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  embeddedCarouselAvatarText: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: colors.white,
+  },
   embeddedCarouselCardTitle: {
     fontSize: 15,
     fontWeight: '600' as const,
@@ -2267,7 +2346,8 @@ const styles = StyleSheet.create({
   embeddedCarouselCardProvider: {
     fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
+    fontWeight: fontWeight.medium,
+    flex: 1,
   },
   embeddedCarouselCardFooter: {
     flexDirection: 'row',
