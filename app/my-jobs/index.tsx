@@ -91,7 +91,18 @@ export default function MyJobsScreen() {
 
     setLoading(true);
 
-    let query = supabase
+    // Determine which statuses to fetch based on filter
+    let statuses: string[] = [];
+    if (filter === 'active') {
+      statuses = ['Open', 'Booked'];
+    } else if (filter === 'completed') {
+      statuses = ['Completed'];
+    } else if (filter === 'expired') {
+      statuses = ['Expired', 'Cancelled'];
+    }
+
+    // Fetch jobs where user is the customer
+    let customerQuery = supabase
       .from('jobs')
       .select(
         `
@@ -109,17 +120,69 @@ export default function MyJobsScreen() {
       )
       .eq('customer_id', profile.id);
 
-    if (filter === 'active') {
-      query = query.in('status', ['Open', 'Booked']);
-    } else if (filter === 'completed') {
-      query = query.eq('status', 'Completed');
-    } else if (filter === 'expired') {
-      query = query.eq('status', 'Expired');
+    if (statuses.length > 0) {
+      customerQuery = customerQuery.in('status', statuses);
     }
 
-    query = query.order('created_at', { ascending: false });
+    customerQuery = customerQuery.order('created_at', { ascending: false });
 
-    const { data, error } = await query;
+    const { data: customerJobs, error: customerError } = await customerQuery;
+
+    // Fetch jobs where user is a provider (through bookings)
+    // First, get all job IDs where user has bookings
+    const { data: userBookings } = await supabase
+      .from('bookings')
+      .select('job_id, id, can_review, review_submitted, status')
+      .eq('provider_id', profile.id);
+
+    let providerJobs: any[] = [];
+    if (userBookings && userBookings.length > 0) {
+      const jobIds = Array.from(new Set(userBookings.map(b => b.job_id)));
+
+      let providerQuery = supabase
+        .from('jobs')
+        .select(
+          `
+          *,
+          categories(name),
+          bookings!inner(
+            id,
+            can_review,
+            review_submitted,
+            provider_id,
+            status,
+            provider:profiles!provider_id(full_name)
+          )
+        `
+        )
+        .in('id', jobIds);
+
+      if (statuses.length > 0) {
+        providerQuery = providerQuery.in('status', statuses);
+      }
+
+      const { data: providerJobsData } = await providerQuery;
+      providerJobs = providerJobsData || [];
+    }
+
+    // Combine customer and provider jobs, removing duplicates
+    const allJobs = customerJobs || [];
+    const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+
+    // Add provider jobs that aren't already in the list
+    for (const job of providerJobs) {
+      if (!jobIdsMap.has(job.id)) {
+        jobIdsMap.set(job.id, job);
+      }
+    }
+
+    const combinedJobs = Array.from(jobIdsMap.values());
+
+    // Sort by created_at descending
+    combinedJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    const data = combinedJobs;
+    const error = customerError;
 
     if (data && !error) {
       const jobsWithCounts = await Promise.all(
@@ -383,13 +446,19 @@ export default function MyJobsScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <PlusCircle size={64} color={colors.textLight} />
-      <Text style={styles.emptyTitle}>No jobs {filter === 'active' ? 'posted' : filter}</Text>
+      <Text style={styles.emptyTitle}>
+        {filter === 'active'
+          ? 'No active jobs'
+          : filter === 'completed'
+          ? 'No completed jobs'
+          : 'No expired or cancelled jobs'}
+      </Text>
       <Text style={styles.emptyText}>
         {filter === 'active'
-          ? 'Post a job to get quotes from local service providers'
+          ? 'Jobs you posted or are working on will appear here'
           : filter === 'completed'
           ? 'Your completed jobs will appear here'
-          : 'Expired jobs will be listed here'}
+          : 'Expired and cancelled jobs will be listed here'}
       </Text>
       {filter === 'active' && (
         <Button
@@ -406,7 +475,7 @@ export default function MyJobsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>My Jobs</Text>
-          <Text style={styles.subtitle}>Track and manage your job postings</Text>
+          <Text style={styles.subtitle}>Jobs you posted and jobs you're working on</Text>
         </View>
         <TouchableOpacity
           style={styles.analyticsButton}
