@@ -1278,6 +1278,82 @@ export default function CreateListingScreen() {
           </View>
         )}
 
+        {listingType === 'CustomService' && (
+          <View style={styles.customOptionsSection}>
+            <View style={styles.customOptionsSectionHeader}>
+              <Text style={styles.customOptionsSectionTitle}>Custom Service Options</Text>
+              <Text style={styles.customOptionsSectionSubtitle}>
+                Add customization options for customers to choose from
+              </Text>
+            </View>
+
+            {listingId ? (
+              <CustomServiceOptionsForm
+                listingId={listingId}
+                onSave={() => {
+                  Alert.alert(
+                    'Options Saved!',
+                    'Your custom service options have been saved successfully.',
+                    [
+                      {
+                        text: 'Create Another Listing',
+                        onPress: () => {
+                          clearAllFields();
+                        },
+                      },
+                      {
+                        text: 'View My Listings',
+                        onPress: () => router.push('/provider/my-listings' as any),
+                      },
+                    ]
+                  );
+                }}
+              />
+            ) : (
+              <View style={styles.customOptionsInlineForm}>
+                <TouchableOpacity
+                  style={styles.addOptionButton}
+                  onPress={() => {
+                    Alert.alert(
+                      'Save as Draft First',
+                      'Please save your listing as a draft first, then you can add custom options.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Save Draft',
+                          onPress: handleSaveDraft,
+                        },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.addOptionButtonText}>+ Add Custom Option</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveOptionsButton}
+                  onPress={() => {
+                    Alert.alert(
+                      'Save as Draft First',
+                      'Please save your listing as a draft first, then you can add custom options.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Save Draft',
+                          onPress: handleSaveDraft,
+                        },
+                      ]
+                    );
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.saveOptionsButtonText}>Save Options</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+
         <Text style={styles.smsOptInText}>
           I agree to receive SMS alerts about jobs, bookings, and account updates. Msg & data rates may apply. Reply STOP to opt out.
         </Text>
@@ -1304,47 +1380,6 @@ export default function CreateListingScreen() {
               variant="outline"
               style={styles.cancelButton}
             />
-          </View>
-        )}
-
-        {listingType === 'CustomService' && (
-          <View style={styles.customOptionsSection}>
-            <View style={styles.customOptionsSectionHeader}>
-              <Text style={styles.customOptionsSectionTitle}>Custom Service Options</Text>
-              <Text style={styles.customOptionsSectionSubtitle}>
-                Let customers personalize their orders with custom options
-              </Text>
-            </View>
-
-            {!listingId ? (
-              <View style={styles.customOptionsPlaceholder}>
-                <Text style={styles.placeholderText}>
-                  Publish or save as draft to add custom options like size, color, material, etc.
-                </Text>
-              </View>
-            ) : (
-              <CustomServiceOptionsForm
-                listingId={listingId}
-                onSave={() => {
-                  Alert.alert(
-                    'Options Saved!',
-                    'Your custom service options have been saved successfully.',
-                    [
-                      {
-                        text: 'Create Another Listing',
-                        onPress: () => {
-                          clearAllFields();
-                        },
-                      },
-                      {
-                        text: 'View My Listings',
-                        onPress: () => router.push('/provider/my-listings' as any),
-                      },
-                    ]
-                  );
-                }}
-              />
-            )}
           </View>
         )}
       </ScrollView>
@@ -1610,6 +1645,35 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
+  },
+  customOptionsInlineForm: {
+    gap: spacing.md,
+  },
+  addOptionButton: {
+    backgroundColor: colors.info,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addOptionButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+  },
+  saveOptionsButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveOptionsButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
   },
   placeholderText: {
     fontSize: fontSize.sm,
