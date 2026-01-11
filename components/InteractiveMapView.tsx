@@ -533,8 +533,12 @@ export default function InteractiveMapView({
             ) : (
               /* Listing content */
               <View style={styles.markerInfoDetails}>
-                {selectedMarker.price && (
-                  <Text style={styles.markerInfoPrice}>${Math.round(selectedMarker.price).toLocaleString('en-US')}</Text>
+                {(selectedMarker.price !== undefined || selectedMarker.listingType === 'Job') && (
+                  <Text style={styles.markerInfoPrice}>
+                    {selectedMarker.price !== undefined
+                      ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
+                      : 'Quote Required'}
+                  </Text>
                 )}
                 <View style={styles.markerInfoDistance}>
                   <Navigation size={12} color={colors.textSecondary} />

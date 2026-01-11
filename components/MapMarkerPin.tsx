@@ -75,7 +75,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
 
       <View style={[styles.pointer, { borderTopColor: config.bubbleColor }]} pointerEvents="none" />
 
-      {price !== undefined && (
+      {(price !== undefined || type === 'Job') && (
         <View
           style={[
             styles.priceTag,
@@ -92,7 +92,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
               { color: isSelected ? colors.white : config.bubbleColor },
             ]}
           >
-            {formatCurrency(price)}
+            {price !== undefined ? formatCurrency(price) : 'Quote Required'}
           </Text>
         </View>
       )}

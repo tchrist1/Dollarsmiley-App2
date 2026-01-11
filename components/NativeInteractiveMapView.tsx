@@ -302,10 +302,12 @@ export default function NativeInteractiveMapView({
           />
         </View>
         <View style={[styles.markerPointer, { borderTopColor: config.bubbleColor }]} />
-        {marker.price !== undefined && marker.price !== null && (
+        {((marker.price !== undefined && marker.price !== null) || marker.listingType === 'Job') && (
           <View style={[styles.markerPrice, { borderColor: config.bubbleColor, backgroundColor: isSelected ? config.bubbleColor : colors.white }, isSelected && styles.markerPriceSelected]}>
             <Text style={[styles.markerPriceText, { color: isSelected ? colors.white : config.bubbleColor }, isSelected && styles.markerPriceTextSelected]}>
-              {typeof marker.price === 'number' ? formatCurrency(marker.price) : String(marker.price)}
+              {marker.price !== undefined && marker.price !== null
+                ? (typeof marker.price === 'number' ? formatCurrency(marker.price) : String(marker.price))
+                : 'Quote Required'}
             </Text>
           </View>
         )}
@@ -577,11 +579,13 @@ export default function NativeInteractiveMapView({
               </>
             ) : (
               <View style={styles.markerInfoDetails}>
-                {selectedMarker.price !== undefined && selectedMarker.price !== null && (
+                {((selectedMarker.price !== undefined && selectedMarker.price !== null) || selectedMarker.listingType === 'Job') && (
                   <Text style={styles.markerInfoPrice}>
-                    {typeof selectedMarker.price === 'number'
-                      ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
-                      : String(selectedMarker.price)
+                    {selectedMarker.price !== undefined && selectedMarker.price !== null
+                      ? (typeof selectedMarker.price === 'number'
+                        ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
+                        : String(selectedMarker.price))
+                      : 'Quote Required'
                     }
                   </Text>
                 )}

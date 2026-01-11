@@ -791,12 +791,17 @@ export default function HomeScreen() {
         return hasCoords;
       })
       .map((listing) => {
-        let price = 0;
+        let price: number | undefined = 0;
         let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
 
         if (listing.marketplace_type === 'Job') {
-          price = listing.fixed_price || listing.budget_min || 0;
           listingType = 'Job';
+          // For quote-based jobs, set price to undefined to show "Quote Required"
+          if (listing.pricing_type === 'quote_based' || (!listing.fixed_price && !listing.budget_min)) {
+            price = undefined;
+          } else {
+            price = listing.fixed_price || listing.budget_min || 0;
+          }
         } else {
           price = listing.base_price || 0;
           listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
