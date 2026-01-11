@@ -823,7 +823,7 @@ export default function HomeScreen() {
 
   const handleMarkerPress = (marker: any) => {
     if (marker.type === 'provider') {
-      router.push(`/reviews/${marker.id}`);
+      router.push(`/provider/store/${marker.id}` as any);
     } else {
       const listing = listings.find((l) => l.id === marker.id);
       if (listing) {

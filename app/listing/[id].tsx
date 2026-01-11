@@ -24,6 +24,7 @@ import BadgeList from '@/components/BadgeList';
 import { Badge } from '@/components/VerificationBadge';
 import {
   ArrowLeft,
+  ArrowRight,
   Star,
   MapPin,
   Clock,
@@ -414,7 +415,11 @@ export default function ListingDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About the Provider</Text>
             <View style={styles.providerCard}>
-              <View style={styles.providerHeader}>
+              <TouchableOpacity
+                style={styles.providerHeader}
+                onPress={() => router.push(`/provider/store/${provider.id}` as any)}
+                activeOpacity={0.7}
+              >
                 <View style={styles.avatarContainer}>
                   {provider.avatar_url ? (
                     <Image source={{ uri: provider.avatar_url }} style={styles.avatar} />
@@ -448,7 +453,11 @@ export default function ListingDetailScreen() {
                     </View>
                   )}
                 </View>
-              </View>
+                <View style={styles.providerViewStore}>
+                  <Text style={styles.providerViewStoreText}>View Store</Text>
+                  <ArrowRight size={16} color={colors.primary} />
+                </View>
+              </TouchableOpacity>
               {provider.bio && <Text style={styles.providerBio}>{provider.bio}</Text>}
             </View>
           </View>
@@ -784,6 +793,17 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.text,
     lineHeight: 20,
+  },
+  providerViewStore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginLeft: 'auto',
+  },
+  providerViewStoreText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.medium as any,
   },
   reviewCard: {
     backgroundColor: colors.white,

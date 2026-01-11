@@ -26,6 +26,7 @@ import {
   User,
   Star,
   ArrowLeft,
+  ArrowRight,
   MessageCircle,
   AlertCircle,
   Edit,
@@ -427,7 +428,11 @@ export default function JobDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Posted By</Text>
-          <View style={styles.customerCard}>
+          <TouchableOpacity
+            style={styles.customerCard}
+            onPress={() => router.push(`/customer/job-board/${job.customer_id}` as any)}
+            activeOpacity={0.7}
+          >
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{job.customer.full_name.charAt(0).toUpperCase()}</Text>
             </View>
@@ -447,7 +452,11 @@ export default function JobDetailScreen() {
                 <Text style={styles.bookingsText}>{job.customer.total_bookings} completed bookings</Text>
               )}
             </View>
-          </View>
+            <View style={styles.viewJobBoardButton}>
+              <Text style={styles.viewJobBoardText}>View Jobs</Text>
+              <ArrowRight size={16} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {!isOwnJob && profile?.user_type !== 'Customer' && (
@@ -776,5 +785,16 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     backgroundColor: colors.successLight,
     borderRadius: borderRadius.sm,
+  },
+  viewJobBoardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  viewJobBoardText: {
+    fontSize: fontSize.sm,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
   },
 });
