@@ -363,12 +363,14 @@ export default function ProviderStoreFrontScreen() {
             </View>
           )}
 
-          <Button
-            title="Contact Provider"
-            onPress={handleContactProvider}
-            icon={<MessageCircle size={20} color={colors.white} />}
-            style={styles.contactButton}
-          />
+          {providerId !== profile?.id && (
+            <Button
+              title="Contact Provider"
+              onPress={handleContactProvider}
+              icon={<MessageCircle size={20} color={colors.white} />}
+              style={styles.contactButton}
+            />
+          )}
         </View>
 
         {availableTabs.length > 0 && (

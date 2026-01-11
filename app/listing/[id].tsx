@@ -527,15 +527,15 @@ export default function ListingDetailScreen() {
               style={styles.quoteButton}
               textStyle={styles.footerButtonText}
             />
+            <Button
+              title="Contact"
+              onPress={handleContactProvider}
+              variant="outline"
+              style={styles.contactButton}
+              textStyle={styles.footerButtonText}
+            />
           </>
         )}
-        <Button
-          title="Contact"
-          onPress={handleContactProvider}
-          variant="outline"
-          style={styles.contactButton}
-          textStyle={styles.footerButtonText}
-        />
       </View>
     </View>
   );
