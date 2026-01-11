@@ -11,9 +11,10 @@ import { formatCurrency } from '@/lib/currency-utils';
 
 interface CustomerProfile {
   id: string;
-  display_name: string;
+  full_name: string;
   avatar_url: string;
   rating_average: number;
+  rating_count: number;
   total_reviews: number;
   created_at: string;
 }
@@ -231,20 +232,23 @@ export default function CustomerJobBoardScreen() {
           )}
 
           <Text style={styles.customerName}>
-            {customer.display_name || 'Customer'}
+            {customer.full_name}
           </Text>
 
-          {customer.rating_average > 0 && (
-            <View style={styles.ratingRow}>
-              <Star size={16} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.ratingLargeText}>
-                {customer.rating_average.toFixed(1)}
-              </Text>
-              <Text style={styles.reviewCount}>
-                ({customer.total_reviews} {customer.total_reviews === 1 ? 'review' : 'reviews'})
-              </Text>
-            </View>
-          )}
+          <View style={styles.statsRow}>
+            {customer.rating_average > 0 && (
+              <>
+                <Star size={14} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.statsText}>
+                  {customer.rating_average.toFixed(1)}
+                </Text>
+                <Text style={styles.statsSeparator}>•</Text>
+              </>
+            )}
+            <Text style={styles.statsText}>
+              {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'} posted
+            </Text>
+          </View>
 
           <Text style={styles.joinedText}>
             Joined {joinedDate}
@@ -338,23 +342,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold as any,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  ratingRow: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
     marginBottom: spacing.xs,
   },
-  ratingLargeText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold as any,
-    color: colors.text,
+  statsText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium as any,
+    color: colors.textSecondary,
   },
-  reviewCount: {
+  statsSeparator: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
+    marginHorizontal: spacing.xs,
   },
   joinedText: {
     fontSize: fontSize.sm,
@@ -375,13 +380,14 @@ const styles = StyleSheet.create({
   jobsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    justifyContent: 'space-between',
   },
   jobCard: {
     width: '48%',
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
+    marginBottom: spacing.md,
     ...shadows.sm,
   },
   jobImage: {
