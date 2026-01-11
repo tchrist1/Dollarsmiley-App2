@@ -489,12 +489,26 @@ export default function HomeScreen() {
           jobQuery = jobQuery.ilike('location', `%${filters.location}%`);
         }
 
-        if (filters.priceMin) {
-          jobQuery = jobQuery.or(`budget_min.gte.${parseFloat(filters.priceMin)},fixed_price.gte.${parseFloat(filters.priceMin)}`);
-        }
+        // Price filters: Include quote-based jobs AND jobs matching price criteria
+        // Quote-based jobs (pricing_type = 'quote_based') should always be included
+        if (filters.priceMin || filters.priceMax) {
+          const conditions: string[] = ['pricing_type.eq.quote_based']; // Always include quote-based jobs
 
-        if (filters.priceMax) {
-          jobQuery = jobQuery.or(`budget_max.lte.${parseFloat(filters.priceMax)},fixed_price.lte.${parseFloat(filters.priceMax)}`);
+          if (filters.priceMin && filters.priceMax) {
+            // Both min and max set: include if budget or fixed_price is within range
+            conditions.push(`and(budget_min.gte.${parseFloat(filters.priceMin)},budget_max.lte.${parseFloat(filters.priceMax)})`);
+            conditions.push(`and(fixed_price.gte.${parseFloat(filters.priceMin)},fixed_price.lte.${parseFloat(filters.priceMax)})`);
+          } else if (filters.priceMin) {
+            // Only min set
+            conditions.push(`budget_min.gte.${parseFloat(filters.priceMin)}`);
+            conditions.push(`fixed_price.gte.${parseFloat(filters.priceMin)}`);
+          } else if (filters.priceMax) {
+            // Only max set
+            conditions.push(`budget_max.lte.${parseFloat(filters.priceMax)}`);
+            conditions.push(`fixed_price.lte.${parseFloat(filters.priceMax)}`);
+          }
+
+          jobQuery = jobQuery.or(conditions.join(','));
         }
 
         jobQuery = jobQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE * 2);
