@@ -370,8 +370,14 @@ export default function JobDetailScreen() {
             <View style={styles.detailRow}>
               <DollarSign size={20} color={colors.primary} />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Budget</Text>
-                <Text style={styles.detailValue}>{formatBudget(job.budget_min, job.budget_max)}</Text>
+                <Text style={styles.detailLabel}>
+                  {job.pricing_type === 'fixed_price' ? 'Fixed Price' : 'Budget'}
+                </Text>
+                <Text style={styles.detailValue}>
+                  {job.pricing_type === 'fixed_price' && job.fixed_price
+                    ? formatCurrency(job.fixed_price)
+                    : formatBudget(job.budget_min, job.budget_max)}
+                </Text>
               </View>
             </View>
 
