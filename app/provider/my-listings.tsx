@@ -322,6 +322,14 @@ export default function MyListingsScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  style={[styles.actionButton, styles.archiveIconButton]}
+                  onPress={() => handleArchive(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Archive size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
                   style={[styles.actionButton, styles.deleteIconButton]}
                   onPress={() => deleteListing(listing.id, listing.title)}
                   activeOpacity={0.7}
@@ -357,6 +365,14 @@ export default function MyListingsScreen() {
                   activeOpacity={0.7}
                 >
                   <Eye size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.archiveIconButton]}
+                  onPress={() => handleArchive(listing.id, listing.title)}
+                  activeOpacity={0.7}
+                >
+                  <Archive size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -756,6 +772,10 @@ const styles = StyleSheet.create({
   iconButton: {
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
+  },
+  archiveIconButton: {
+    paddingHorizontal: spacing.md,
+    backgroundColor: `${colors.textSecondary}10`,
   },
   deleteIconButton: {
     paddingHorizontal: spacing.md,
