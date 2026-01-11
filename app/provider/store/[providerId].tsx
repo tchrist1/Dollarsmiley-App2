@@ -11,10 +11,10 @@ import { formatCurrency } from '@/lib/currency-utils';
 
 interface ProviderProfile {
   id: string;
-  display_name: string;
-  business_name: string;
+  full_name: string;
   avatar_url: string;
   rating_average: number;
+  rating_count: number;
   total_reviews: number;
   service_radius: number;
   location: string;
@@ -328,20 +328,31 @@ export default function ProviderStoreFrontScreen() {
           )}
 
           <Text style={styles.providerName}>
-            {provider.business_name || provider.display_name}
+            {provider.full_name}
           </Text>
 
-          {provider.rating_average > 0 && (
-            <View style={styles.ratingRow}>
-              <Star size={16} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.ratingLargeText}>
-                {provider.rating_average.toFixed(1)}
-              </Text>
-              <Text style={styles.reviewCount}>
-                ({provider.total_reviews} {provider.total_reviews === 1 ? 'review' : 'reviews'})
-              </Text>
-            </View>
-          )}
+          <View style={styles.statsRow}>
+            {provider.rating_average > 0 && (
+              <>
+                <Star size={14} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.statsText}>
+                  {provider.rating_average.toFixed(1)}
+                </Text>
+                <Text style={styles.statsSeparator}>•</Text>
+              </>
+            )}
+            {jobs.length > 0 && (
+              <>
+                <Text style={styles.statsText}>
+                  {jobs.length} {jobs.length === 1 ? 'job' : 'jobs'}
+                </Text>
+                <Text style={styles.statsSeparator}>•</Text>
+              </>
+            )}
+            <Text style={styles.statsText}>
+              {services.length + customServices.length} {(services.length + customServices.length) === 1 ? 'service' : 'services'}
+            </Text>
+          </View>
 
           {provider.service_radius && (
             <View style={styles.locationRow}>
@@ -486,23 +497,24 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold as any,
     color: colors.text,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
-  ratingRow: {
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  ratingLargeText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold as any,
-    color: colors.text,
+  statsText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium as any,
+    color: colors.textSecondary,
   },
-  reviewCount: {
+  statsSeparator: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
+    marginHorizontal: spacing.xs,
   },
   locationRow: {
     flexDirection: 'row',
@@ -546,13 +558,14 @@ const styles = StyleSheet.create({
   listingsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.md,
+    justifyContent: 'space-between',
   },
   listingCard: {
     width: '48%',
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
+    marginBottom: spacing.md,
     ...shadows.sm,
   },
   listingImage: {
