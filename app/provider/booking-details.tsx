@@ -29,6 +29,7 @@ import {
   XCircle,
   PlayCircle,
   FileText,
+  Star,
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import EscrowService from '@/lib/escrow';
@@ -46,6 +47,9 @@ interface BookingDetails {
   escrow_status: string;
   customer_id: string;
   provider_id: string;
+  job_id?: string;
+  provider_can_review?: boolean;
+  provider_review_submitted?: boolean;
   customer: {
     full_name: string;
     email: string;

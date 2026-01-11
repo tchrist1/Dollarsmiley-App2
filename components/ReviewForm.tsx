@@ -10,6 +10,7 @@ interface ReviewFormProps {
   providerId: string;
   providerName: string;
   listingId?: string;
+  reviewDirection?: 'customer_to_provider' | 'provider_to_customer';
   onSubmit: (review: ReviewData) => void;
   onCancel: () => void;
 }
@@ -23,6 +24,7 @@ export interface ReviewData {
   comment: string;
   wouldRecommend: boolean;
   media?: MediaItem[];
+  reviewDirection: 'customer_to_provider' | 'provider_to_customer';
 }
 
 export default function ReviewForm({
@@ -30,6 +32,7 @@ export default function ReviewForm({
   providerId,
   providerName,
   listingId,
+  reviewDirection = 'customer_to_provider',
   onSubmit,
   onCancel,
 }: ReviewFormProps) {
@@ -39,6 +42,8 @@ export default function ReviewForm({
   const [comment, setComment] = useState('');
   const [wouldRecommend, setWouldRecommend] = useState(true);
   const [media, setMedia] = useState<MediaItem[]>([]);
+
+  const isProviderReview = reviewDirection === 'provider_to_customer';
 
   const handleSubmit = () => {
     if (rating === 0) {
@@ -65,6 +70,7 @@ export default function ReviewForm({
       comment: comment.trim(),
       wouldRecommend,
       media: media.length > 0 ? media : undefined,
+      reviewDirection,
     });
   };
 
@@ -87,8 +93,14 @@ export default function ReviewForm({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.header}>Review {providerName}</Text>
-      <Text style={styles.subheader}>Share your experience with this provider</Text>
+      <Text style={styles.header}>
+        {isProviderReview ? `Rate ${providerName} as a Job Poster` : `Review ${providerName}`}
+      </Text>
+      <Text style={styles.subheader}>
+        {isProviderReview
+          ? 'Rate your experience working with this customer'
+          : 'Share your experience with this provider'}
+      </Text>
 
       <View style={styles.section}>
         <Text style={styles.label}>Your Rating</Text>
@@ -114,7 +126,7 @@ export default function ReviewForm({
         <Text style={styles.label}>Review Title</Text>
         <TextInput
           style={styles.input}
-          placeholder="Summarize your experience"
+          placeholder={isProviderReview ? 'Summarize your collaboration experience' : 'Summarize your experience'}
           value={title}
           onChangeText={setTitle}
           maxLength={100}
@@ -126,7 +138,11 @@ export default function ReviewForm({
         <Text style={styles.label}>Your Review</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Tell others about your experience..."
+          placeholder={
+            isProviderReview
+              ? 'Share details about communication, timeliness, requirements clarity, and overall collaboration...'
+              : 'Tell others about your experience...'
+          }
           value={comment}
           onChangeText={setComment}
           multiline
@@ -137,14 +153,20 @@ export default function ReviewForm({
         <Text style={styles.charCount}>{comment.length}/1000</Text>
       </View>
 
-      <ReviewMediaUpload
-        media={media}
-        onMediaChange={setMedia}
-        maxMedia={10}
-      />
+      {!isProviderReview && (
+        <ReviewMediaUpload
+          media={media}
+          onMediaChange={setMedia}
+          maxMedia={10}
+        />
+      )}
 
       <View style={styles.section}>
-        <Text style={styles.label}>Would you recommend this provider?</Text>
+        <Text style={styles.label}>
+          {isProviderReview
+            ? 'Would you work with this customer again?'
+            : 'Would you recommend this provider?'}
+        </Text>
         <View style={styles.recommendContainer}>
           <TouchableOpacity
             style={[

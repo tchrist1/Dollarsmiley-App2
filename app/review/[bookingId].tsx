@@ -82,6 +82,7 @@ export default function ReviewScreen() {
         title: reviewData.title,
         comment: reviewData.comment,
         would_recommend: reviewData.wouldRecommend,
+        review_direction: reviewData.reviewDirection,
         is_verified: true,
         moderation_status: 'Approved',
       });

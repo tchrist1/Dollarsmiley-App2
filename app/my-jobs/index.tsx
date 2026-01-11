@@ -28,6 +28,7 @@ import {
   BarChart3,
   GitBranch,
   Edit,
+  Star,
 } from 'lucide-react-native';
 
 interface Job {
@@ -49,6 +50,15 @@ interface Job {
   _count?: {
     quotes: number;
     acceptances: number;
+  };
+  booking?: {
+    id: string;
+    can_review: boolean;
+    review_submitted: boolean;
+    provider_id: string;
+    provider: {
+      full_name: string;
+    };
   };
 }
 
@@ -86,7 +96,15 @@ export default function MyJobsScreen() {
       .select(
         `
         *,
-        categories(name)
+        categories(name),
+        bookings(
+          id,
+          can_review,
+          review_submitted,
+          provider_id,
+          status,
+          provider:profiles!provider_id(full_name)
+        )
       `
       )
       .eq('customer_id', profile.id);
@@ -105,7 +123,7 @@ export default function MyJobsScreen() {
 
     if (data && !error) {
       const jobsWithCounts = await Promise.all(
-        data.map(async (job) => {
+        data.map(async (job: any) => {
           let quotes = 0;
           let acceptances = 0;
 
@@ -125,12 +143,15 @@ export default function MyJobsScreen() {
             acceptances = count || 0;
           }
 
+          const completedBooking = job.bookings?.find((b: any) => b.status === 'Completed');
+
           return {
             ...job,
             _count: {
               quotes,
               acceptances,
             },
+            booking: completedBooking || null,
           };
         })
       );
@@ -336,13 +357,24 @@ export default function MyJobsScreen() {
         )}
 
         {item.status !== 'Open' && (
-          <TouchableOpacity
-            style={styles.timelineButtonFull}
-            onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
-          >
-            <GitBranch size={16} color={colors.textSecondary} />
-            <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
-          </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.timelineButtonFull}
+              onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
+            >
+              <GitBranch size={16} color={colors.textSecondary} />
+              <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
+            </TouchableOpacity>
+            {item.status === 'Completed' && item.booking && item.booking.can_review && !item.booking.review_submitted && (
+              <TouchableOpacity
+                style={styles.rateProviderButton}
+                onPress={() => router.push(`/review/${item.booking!.id}` as any)}
+              >
+                <Star size={16} color={colors.warning} />
+                <Text style={styles.rateProviderText} numberOfLines={1}>Rate Provider</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -631,6 +663,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   timelineButtonFull: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -645,6 +678,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.textSecondary,
+  },
+  rateProviderButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.warning + '20',
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    minHeight: 40,
+  },
+  rateProviderText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.warning,
   },
   viewProvidersButton: {
     flex: 1,
