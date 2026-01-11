@@ -10,6 +10,7 @@ import { Button } from '@/components/Button';
 import { formatCurrency } from '@/lib/currency-utils';
 import ProviderRatingRow from '@/components/ProviderRatingRow';
 import ProviderCapabilityBadge from '@/components/ProviderCapabilityBadge';
+import ProviderTrustBadge from '@/components/ProviderTrustBadge';
 
 interface ProviderProfile {
   id: string;
@@ -30,6 +31,11 @@ interface SegmentedRatings {
   service_count: number;
   custom_service_rating: number | null;
   custom_service_count: number;
+}
+
+interface TrustBadges {
+  has_top_job_badge: boolean;
+  has_top_service_badge: boolean;
 }
 
 interface Listing {
@@ -68,6 +74,7 @@ export default function ProviderStoreFrontScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [provider, setProvider] = useState<ProviderProfile | null>(null);
   const [segmentedRatings, setSegmentedRatings] = useState<SegmentedRatings | null>(null);
+  const [trustBadges, setTrustBadges] = useState<TrustBadges | null>(null);
   const [activeTab, setActiveTab] = useState<'services' | 'custom' | 'jobs'>('services');
   const [services, setServices] = useState<Listing[]>([]);
   const [customServices, setCustomServices] = useState<Listing[]>([]);
@@ -129,6 +136,18 @@ export default function ProviderStoreFrontScreen() {
           custom_service_count: ratingInfo.custom_service_count || 0,
         });
       }
+    }
+
+    const { data: badgesData } = await supabase
+      .rpc('get_provider_trust_badges', { p_provider_id: providerId })
+      .single();
+
+    if (badgesData) {
+      const badgeInfo: any = badgesData;
+      setTrustBadges({
+        has_top_job_badge: badgeInfo.has_top_job_badge || false,
+        has_top_service_badge: badgeInfo.has_top_service_badge || false,
+      });
     }
 
     const { data: servicesData } = await supabase
@@ -401,6 +420,17 @@ export default function ProviderStoreFrontScreen() {
             </View>
           )}
 
+          {trustBadges && (trustBadges.has_top_job_badge || trustBadges.has_top_service_badge) && (
+            <View style={styles.trustBadgesContainer}>
+              {trustBadges.has_top_job_badge && (
+                <ProviderTrustBadge type="job" />
+              )}
+              {trustBadges.has_top_service_badge && (
+                <ProviderTrustBadge type="service" />
+              )}
+            </View>
+          )}
+
           <View style={styles.capabilityBadgesContainer}>
             {(services.length > 0 || customServices.length > 0) && (
               <ProviderCapabilityBadge type="service" />
@@ -576,6 +606,11 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.xs,
+  },
+  trustBadgesContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   capabilityBadgesContainer: {
     flexDirection: 'row',
