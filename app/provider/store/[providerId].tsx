@@ -8,6 +8,8 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { ArrowLeft, MessageCircle, Star, MapPin, Package, Briefcase, Users } from 'lucide-react-native';
 import { Button } from '@/components/Button';
 import { formatCurrency } from '@/lib/currency-utils';
+import ProviderRatingRow from '@/components/ProviderRatingRow';
+import ProviderCapabilityBadge from '@/components/ProviderCapabilityBadge';
 
 interface ProviderProfile {
   id: string;
@@ -19,6 +21,15 @@ interface ProviderProfile {
   service_radius: number;
   location: string;
   user_type: string;
+}
+
+interface SegmentedRatings {
+  job_rating: number | null;
+  job_count: number;
+  service_rating: number | null;
+  service_count: number;
+  custom_service_rating: number | null;
+  custom_service_count: number;
 }
 
 interface Listing {
@@ -56,6 +67,7 @@ export default function ProviderStoreFrontScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [provider, setProvider] = useState<ProviderProfile | null>(null);
+  const [segmentedRatings, setSegmentedRatings] = useState<SegmentedRatings | null>(null);
   const [activeTab, setActiveTab] = useState<'services' | 'custom' | 'jobs'>('services');
   const [services, setServices] = useState<Listing[]>([]);
   const [customServices, setCustomServices] = useState<Listing[]>([]);
@@ -83,6 +95,41 @@ export default function ProviderStoreFrontScreen() {
     }
 
     setProvider(profileData as ProviderProfile);
+
+    const { data: ratingsData } = await supabase
+      .rpc('get_provider_segmented_ratings', { p_provider_id: providerId })
+      .single();
+
+    if (ratingsData) {
+      const ratingInfo: any = ratingsData;
+      const servicesRating = ratingInfo.service_rating || ratingInfo.custom_service_rating || null;
+      const servicesCount = (ratingInfo.service_count || 0) + (ratingInfo.custom_service_count || 0);
+
+      if (ratingInfo.service_rating && ratingInfo.custom_service_rating) {
+        const totalRating = (
+          (ratingInfo.service_rating * ratingInfo.service_count) +
+          (ratingInfo.custom_service_rating * ratingInfo.custom_service_count)
+        ) / servicesCount;
+
+        setSegmentedRatings({
+          job_rating: ratingInfo.job_rating,
+          job_count: ratingInfo.job_count || 0,
+          service_rating: totalRating,
+          service_count: servicesCount,
+          custom_service_rating: ratingInfo.custom_service_rating,
+          custom_service_count: ratingInfo.custom_service_count || 0,
+        });
+      } else {
+        setSegmentedRatings({
+          job_rating: ratingInfo.job_rating,
+          job_count: ratingInfo.job_count || 0,
+          service_rating: servicesRating,
+          service_count: servicesCount,
+          custom_service_rating: ratingInfo.custom_service_rating,
+          custom_service_count: ratingInfo.custom_service_count || 0,
+        });
+      }
+    }
 
     const { data: servicesData } = await supabase
       .from('service_listings')
@@ -335,16 +382,35 @@ export default function ProviderStoreFrontScreen() {
             {provider.full_name}
           </Text>
 
-          <View style={styles.statsRow}>
-            {provider.rating_average > 0 && (
-              <>
-                <Star size={14} color={colors.warning} fill={colors.warning} />
-                <Text style={styles.statsText}>
-                  {provider.rating_average.toFixed(1)}
-                </Text>
-                <Text style={styles.statsSeparator}>•</Text>
-              </>
+          {segmentedRatings && (
+            <View style={styles.ratingsContainer}>
+              {(segmentedRatings.job_rating !== null || jobs.length > 0) && (
+                <ProviderRatingRow
+                  label="Jobs"
+                  rating={segmentedRatings.job_rating}
+                  count={segmentedRatings.job_count}
+                />
+              )}
+              {(segmentedRatings.service_rating !== null || services.length + customServices.length > 0) && (
+                <ProviderRatingRow
+                  label="Services"
+                  rating={segmentedRatings.service_rating}
+                  count={segmentedRatings.service_count}
+                />
+              )}
+            </View>
+          )}
+
+          <View style={styles.capabilityBadgesContainer}>
+            {(services.length > 0 || customServices.length > 0) && (
+              <ProviderCapabilityBadge type="service" />
             )}
+            {jobs.length > 0 && (
+              <ProviderCapabilityBadge type="job" />
+            )}
+          </View>
+
+          <View style={styles.statsRow}>
             {jobs.length > 0 && (
               <>
                 <Text style={styles.statsText}>
@@ -503,8 +569,18 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold as any,
     color: colors.text,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  ratingsContainer: {
+    width: '100%',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  capabilityBadgesContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   statsRow: {
     flexDirection: 'row',
