@@ -17,6 +17,7 @@ interface CustomerProfile {
   rating_count: number;
   total_reviews: number;
   created_at: string;
+  user_type: string;
 }
 
 interface Job {
@@ -65,7 +66,16 @@ export default function CustomerJobBoardScreen() {
       return;
     }
 
-    setCustomer(profileData as CustomerProfile);
+    const customerProfile = profileData as CustomerProfile;
+
+    // Redirect Providers and Hybrids to Store Front
+    // Job Board is only for Customer accounts
+    if (customerProfile.user_type === 'Provider' || customerProfile.user_type === 'Hybrid') {
+      router.replace(`/provider/store/${customerId}` as any);
+      return;
+    }
+
+    setCustomer(customerProfile);
 
     const { data: jobsData } = await supabase
       .from('jobs')

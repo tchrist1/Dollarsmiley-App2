@@ -57,6 +57,7 @@ interface Job {
     rating_average: number;
     rating_count: number;
     total_bookings: number;
+    user_type: string;
   };
   categories: {
     name: string;
@@ -92,7 +93,8 @@ export default function JobDetailScreen() {
           full_name,
           rating_average,
           rating_count,
-          total_bookings
+          total_bookings,
+          user_type
         ),
         categories(name, icon)
       `
@@ -436,7 +438,16 @@ export default function JobDetailScreen() {
           <Text style={styles.sectionTitle}>Posted By</Text>
           <TouchableOpacity
             style={styles.customerCard}
-            onPress={() => router.push(`/customer/job-board/${job.customer_id}` as any)}
+            onPress={() => {
+              // Route based on user type
+              // Providers and Hybrids → Store Front
+              // Customers → Job Board
+              if (job.customer.user_type === 'Provider' || job.customer.user_type === 'Hybrid') {
+                router.push(`/provider/store/${job.customer_id}` as any);
+              } else {
+                router.push(`/customer/job-board/${job.customer_id}` as any);
+              }
+            }}
             activeOpacity={0.7}
           >
             <View style={styles.avatar}>
