@@ -103,6 +103,13 @@ export default function ProviderStoreFrontScreen() {
 
     setProvider(profileData as ProviderProfile);
 
+    // Redirect Customers to Job Board
+    // Store Front is only for Provider and Hybrid accounts
+    if (profileData.user_type === 'Customer') {
+      router.replace(`/customer/job-board/${providerId}` as any);
+      return;
+    }
+
     const { data: ratingsData } = await supabase
       .rpc('get_provider_segmented_ratings', { p_provider_id: providerId })
       .single();

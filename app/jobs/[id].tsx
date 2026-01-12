@@ -484,7 +484,11 @@ export default function JobDetailScreen() {
               )}
             </View>
             <View style={styles.viewJobBoardButton}>
-              <Text style={styles.viewJobBoardText}>View Jobs</Text>
+              <Text style={styles.viewJobBoardText}>
+                {job.customer.user_type === 'Provider' || job.customer.user_type === 'Hybrid'
+                  ? 'View Store'
+                  : 'View Jobs'}
+              </Text>
               <ArrowRight size={16} color={colors.primary} />
             </View>
           </TouchableOpacity>

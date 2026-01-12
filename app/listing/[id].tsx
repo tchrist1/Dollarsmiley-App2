@@ -417,7 +417,16 @@ export default function ListingDetailScreen() {
             <View style={styles.providerCard}>
               <TouchableOpacity
                 style={styles.providerHeader}
-                onPress={() => router.push(`/provider/store/${provider.id}` as any)}
+                onPress={() => {
+                  // Route based on provider account type
+                  // Providers and Hybrids → Store Front
+                  // Customers → Job Board
+                  if (provider.user_type === 'Provider' || provider.user_type === 'Hybrid') {
+                    router.push(`/provider/store/${provider.id}` as any);
+                  } else {
+                    router.push(`/customer/job-board/${provider.id}` as any);
+                  }
+                }}
                 activeOpacity={0.7}
               >
                 <View style={styles.avatarContainer}>
@@ -454,7 +463,11 @@ export default function ListingDetailScreen() {
                   )}
                 </View>
                 <View style={styles.providerViewStore}>
-                  <Text style={styles.providerViewStoreText}>View Store</Text>
+                  <Text style={styles.providerViewStoreText}>
+                    {provider.user_type === 'Provider' || provider.user_type === 'Hybrid'
+                      ? 'View Store'
+                      : 'View Jobs'}
+                  </Text>
                   <ArrowRight size={16} color={colors.primary} />
                 </View>
               </TouchableOpacity>
