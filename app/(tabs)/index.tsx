@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
@@ -62,7 +62,6 @@ export default function HomeScreen() {
   const [trendingListings, setTrendingListings] = useState<MarketplaceListing[]>([]);
   const [popularListings, setPopularListings] = useState<MarketplaceListing[]>([]);
   const [carouselsLoading, setCarouselsLoading] = useState(true);
-  const [feedData, setFeedData] = useState<any[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
     categories: [],
     location: '',
@@ -242,20 +241,22 @@ export default function HomeScreen() {
   const fetchCarouselSections = async () => {
     setCarouselsLoading(true);
     try {
-      const { data: serviceData } = await supabase
-        .from('service_listings')
-        .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)')
-        .eq('status', 'Active')
-        .order('view_count', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(15);
-
-      const { data: jobData } = await supabase
-        .from('jobs')
-        .select('*, profiles!jobs_customer_id_fkey(*), categories(*)')
-        .eq('status', 'Open')
-        .order('created_at', { ascending: false })
-        .limit(15);
+      // Batch queries in parallel for faster loading
+      const [{ data: serviceData }, { data: jobData }] = await Promise.all([
+        supabase
+          .from('service_listings')
+          .select('id, title, description, base_price, location, featured_image_url, view_count, created_at, provider_id, listing_type, status, photos, latitude, longitude, category_id, pricing_type, profiles!service_listings_provider_id_fkey(id, full_name, rating_average, rating_count), categories(id, name, icon)')
+          .eq('status', 'Active')
+          .order('view_count', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(15),
+        supabase
+          .from('jobs')
+          .select('id, title, description, budget_min, budget_max, fixed_price, location, execution_date_start, created_at, customer_id, status, photos, latitude, longitude, category_id, pricing_type, view_count, profiles!jobs_customer_id_fkey(id, full_name, rating_average, rating_count), categories(id, name, icon)')
+          .eq('status', 'Open')
+          .order('created_at', { ascending: false })
+          .limit(15)
+      ]);
 
       const allServices = serviceData ? serviceData.map(normalizeServiceListing) : [];
       const allJobs = jobData ? jobData.map(normalizeJob) : [];
@@ -426,7 +427,7 @@ export default function HomeScreen() {
       if (shouldFetchServices) {
         let serviceQuery = supabase
           .from('service_listings')
-          .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)');
+          .select('id, title, description, base_price, location, featured_image_url, view_count, created_at, provider_id, listing_type, status, photos, latitude, longitude, category_id, pricing_type, profiles!service_listings_provider_id_fkey(id, full_name, rating_average, rating_count, is_verified), categories(id, name, icon)');
 
         if (filters.listingType === 'Service') {
           serviceQuery = serviceQuery.eq('listing_type', 'Service');
@@ -460,7 +461,7 @@ export default function HomeScreen() {
           serviceQuery = serviceQuery.eq('profiles.is_verified', true);
         }
 
-        serviceQuery = serviceQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE * 2);
+        serviceQuery = serviceQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE);
 
         const { data: serviceData, error: serviceError } = await serviceQuery;
 
@@ -473,7 +474,7 @@ export default function HomeScreen() {
       if (shouldFetchJobs) {
         let jobQuery = supabase
           .from('jobs')
-          .select('*, profiles!jobs_customer_id_fkey(*), categories(*)');
+          .select('id, title, description, budget_min, budget_max, fixed_price, location, execution_date_start, preferred_time, time_window_start, time_window_end, estimated_duration_hours, created_at, customer_id, status, photos, latitude, longitude, category_id, pricing_type, view_count, profiles!jobs_customer_id_fkey(id, full_name, rating_average, rating_count), categories(id, name, icon)');
 
         jobQuery = jobQuery.eq('status', 'Open');
 
@@ -511,7 +512,7 @@ export default function HomeScreen() {
           jobQuery = jobQuery.or(conditions.join(','));
         }
 
-        jobQuery = jobQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE * 2);
+        jobQuery = jobQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE);
 
         const { data: jobData, error: jobError } = await jobQuery;
 
@@ -635,7 +636,17 @@ export default function HomeScreen() {
     }
   };
 
-  const buildFeedData = () => {
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.location.trim()) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++;
+    return count;
+  }, [filters.categories.length, filters.location, filters.priceMin, filters.priceMax, filters.minRating, filters.distance]);
+
+  const feedData = useMemo(() => {
     if (searchQuery || activeFilterCount > 0) {
       const groupedListings: any[] = [];
       for (let i = 0; i < listings.length; i += 2) {
@@ -645,8 +656,7 @@ export default function HomeScreen() {
           items: [listings[i], listings[i + 1]].filter(Boolean)
         });
       }
-      setFeedData(groupedListings);
-      return;
+      return groupedListings;
     }
 
     const feed: any[] = [];
@@ -655,7 +665,6 @@ export default function HomeScreen() {
     feed.push({ type: 'banner', id: 'admin-banner' });
 
     if (trendingListings.length > 0) {
-      console.log('Adding Trending carousel to feed with', trendingListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'trending',
@@ -663,8 +672,6 @@ export default function HomeScreen() {
         icon: 'trending',
         data: trendingListings
       });
-    } else {
-      console.log('Skipping Trending carousel - no data');
     }
 
     const block1 = listings.slice(0, ITEMS_PER_BLOCK);
@@ -677,7 +684,6 @@ export default function HomeScreen() {
     }
 
     if (popularListings.length > 0) {
-      console.log('Adding Popular carousel to feed with', popularListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'popular',
@@ -685,8 +691,6 @@ export default function HomeScreen() {
         icon: 'star',
         data: popularListings
       });
-    } else {
-      console.log('Skipping Popular carousel - no data');
     }
 
     const block2 = listings.slice(ITEMS_PER_BLOCK, ITEMS_PER_BLOCK * 2);
@@ -699,7 +703,6 @@ export default function HomeScreen() {
     }
 
     if (recommendedListings.length > 0) {
-      console.log('Adding Recommended carousel to feed with', recommendedListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'recommended',
@@ -707,8 +710,6 @@ export default function HomeScreen() {
         icon: 'sparkles',
         data: recommendedListings
       });
-    } else {
-      console.log('Skipping Recommended carousel - no data');
     }
 
     const remaining = listings.slice(ITEMS_PER_BLOCK * 2);
@@ -720,24 +721,7 @@ export default function HomeScreen() {
       });
     }
 
-    console.log('Feed built with', feed.length, 'items. Carousels:', feed.filter(f => f.type === 'carousel').map(f => f.id));
-    setFeedData(feed);
-  };
-
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.location.trim()) count++;
-    if (filters.priceMin || filters.priceMax) count++;
-    if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++; // Count if distance is set and not default
-    return count;
-  };
-
-  const activeFilterCount = getActiveFilterCount();
-
-  useEffect(() => {
-    buildFeedData();
+    return feed;
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   const handleLoadMore = () => {
@@ -750,49 +734,45 @@ export default function HomeScreen() {
     setFilters(newFilters);
   };
 
-  const getMapMarkers = () => {
+  const getMapMarkers = useMemo(() => {
     if (mapMode === 'providers') {
-      const providersMap = new Map();
+      const providersMap = new Map<string, { listings: any[], categories: Set<string>, profile: any }>();
 
+      // Single pass: group listings by provider
       listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
         if (profile && profile.latitude && profile.longitude) {
           if (!providersMap.has(profile.id)) {
-            const providerListings = listings.filter(
-              (l) => {
-                const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-                return lProfile?.id === profile.id;
-              }
-            );
-            const categories = Array.from(
-              new Set(
-                providerListings
-                  .map((l) => l.category?.name)
-                  .filter(Boolean)
-                  .filter((name) => typeof name === 'string')
-              )
-            ).slice(0, 5).map(cat => String(cat));
-
             providersMap.set(profile.id, {
-              id: profile.id,
-              latitude: profile.latitude,
-              longitude: profile.longitude,
-              title: String(profile.full_name || 'Provider'),
-              subtitle: String((profile as any).business_name || 'Service Provider'),
-              type: 'provider' as const,
-              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-              isVerified: profile.is_verified,
-              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-              categories: categories,
-              responseTime: String((profile as any).response_time || 'Within 24 hours'),
-              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
+              listings: [],
+              categories: new Set<string>(),
+              profile: profile
             });
+          }
+          const providerData = providersMap.get(profile.id)!;
+          providerData.listings.push(listing);
+          if (listing.category?.name && typeof listing.category.name === 'string') {
+            providerData.categories.add(listing.category.name);
           }
         }
       });
 
-      const markers = Array.from(providersMap.values());
-      console.log('Provider markers:', markers.length);
+      // Convert to marker format
+      const markers = Array.from(providersMap.values()).map(({ profile, categories }) => ({
+        id: profile.id,
+        latitude: profile.latitude,
+        longitude: profile.longitude,
+        title: String(profile.full_name || 'Provider'),
+        subtitle: String((profile as any).business_name || 'Service Provider'),
+        type: 'provider' as const,
+        rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
+        isVerified: profile.is_verified,
+        reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
+        categories: Array.from(categories).slice(0, 5),
+        responseTime: String((profile as any).response_time || 'Within 24 hours'),
+        completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
+      }));
+
       return markers;
     }
 
@@ -841,13 +821,8 @@ export default function HomeScreen() {
         };
       });
 
-    console.log('Listing markers:', listingMarkers.length, 'out of', listings.length, 'total listings');
-    console.log('Markers by type:', listingMarkers.reduce((acc: any, m: any) => {
-      acc[m.listingType] = (acc[m.listingType] || 0) + 1;
-      return acc;
-    }, {}));
     return listingMarkers;
-  };
+  }, [listings, mapMode, profile?.user_type]);
 
   const handleMarkerPress = (marker: any) => {
     if (marker.type === 'provider') {
@@ -1582,7 +1557,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.mapViewContainer}>
             <InteractiveMapViewPlatform
-              markers={getMapMarkers()}
+              markers={getMapMarkers}
               onMarkerPress={handleMarkerPress}
               initialRegion={
                 profile?.latitude && profile?.longitude

@@ -32,7 +32,7 @@ interface FeaturedListingCardProps {
   showStats?: boolean;
 }
 
-export default function FeaturedListingCard({
+function FeaturedListingCard({
   listing,
   featuredId,
   daysRemaining,
@@ -90,7 +90,7 @@ export default function FeaturedListingCard({
         <View style={styles.heroImageContainer}>
           {primaryImageUrl && (
             <Image
-              source={{ uri: primaryImageUrl }}
+              source={{ uri: primaryImageUrl, cache: 'force-cache' }}
               style={styles.heroImage}
               resizeMode="cover"
             />
@@ -294,6 +294,8 @@ export default function FeaturedListingCard({
     </TouchableOpacity>
   );
 }
+
+export default React.memo(FeaturedListingCard);
 
 const styles = StyleSheet.create({
   heroCard: {
