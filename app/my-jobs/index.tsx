@@ -91,102 +91,112 @@ export default function MyJobsScreen() {
 
     setLoading(true);
 
-    // Determine which statuses to fetch based on filter
-    let statuses: string[] = [];
-    if (filter === 'active') {
-      statuses = ['Open', 'Booked'];
-    } else if (filter === 'completed') {
-      statuses = ['Completed'];
-    } else if (filter === 'expired') {
-      statuses = ['Expired', 'Cancelled'];
-    }
+    try {
+      // Determine which statuses to fetch based on filter
+      let statuses: string[] = [];
+      if (filter === 'active') {
+        statuses = ['Open', 'Booked'];
+      } else if (filter === 'completed') {
+        statuses = ['Completed'];
+      } else if (filter === 'expired') {
+        statuses = ['Expired', 'Cancelled'];
+      }
 
-    // Fetch jobs where user is the customer
-    let customerQuery = supabase
-      .from('jobs')
-      .select(
-        `
-        *,
-        categories(name),
-        bookings(
-          id,
-          can_review,
-          review_submitted,
-          provider_id,
-          status,
-          provider:profiles!provider_id(full_name)
-        )
-      `
-      )
-      .eq('customer_id', profile.id);
-
-    if (statuses.length > 0) {
-      customerQuery = customerQuery.in('status', statuses);
-    }
-
-    customerQuery = customerQuery.order('created_at', { ascending: false });
-
-    const { data: customerJobs, error: customerError } = await customerQuery;
-
-    // Fetch jobs where user is a provider (through bookings)
-    // First, get all job IDs where user has bookings
-    const { data: userBookings } = await supabase
-      .from('bookings')
-      .select('job_id, id, can_review, review_submitted, status')
-      .eq('provider_id', profile.id);
-
-    let providerJobs: any[] = [];
-    if (userBookings && userBookings.length > 0) {
-      const jobIds = Array.from(new Set(userBookings.map(b => b.job_id)));
-
-      let providerQuery = supabase
+      // Fetch jobs where user is the customer - SIMPLIFIED QUERY (no nested bookings)
+      let customerQuery = supabase
         .from('jobs')
-        .select(
-          `
-          *,
-          categories(name),
-          bookings!inner(
-            id,
-            can_review,
-            review_submitted,
-            provider_id,
-            status,
-            provider:profiles!provider_id(full_name)
-          )
-        `
-        )
-        .in('id', jobIds);
+        .select('*, categories(name)')
+        .eq('customer_id', profile.id);
 
       if (statuses.length > 0) {
-        providerQuery = providerQuery.in('status', statuses);
+        customerQuery = customerQuery.in('status', statuses);
       }
 
-      const { data: providerJobsData } = await providerQuery;
-      providerJobs = providerJobsData || [];
-    }
+      customerQuery = customerQuery.order('created_at', { ascending: false });
 
-    // Combine customer and provider jobs, removing duplicates
-    const allJobs = customerJobs || [];
-    const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+      const { data: customerJobs, error: customerError } = await customerQuery;
 
-    // Add provider jobs that aren't already in the list
-    for (const job of providerJobs) {
-      if (!jobIdsMap.has(job.id)) {
-        jobIdsMap.set(job.id, job);
+      if (customerError) {
+        console.error('Error fetching customer jobs:', customerError);
       }
-    }
 
-    const combinedJobs = Array.from(jobIdsMap.values());
+      // Fetch jobs where user is a provider (through bookings)
+      // First, get all job IDs where user has bookings
+      const { data: userBookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('job_id, id, can_review, review_submitted, status, provider_id')
+        .eq('provider_id', profile.id);
 
-    // Sort by created_at descending
-    combinedJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      if (bookingsError) {
+        console.error('Error fetching user bookings:', bookingsError);
+      }
 
-    const data = combinedJobs;
-    const error = customerError;
+      let providerJobs: any[] = [];
+      if (userBookings && userBookings.length > 0) {
+        const jobIds = Array.from(new Set(userBookings.map(b => b.job_id).filter(Boolean)));
 
-    if (data && !error) {
+        if (jobIds.length > 0) {
+          let providerQuery = supabase
+            .from('jobs')
+            .select('*, categories(name)')
+            .in('id', jobIds);
+
+          if (statuses.length > 0) {
+            providerQuery = providerQuery.in('status', statuses);
+          }
+
+          const { data: providerJobsData, error: providerError } = await providerQuery;
+
+          if (providerError) {
+            console.error('Error fetching provider jobs:', providerError);
+          }
+
+          providerJobs = providerJobsData || [];
+        }
+      }
+
+      // Combine customer and provider jobs, removing duplicates
+      const allJobs = customerJobs || [];
+      const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+
+      // Add provider jobs that aren't already in the list
+      for (const job of providerJobs) {
+        if (!jobIdsMap.has(job.id)) {
+          jobIdsMap.set(job.id, job);
+        }
+      }
+
+      const combinedJobs = Array.from(jobIdsMap.values());
+
+      // Sort by created_at descending
+      combinedJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      // Fetch bookings for all jobs separately to avoid nested query issues
+      const jobIds = combinedJobs.map(j => j.id);
+      let allJobBookings: any[] = [];
+
+      if (jobIds.length > 0) {
+        const { data: jobBookings, error: jobBookingsError } = await supabase
+          .from('bookings')
+          .select('*, provider:profiles!provider_id(full_name)')
+          .in('job_id', jobIds);
+
+        if (jobBookingsError) {
+          console.error('Error fetching job bookings:', jobBookingsError);
+        } else {
+          allJobBookings = jobBookings || [];
+        }
+      }
+
+      // Attach bookings to jobs
+      const jobsWithBookings = combinedJobs.map((job: any) => ({
+        ...job,
+        bookings: allJobBookings.filter((b: any) => b.job_id === job.id),
+      }));
+
+      // Add counts and find completed booking
       const jobsWithCounts = await Promise.all(
-        data.map(async (job: any) => {
+        jobsWithBookings.map(async (job: any) => {
           let quotes = 0;
           let acceptances = 0;
 
@@ -220,10 +230,12 @@ export default function MyJobsScreen() {
       );
 
       setJobs(jobsWithCounts as any);
+    } catch (error) {
+      console.error('Unexpected error in fetchJobs:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-
-    setLoading(false);
-    setRefreshing(false);
   };
 
   const handleRefresh = () => {
