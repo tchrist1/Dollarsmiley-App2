@@ -52,7 +52,7 @@ const getServiceEmoji = (title: string, description?: string, listingType?: stri
   return listingType === 'Job' ? '💼' : '🛠️';
 };
 
-export const CompactListingCard = React.memo(function CompactListingCard({
+export function CompactListingCard({
   id,
   title,
   price,
@@ -75,7 +75,7 @@ export const CompactListingCard = React.memo(function CompactListingCard({
     >
       {image_url && typeof image_url === 'string' ? (
         <Image
-          source={{ uri: image_url, cache: 'force-cache' }}
+          source={{ uri: image_url }}
           style={styles.image}
           resizeMode="cover"
         />
@@ -140,7 +140,7 @@ export const CompactListingCard = React.memo(function CompactListingCard({
       </View>
     </TouchableOpacity>
   );
-});
+}
 
 const styles = StyleSheet.create({
   card: {

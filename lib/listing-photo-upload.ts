@@ -56,24 +56,14 @@ export async function uploadMultipleListingPhotos(
 ): Promise<{ success: boolean; urls: string[]; errors: string[] }> {
   const urls: string[] = [];
   const errors: string[] = [];
-  const BATCH_SIZE = 3; // Upload 3 images at a time
 
-  // Process uploads in parallel batches
-  for (let i = 0; i < imageUris.length; i += BATCH_SIZE) {
-    const batch = imageUris.slice(i, i + BATCH_SIZE);
-    const batchPromises = batch.map((uri, batchIndex) =>
-      uploadListingPhoto(listingId, uri, i + batchIndex)
-    );
-
-    const results = await Promise.all(batchPromises);
-
-    results.forEach((result) => {
-      if (result.success && result.url) {
-        urls.push(result.url);
-      } else {
-        errors.push(result.error || 'Unknown error');
-      }
-    });
+  for (let i = 0; i < imageUris.length; i++) {
+    const result = await uploadListingPhoto(listingId, imageUris[i], i);
+    if (result.success && result.url) {
+      urls.push(result.url);
+    } else {
+      errors.push(result.error || 'Unknown error');
+    }
   }
 
   return {
