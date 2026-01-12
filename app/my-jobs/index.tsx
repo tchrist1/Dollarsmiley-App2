@@ -124,7 +124,7 @@ export default function MyJobsScreen() {
       // First, get all job IDs where user has bookings
       const { data: userBookings, error: bookingsError } = await supabase
         .from('bookings')
-        .select('job_id, id, can_review, review_submitted, status, provider_id')
+        .select('job_id, id, status, provider_id')
         .eq('provider_id', profile.id);
 
       if (bookingsError) {
