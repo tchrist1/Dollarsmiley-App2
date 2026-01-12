@@ -807,6 +807,8 @@ export default function HomeScreen() {
       .map((listing) => {
         let price: number | undefined = 0;
         let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
+        let lat = listing.latitude!;
+        let lng = listing.longitude!;
 
         if (listing.marketplace_type === 'Job') {
           listingType = 'Job';
@@ -816,6 +818,13 @@ export default function HomeScreen() {
           } else {
             price = listing.fixed_price || listing.budget_min || 0;
           }
+
+          // For customers viewing jobs, generalize location to city-level (reduce precision)
+          if (profile?.user_type === 'Customer') {
+            // Round to ~0.01 degrees (~1.1km precision at equator)
+            lat = Math.round(lat * 100) / 100;
+            lng = Math.round(lng * 100) / 100;
+          }
         } else {
           price = listing.base_price || 0;
           listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
@@ -823,8 +832,8 @@ export default function HomeScreen() {
 
         return {
           id: listing.id,
-          latitude: listing.latitude!,
-          longitude: listing.longitude!,
+          latitude: lat,
+          longitude: lng,
           title: listing.title,
           price: price,
           type: 'listing' as const,

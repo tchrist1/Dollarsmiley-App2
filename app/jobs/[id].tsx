@@ -428,7 +428,21 @@ export default function JobDetailScreen() {
               <MapPin size={20} color={colors.primary} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Location</Text>
-                <Text style={styles.detailValue}>{job.location}</Text>
+                {!isOwnJob && profile?.user_type === 'Customer' ? (
+                  <View>
+                    <Text style={styles.detailValue}>
+                      {job.location.split(',').slice(-2).join(',').trim() || job.location}
+                    </Text>
+                    <View style={styles.locationHiddenBanner}>
+                      <MapPin size={14} color={colors.textSecondary} />
+                      <Text style={styles.locationHiddenText}>
+                        Exact location hidden. You must be a Provider to view precise addresses.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.detailValue}>{job.location}</Text>
+                )}
               </View>
             </View>
           </View>
@@ -521,6 +535,17 @@ export default function JobDetailScreen() {
               style={styles.actionButton}
               leftIcon={<MessageCircle size={20} color={colors.primary} />}
             />
+          </View>
+        )}
+
+        {!isOwnJob && profile?.user_type === 'Customer' && (
+          <View style={styles.actionSection}>
+            <View style={styles.customerViewNotice}>
+              <AlertCircle size={20} color={colors.primary} />
+              <Text style={styles.customerViewText}>
+                You must be a Provider to accept or book jobs.
+              </Text>
+            </View>
           </View>
         )}
 
@@ -813,5 +838,40 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.primary,
     fontWeight: fontWeight.medium,
+  },
+  locationHiddenBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  locationHiddenText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  customerViewNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: colors.primary + '10',
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  customerViewText: {
+    flex: 1,
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: fontWeight.medium,
+    textAlign: 'center',
   },
 });
