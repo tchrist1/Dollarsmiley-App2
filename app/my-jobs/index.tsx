@@ -44,7 +44,6 @@ interface Job {
   preferred_time: string;
   status: string;
   created_at: string;
-  customer_id: string;
   categories: {
     name: string;
   };
@@ -61,8 +60,6 @@ interface Job {
       full_name: string;
     };
   };
-  userAcceptance?: any;
-  userBooking?: any;
 }
 
 interface Quote {
@@ -81,7 +78,7 @@ export default function MyJobsScreen() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'active' | 'applied' | 'completed' | 'expired'>('active');
+  const [filter, setFilter] = useState<'active' | 'completed' | 'expired'>('active');
 
   useEffect(() => {
     if (profile) {
@@ -99,15 +96,33 @@ export default function MyJobsScreen() {
       let statuses: string[] = [];
       if (filter === 'active') {
         statuses = ['Open', 'Booked'];
-      } else if (filter === 'applied') {
-        statuses = ['Open', 'Booked', 'Completed', 'Expired', 'Cancelled'];
       } else if (filter === 'completed') {
         statuses = ['Completed'];
       } else if (filter === 'expired') {
         statuses = ['Expired', 'Cancelled'];
       }
 
-      // Get user bookings and acceptances first to know which jobs they applied to
+      // Fetch jobs where user is the customer - SIMPLIFIED QUERY (no nested bookings)
+      let customerQuery = supabase
+        .from('jobs')
+        .select('*, categories(name)')
+        .eq('customer_id', profile.id);
+
+      if (statuses.length > 0) {
+        customerQuery = customerQuery.in('status', statuses);
+      }
+
+      customerQuery = customerQuery.order('created_at', { ascending: false });
+
+      const { data: customerJobs, error: customerError } = await customerQuery;
+
+      if (customerError) {
+        console.error('Error fetching customer jobs:', customerError);
+      }
+
+      // Fetch jobs where user is a provider (through bookings OR job_acceptances)
+
+      // First, get all job IDs where user has bookings (quote-based jobs)
       const { data: userBookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('job_id, id, status, provider_id')
@@ -117,6 +132,7 @@ export default function MyJobsScreen() {
         console.error('Error fetching user bookings:', bookingsError);
       }
 
+      // Also get all job IDs where user has acceptances (fixed-price jobs)
       const { data: userAcceptances, error: acceptancesError } = await supabase
         .from('job_acceptances')
         .select('job_id, id, status, provider_id')
@@ -126,77 +142,36 @@ export default function MyJobsScreen() {
         console.error('Error fetching user acceptances:', acceptancesError);
       }
 
+      // Combine job IDs from both sources
       const bookingJobIds = userBookings?.map(b => b.job_id).filter(Boolean) || [];
       const acceptanceJobIds = userAcceptances?.map(a => a.job_id).filter(Boolean) || [];
-      const appliedJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
+      const allProviderJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
 
-      let customerJobs: any[] = [];
       let providerJobs: any[] = [];
-
-      if (filter === 'active') {
-        // Active: Only jobs POSTED by current user (not completed/expired)
-        let customerQuery = supabase
+      if (allProviderJobIds.length > 0) {
+        let providerQuery = supabase
           .from('jobs')
           .select('*, categories(name)')
-          .eq('customer_id', profile.id)
-          .in('status', statuses)
-          .order('created_at', { ascending: false });
+          .in('id', allProviderJobIds);
 
-        const { data, error } = await customerQuery;
-        if (error) {
-          console.error('Error fetching customer jobs:', error);
+        if (statuses.length > 0) {
+          providerQuery = providerQuery.in('status', statuses);
         }
-        customerJobs = data || [];
-      } else if (filter === 'applied') {
-        // Applied: Only jobs user APPLIED TO (has bookings/acceptances) but NOT posted
-        if (appliedJobIds.length > 0) {
-          let appliedQuery = supabase
-            .from('jobs')
-            .select('*, categories(name)')
-            .in('id', appliedJobIds)
-            .neq('customer_id', profile.id)
-            .order('created_at', { ascending: false });
 
-          const { data, error } = await appliedQuery;
-          if (error) {
-            console.error('Error fetching applied jobs:', error);
-          }
-          providerJobs = data || [];
+        const { data: providerJobsData, error: providerError } = await providerQuery;
+
+        if (providerError) {
+          console.error('Error fetching provider jobs:', providerError);
         }
-      } else {
-        // Completed or Expired: Show BOTH posted and applied jobs
-        let customerQuery = supabase
-          .from('jobs')
-          .select('*, categories(name)')
-          .eq('customer_id', profile.id)
-          .in('status', statuses)
-          .order('created_at', { ascending: false });
 
-        const { data: customerData, error: customerError } = await customerQuery;
-        if (customerError) {
-          console.error('Error fetching customer jobs:', customerError);
-        }
-        customerJobs = customerData || [];
-
-        if (appliedJobIds.length > 0) {
-          let appliedQuery = supabase
-            .from('jobs')
-            .select('*, categories(name)')
-            .in('id', appliedJobIds)
-            .in('status', statuses)
-            .order('created_at', { ascending: false });
-
-          const { data: appliedData, error: appliedError } = await appliedQuery;
-          if (appliedError) {
-            console.error('Error fetching applied jobs:', appliedError);
-          }
-          providerJobs = appliedData || [];
-        }
+        providerJobs = providerJobsData || [];
       }
 
       // Combine customer and provider jobs, removing duplicates
-      const jobIdsMap = new Map(customerJobs.map(job => [job.id, job]));
+      const allJobs = customerJobs || [];
+      const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
 
+      // Add provider jobs that aren't already in the list
       for (const job of providerJobs) {
         if (!jobIdsMap.has(job.id)) {
           jobIdsMap.set(job.id, job);
@@ -375,10 +350,7 @@ export default function MyJobsScreen() {
     return 'Flexible';
   };
 
-  const renderJobCard = ({ item }: { item: Job }) => {
-    const isCustomer = item.customer_id === profile?.id;
-
-    return (
+  const renderJobCard = ({ item }: { item: Job }) => (
     <TouchableOpacity
       style={styles.jobCard}
       activeOpacity={0.7}
@@ -412,13 +384,13 @@ export default function MyJobsScreen() {
               </Text>
             </View>
           )}
-          {isCustomer && !item.userBooking && !item.userAcceptance && item._count && item._count.quotes > 0 && (
+          {!item.userBooking && !item.userAcceptance && item._count && item._count.quotes > 0 && (
             <View style={styles.quoteBadge}>
               <MessageCircle size={12} color={colors.white} />
               <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
             </View>
           )}
-          {isCustomer && !item.userBooking && !item.userAcceptance && item._count && item._count.acceptances > 0 && (
+          {!item.userBooking && !item.userAcceptance && item._count && item._count.acceptances > 0 && (
             <View style={styles.quoteBadge}>
               <CheckCircle size={12} color={colors.white} />
               <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
@@ -462,7 +434,7 @@ export default function MyJobsScreen() {
       </View>
 
       <View style={styles.actionButtons}>
-        {isCustomer && item.status === 'Open' && (
+        {item.status === 'Open' && (
           <>
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -520,7 +492,7 @@ export default function MyJobsScreen() {
               <GitBranch size={16} color={colors.textSecondary} />
               <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
             </TouchableOpacity>
-            {isCustomer && item.status === 'Completed' && item.booking && item.booking.can_review && !item.booking.review_submitted && (
+            {item.status === 'Completed' && item.booking && item.booking.can_review && !item.booking.review_submitted && (
               <TouchableOpacity
                 style={styles.rateProviderButton}
                 onPress={() => router.push(`/review/${item.booking!.id}` as any)}
@@ -533,8 +505,7 @@ export default function MyJobsScreen() {
         )}
       </View>
     </TouchableOpacity>
-    );
-  };
+  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -542,17 +513,13 @@ export default function MyJobsScreen() {
       <Text style={styles.emptyTitle}>
         {filter === 'active'
           ? 'No active jobs'
-          : filter === 'applied'
-          ? 'No applied jobs'
           : filter === 'completed'
           ? 'No completed jobs'
           : 'No expired or cancelled jobs'}
       </Text>
       <Text style={styles.emptyText}>
         {filter === 'active'
-          ? 'Jobs you posted will appear here'
-          : filter === 'applied'
-          ? 'Jobs you applied to will appear here'
+          ? 'Jobs you posted or accepted will appear here'
           : filter === 'completed'
           ? 'Your completed jobs will appear here'
           : 'Expired and cancelled jobs will be listed here'}
@@ -572,7 +539,7 @@ export default function MyJobsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>My Jobs</Text>
-          <Text style={styles.subtitle}>Jobs you posted and applied to</Text>
+          <Text style={styles.subtitle}>Jobs you posted and requests you submitted</Text>
         </View>
         <TouchableOpacity
           style={styles.analyticsButton}
@@ -589,14 +556,6 @@ export default function MyJobsScreen() {
         >
           <Text style={[styles.filterText, filter === 'active' && styles.filterTextActive]}>
             Active
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterChip, filter === 'applied' && styles.filterChipActive]}
-          onPress={() => setFilter('applied')}
-        >
-          <Text style={[styles.filterText, filter === 'applied' && styles.filterTextActive]}>
-            Applied
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
