@@ -423,12 +423,6 @@ export default function HomeScreen() {
       const shouldFetchServices = !filters.listingType || filters.listingType === 'all' || filters.listingType === 'Service' || filters.listingType === 'CustomService';
       const shouldFetchJobs = !filters.listingType || filters.listingType === 'all' || filters.listingType === 'Job';
 
-      console.log('[JOB VISIBILITY DEBUG] Filter state:', {
-        listingType: filters.listingType,
-        shouldFetchServices,
-        shouldFetchJobs
-      });
-
       if (shouldFetchServices) {
         let serviceQuery = supabase
           .from('service_listings')
@@ -521,18 +515,9 @@ export default function HomeScreen() {
 
         const { data: jobData, error: jobError } = await jobQuery;
 
-        console.log('[JOB VISIBILITY DEBUG] Job query result:', {
-          jobCount: jobData?.length || 0,
-          hasError: !!jobError,
-          error: jobError
-        });
-
         if (!jobError && jobData) {
           const normalizedJobs = jobData.map(normalizeJob);
           allResults = [...allResults, ...normalizedJobs];
-          console.log('[JOB VISIBILITY DEBUG] Added jobs to results:', normalizedJobs.length);
-        } else if (jobError) {
-          console.error('[JOB VISIBILITY ERROR] Failed to fetch jobs:', jobError);
         }
       }
 
@@ -556,17 +541,6 @@ export default function HomeScreen() {
           }
         }
 
-        console.log('[JOB VISIBILITY DEBUG] Distance filtering:', {
-          hasReferenceLocation: !!referenceLocation,
-          referenceLocation,
-          distanceFilter: filters.distance,
-          resultsBeforeFilter: allResults.length,
-          jobsBeforeFilter: allResults.filter(r => r.marketplace_type === 'Job').length,
-          userLocation,
-          profileHasCoords: !!(profile?.latitude && profile?.longitude),
-          filterLocation: filters.location
-        });
-
         // If we have a reference location, calculate distances and filter
         if (referenceLocation) {
           const resultsWithDistance = allResults.map(listing => {
@@ -580,20 +554,7 @@ export default function HomeScreen() {
               );
               return { ...listing, distance_miles: distance };
             }
-            console.log('[JOB VISIBILITY DEBUG] Listing missing coordinates:', {
-              id: listing.id,
-              title: listing.title,
-              type: listing.marketplace_type,
-              latitude: listing.latitude,
-              longitude: listing.longitude
-            });
             return listing;
-          });
-
-          console.log('[JOB VISIBILITY DEBUG] After distance calculation:', {
-            totalWithDistance: resultsWithDistance.filter(r => r.distance_miles !== undefined).length,
-            jobsWithDistance: resultsWithDistance.filter(r => r.marketplace_type === 'Job' && r.distance_miles !== undefined).length,
-            jobsWithoutDistance: resultsWithDistance.filter(r => r.marketplace_type === 'Job' && r.distance_miles === undefined).length
           });
 
           allResults = resultsWithDistance.filter(listing => {
@@ -601,62 +562,18 @@ export default function HomeScreen() {
             // CRITICAL FIX: If no distance calculated, include listing anyway (don't exclude by default)
             if (listing.distance_miles !== undefined) {
               const withinRange = listing.distance_miles <= filters.distance!;
-              if (!withinRange && listing.marketplace_type === 'Job') {
-                console.log('[JOB VISIBILITY DEBUG] Job filtered out by distance:', {
-                  id: listing.id,
-                  title: listing.title,
-                  distance: listing.distance_miles,
-                  maxDistance: filters.distance
-                });
-              }
               return withinRange;
             }
             // Include listings without coordinates (they'll appear at the end)
-            console.log('[JOB VISIBILITY DEBUG] Keeping listing without distance:', {
-              id: listing.id,
-              title: listing.title,
-              type: listing.marketplace_type
-            });
             return true; // Changed from false to true - include listings without coordinates
           });
-
-          console.log('[JOB VISIBILITY DEBUG] After distance filtering:', {
-            totalResults: allResults.length,
-            jobs: allResults.filter(r => r.marketplace_type === 'Job').length,
-            services: allResults.filter(r => r.marketplace_type !== 'Job').length
-          });
-        } else {
-          console.log('[JOB VISIBILITY DEBUG] Skipping distance filtering - no reference location available:', {
-            resultsUnchanged: allResults.length,
-            jobsUnchanged: allResults.filter(r => r.marketplace_type === 'Job').length,
-            servicesUnchanged: allResults.filter(r => r.marketplace_type !== 'Job').length,
-            reason: 'No userLocation and no location filter provided'
-          });
         }
-      } else {
-        console.log('[JOB VISIBILITY DEBUG] Distance filtering disabled:', {
-          distanceFilter: filters.distance,
-          resultsCount: allResults.length,
-          jobsCount: allResults.filter(r => r.marketplace_type === 'Job').length
-        });
       }
 
       if (filters.minRating > 0) {
-        const beforeRatingFilter = allResults.length;
-        const jobsBeforeRating = allResults.filter(r => r.marketplace_type === 'Job').length;
-
         allResults = allResults.filter(listing => {
           const profile = listing.provider || listing.customer;
           return profile && profile.rating_average >= filters.minRating;
-        });
-
-        console.log('[JOB VISIBILITY DEBUG] After rating filter:', {
-          minRating: filters.minRating,
-          before: beforeRatingFilter,
-          after: allResults.length,
-          jobsBefore: jobsBeforeRating,
-          jobsAfter: allResults.filter(r => r.marketplace_type === 'Job').length,
-          filtered: beforeRatingFilter - allResults.length
         });
       }
 
@@ -701,33 +618,13 @@ export default function HomeScreen() {
 
       const paginatedData = allResults.slice(offset, offset + PAGE_SIZE);
 
-      console.log('[JOB VISIBILITY DEBUG] Final results:', {
-        totalResults: allResults.length,
-        jobs: allResults.filter(r => r.marketplace_type === 'Job').length,
-        services: allResults.filter(r => r.marketplace_type !== 'Job').length,
-        paginatedCount: paginatedData.length,
-        paginatedJobs: paginatedData.filter(r => r.marketplace_type === 'Job').length,
-        paginatedServices: paginatedData.filter(r => r.marketplace_type !== 'Job').length,
-        offset,
-        pageSize: PAGE_SIZE
-      });
-
       if (reset) {
         setListings(paginatedData);
         setPage(1);
         await recordSearch(searchQuery, allResults.length);
-        console.log('[JOB VISIBILITY DEBUG] Set listings (reset):', {
-          count: paginatedData.length,
-          jobs: paginatedData.filter(r => r.marketplace_type === 'Job').length,
-          jobTitles: paginatedData.filter(r => r.marketplace_type === 'Job').map(j => j.title)
-        });
       } else {
         setListings((prev) => [...prev, ...paginatedData]);
         setPage((prev) => prev + 1);
-        console.log('[JOB VISIBILITY DEBUG] Appended listings:', {
-          count: paginatedData.length,
-          jobs: paginatedData.filter(r => r.marketplace_type === 'Job').length
-        });
       }
 
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
