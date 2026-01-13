@@ -199,69 +199,9 @@ export default function JobDetailScreen() {
     );
   };
 
-  const handleSendQuote = async () => {
+  const handleSendQuote = () => {
     if (!profile || !job) return;
-
-    Alert.prompt(
-      'Send Quote',
-      'Enter your proposed price for this job:',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Send',
-          onPress: async (price) => {
-            if (!price || isNaN(Number(price))) {
-              Alert.alert('Error', 'Please enter a valid price');
-              return;
-            }
-
-            setSubmitting(true);
-
-            const bookingData = {
-              customer_id: job.customer_id,
-              provider_id: profile.id,
-              job_id: job.id,
-              title: job.title,
-              description: `Quote for: ${job.title}`,
-              scheduled_date: job.execution_date_start,
-              scheduled_time: job.time_window_start && job.time_window_end
-                ? `${job.time_window_start} - ${job.time_window_end}`
-                : job.preferred_time || 'Flexible',
-              location: job.location,
-              price: Number(price),
-              status: 'Requested',
-              payment_status: 'Pending',
-            };
-
-            const { error } = await supabase.from('bookings').insert(bookingData);
-
-            setSubmitting(false);
-
-            if (error) {
-              Alert.alert('Error', 'Failed to send quote. Please try again.');
-              console.error('Quote error:', error);
-            } else {
-              Alert.alert(
-                'Quote Sent!',
-                'Your quote has been sent to the customer. You will be notified if they accept.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            }
-          },
-        },
-      ],
-      'plain-text',
-      '',
-      'numeric'
-    );
+    router.push(`/jobs/${id}/send-quote` as any);
   };
 
   const handleContactCustomer = () => {
@@ -528,7 +468,6 @@ export default function JobDetailScreen() {
               <Button
                 title="Send Quote"
                 onPress={handleSendQuote}
-                loading={submitting}
                 style={styles.actionButton}
               />
             )}
