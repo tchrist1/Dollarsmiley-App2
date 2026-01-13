@@ -561,7 +561,10 @@ export default function HomeScreen() {
           referenceLocation,
           distanceFilter: filters.distance,
           resultsBeforeFilter: allResults.length,
-          jobsBeforeFilter: allResults.filter(r => r.marketplace_type === 'Job').length
+          jobsBeforeFilter: allResults.filter(r => r.marketplace_type === 'Job').length,
+          userLocation,
+          profileHasCoords: !!(profile?.latitude && profile?.longitude),
+          filterLocation: filters.location
         });
 
         // If we have a reference location, calculate distances and filter
@@ -622,13 +625,38 @@ export default function HomeScreen() {
             jobs: allResults.filter(r => r.marketplace_type === 'Job').length,
             services: allResults.filter(r => r.marketplace_type !== 'Job').length
           });
+        } else {
+          console.log('[JOB VISIBILITY DEBUG] Skipping distance filtering - no reference location available:', {
+            resultsUnchanged: allResults.length,
+            jobsUnchanged: allResults.filter(r => r.marketplace_type === 'Job').length,
+            servicesUnchanged: allResults.filter(r => r.marketplace_type !== 'Job').length,
+            reason: 'No userLocation and no location filter provided'
+          });
         }
+      } else {
+        console.log('[JOB VISIBILITY DEBUG] Distance filtering disabled:', {
+          distanceFilter: filters.distance,
+          resultsCount: allResults.length,
+          jobsCount: allResults.filter(r => r.marketplace_type === 'Job').length
+        });
       }
 
       if (filters.minRating > 0) {
+        const beforeRatingFilter = allResults.length;
+        const jobsBeforeRating = allResults.filter(r => r.marketplace_type === 'Job').length;
+
         allResults = allResults.filter(listing => {
           const profile = listing.provider || listing.customer;
           return profile && profile.rating_average >= filters.minRating;
+        });
+
+        console.log('[JOB VISIBILITY DEBUG] After rating filter:', {
+          minRating: filters.minRating,
+          before: beforeRatingFilter,
+          after: allResults.length,
+          jobsBefore: jobsBeforeRating,
+          jobsAfter: allResults.filter(r => r.marketplace_type === 'Job').length,
+          filtered: beforeRatingFilter - allResults.length
         });
       }
 
@@ -677,16 +705,29 @@ export default function HomeScreen() {
         totalResults: allResults.length,
         jobs: allResults.filter(r => r.marketplace_type === 'Job').length,
         services: allResults.filter(r => r.marketplace_type !== 'Job').length,
-        paginatedCount: paginatedData.length
+        paginatedCount: paginatedData.length,
+        paginatedJobs: paginatedData.filter(r => r.marketplace_type === 'Job').length,
+        paginatedServices: paginatedData.filter(r => r.marketplace_type !== 'Job').length,
+        offset,
+        pageSize: PAGE_SIZE
       });
 
       if (reset) {
         setListings(paginatedData);
         setPage(1);
         await recordSearch(searchQuery, allResults.length);
+        console.log('[JOB VISIBILITY DEBUG] Set listings (reset):', {
+          count: paginatedData.length,
+          jobs: paginatedData.filter(r => r.marketplace_type === 'Job').length,
+          jobTitles: paginatedData.filter(r => r.marketplace_type === 'Job').map(j => j.title)
+        });
       } else {
         setListings((prev) => [...prev, ...paginatedData]);
         setPage((prev) => prev + 1);
+        console.log('[JOB VISIBILITY DEBUG] Appended listings:', {
+          count: paginatedData.length,
+          jobs: paginatedData.filter(r => r.marketplace_type === 'Job').length
+        });
       }
 
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
