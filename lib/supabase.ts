@@ -6,7 +6,12 @@ const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO
 const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase credentials. Please check your .env file.');
+  console.error('❌ Missing Supabase credentials. Please check your .env file.');
+  console.error('Supabase URL:', supabaseUrl ? '✓ Present' : '✗ Missing');
+  console.error('Supabase Anon Key:', supabaseAnonKey ? '✓ Present' : '✗ Missing');
+} else {
+  console.log('✓ Supabase initialized successfully');
+  console.log('URL:', supabaseUrl);
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -14,5 +19,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+  },
+  global: {
+    headers: {
+      'x-client-info': 'dollarsmiley-mobile',
+    },
   },
 });

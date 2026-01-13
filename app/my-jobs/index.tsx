@@ -118,6 +118,7 @@ export default function MyJobsScreen() {
 
       if (customerError) {
         console.error('Error fetching customer jobs:', customerError);
+        throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
       }
 
       // Fetch jobs where user is a provider (through bookings OR job_acceptances)
@@ -262,6 +263,15 @@ export default function MyJobsScreen() {
       setJobs(jobsWithCounts as any);
     } catch (error) {
       console.error('Unexpected error in fetchJobs:', error);
+      Alert.alert(
+        'Error Loading Jobs',
+        'Failed to load your jobs. Please check your internet connection and try again.',
+        [
+          { text: 'Dismiss', style: 'cancel' },
+          { text: 'Retry', onPress: () => fetchJobs() },
+        ]
+      );
+      setJobs([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
