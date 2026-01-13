@@ -120,8 +120,9 @@ export default function MyJobsScreen() {
         console.error('Error fetching customer jobs:', customerError);
       }
 
-      // Fetch jobs where user is a provider (through bookings)
-      // First, get all job IDs where user has bookings
+      // Fetch jobs where user is a provider (through bookings OR job_acceptances)
+
+      // First, get all job IDs where user has bookings (quote-based jobs)
       const { data: userBookings, error: bookingsError } = await supabase
         .from('bookings')
         .select('job_id, id, status, provider_id')
@@ -131,28 +132,39 @@ export default function MyJobsScreen() {
         console.error('Error fetching user bookings:', bookingsError);
       }
 
+      // Also get all job IDs where user has acceptances (fixed-price jobs)
+      const { data: userAcceptances, error: acceptancesError } = await supabase
+        .from('job_acceptances')
+        .select('job_id, id, status, provider_id')
+        .eq('provider_id', profile.id);
+
+      if (acceptancesError) {
+        console.error('Error fetching user acceptances:', acceptancesError);
+      }
+
+      // Combine job IDs from both sources
+      const bookingJobIds = userBookings?.map(b => b.job_id).filter(Boolean) || [];
+      const acceptanceJobIds = userAcceptances?.map(a => a.job_id).filter(Boolean) || [];
+      const allProviderJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
+
       let providerJobs: any[] = [];
-      if (userBookings && userBookings.length > 0) {
-        const jobIds = Array.from(new Set(userBookings.map(b => b.job_id).filter(Boolean)));
+      if (allProviderJobIds.length > 0) {
+        let providerQuery = supabase
+          .from('jobs')
+          .select('*, categories(name)')
+          .in('id', allProviderJobIds);
 
-        if (jobIds.length > 0) {
-          let providerQuery = supabase
-            .from('jobs')
-            .select('*, categories(name)')
-            .in('id', jobIds);
-
-          if (statuses.length > 0) {
-            providerQuery = providerQuery.in('status', statuses);
-          }
-
-          const { data: providerJobsData, error: providerError } = await providerQuery;
-
-          if (providerError) {
-            console.error('Error fetching provider jobs:', providerError);
-          }
-
-          providerJobs = providerJobsData || [];
+        if (statuses.length > 0) {
+          providerQuery = providerQuery.in('status', statuses);
         }
+
+        const { data: providerJobsData, error: providerError } = await providerQuery;
+
+        if (providerError) {
+          console.error('Error fetching provider jobs:', providerError);
+        }
+
+        providerJobs = providerJobsData || [];
       }
 
       // Combine customer and provider jobs, removing duplicates
@@ -188,10 +200,28 @@ export default function MyJobsScreen() {
         }
       }
 
-      // Attach bookings to jobs
+      // Fetch job acceptances for all jobs
+      let allJobAcceptances: any[] = [];
+      if (jobIds.length > 0) {
+        const { data: jobAcceptances, error: jobAcceptancesError } = await supabase
+          .from('job_acceptances')
+          .select('*')
+          .in('job_id', jobIds);
+
+        if (jobAcceptancesError) {
+          console.error('Error fetching job acceptances:', jobAcceptancesError);
+        } else {
+          allJobAcceptances = jobAcceptances || [];
+        }
+      }
+
+      // Attach bookings and acceptances to jobs
       const jobsWithBookings = combinedJobs.map((job: any) => ({
         ...job,
         bookings: allJobBookings.filter((b: any) => b.job_id === job.id),
+        acceptances: allJobAcceptances.filter((a: any) => a.job_id === job.id),
+        userAcceptance: allJobAcceptances.find((a: any) => a.job_id === job.id && a.provider_id === profile.id),
+        userBooking: allJobBookings.find((b: any) => b.job_id === job.id && b.provider_id === profile.id),
       }));
 
       // Add counts and find completed booking
@@ -333,18 +363,40 @@ export default function MyJobsScreen() {
             {item.status}
           </Text>
         </View>
-        {item._count && item._count.quotes > 0 && (
-          <View style={styles.quoteBadge}>
-            <MessageCircle size={12} color={colors.white} />
-            <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
-          </View>
-        )}
-        {item._count && item._count.acceptances > 0 && (
-          <View style={styles.quoteBadge}>
-            <CheckCircle size={12} color={colors.white} />
-            <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
-          </View>
-        )}
+        <View style={styles.badgesContainer}>
+          {item.userBooking && item.pricing_type === 'quote_based' && (
+            <View style={[styles.quoteBadge, { backgroundColor: colors.info }]}>
+              <MessageCircle size={12} color={colors.white} />
+              <Text style={styles.quoteCount}>Quote Sent</Text>
+            </View>
+          )}
+          {item.userAcceptance && item.pricing_type === 'fixed_price' && (
+            <View style={[
+              styles.quoteBadge,
+              item.userAcceptance.status === 'awarded' && { backgroundColor: colors.success },
+              item.userAcceptance.status === 'pending' && { backgroundColor: colors.warning },
+              item.userAcceptance.status === 'rejected' && { backgroundColor: colors.error },
+            ]}>
+              <CheckCircle size={12} color={colors.white} />
+              <Text style={styles.quoteCount}>
+                {item.userAcceptance.status === 'awarded' ? 'Awarded' :
+                 item.userAcceptance.status === 'pending' ? 'Pending' : 'Rejected'}
+              </Text>
+            </View>
+          )}
+          {!item.userBooking && !item.userAcceptance && item._count && item._count.quotes > 0 && (
+            <View style={styles.quoteBadge}>
+              <MessageCircle size={12} color={colors.white} />
+              <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
+            </View>
+          )}
+          {!item.userBooking && !item.userAcceptance && item._count && item._count.acceptances > 0 && (
+            <View style={styles.quoteBadge}>
+              <CheckCircle size={12} color={colors.white} />
+              <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <Text style={styles.jobTitle} numberOfLines={2}>
@@ -467,7 +519,7 @@ export default function MyJobsScreen() {
       </Text>
       <Text style={styles.emptyText}>
         {filter === 'active'
-          ? 'Jobs you posted or are working on will appear here'
+          ? 'Jobs you posted or accepted will appear here'
           : filter === 'completed'
           ? 'Your completed jobs will appear here'
           : 'Expired and cancelled jobs will be listed here'}
@@ -487,7 +539,7 @@ export default function MyJobsScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>My Jobs</Text>
-          <Text style={styles.subtitle}>Jobs you posted and jobs you're working on</Text>
+          <Text style={styles.subtitle}>Jobs you posted and requests you submitted</Text>
         </View>
         <TouchableOpacity
           style={styles.analyticsButton}
@@ -632,6 +684,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexShrink: 1,
   },
   statusText: {
     fontSize: fontSize.sm,
