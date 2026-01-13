@@ -130,12 +130,13 @@ export default function HomeScreen() {
 
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.log('Location permission not granted');
         return;
       }
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+        timeInterval: 10000,
+        distanceInterval: 0,
       });
 
       setUserLocation({
@@ -143,7 +144,7 @@ export default function HomeScreen() {
         longitude: location.coords.longitude,
       });
     } catch (error) {
-      console.error('Error getting location:', error);
+      // Location unavailable - app will continue without location-based features
     }
   };
 
