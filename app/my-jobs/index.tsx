@@ -79,6 +79,8 @@ export default function MyJobsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'active' | 'completed' | 'expired'>('active');
+  const [hasPostedJobs, setHasPostedJobs] = useState(false);
+  const [hasAppliedJobs, setHasAppliedJobs] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -120,6 +122,9 @@ export default function MyJobsScreen() {
         console.error('Error fetching customer jobs:', customerError);
         throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
       }
+
+      // Track if user has posted jobs
+      setHasPostedJobs((customerJobs?.length || 0) > 0);
 
       // Fetch jobs where user is a provider (through bookings OR job_acceptances)
 
@@ -167,6 +172,9 @@ export default function MyJobsScreen() {
 
         providerJobs = providerJobsData || [];
       }
+
+      // Track if user has applied to jobs
+      setHasAppliedJobs(providerJobs.length > 0);
 
       // Combine customer and provider jobs, removing duplicates
       const allJobs = customerJobs || [];
@@ -272,6 +280,8 @@ export default function MyJobsScreen() {
         ]
       );
       setJobs([]);
+      setHasPostedJobs(false);
+      setHasAppliedJobs(false);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -281,6 +291,18 @@ export default function MyJobsScreen() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchJobs();
+  };
+
+  const getSubtitle = () => {
+    if (hasPostedJobs && hasAppliedJobs) {
+      return 'Jobs you posted and applied to';
+    } else if (hasPostedJobs) {
+      return 'Jobs you posted';
+    } else if (hasAppliedJobs) {
+      return 'Jobs you applied to';
+    } else {
+      return 'Jobs you posted and requests you submitted';
+    }
   };
 
   const handleCancelJob = async (jobId: string) => {
@@ -517,39 +539,65 @@ export default function MyJobsScreen() {
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <PlusCircle size={64} color={colors.textLight} />
-      <Text style={styles.emptyTitle}>
-        {filter === 'active'
-          ? 'No active jobs'
-          : filter === 'completed'
-          ? 'No completed jobs'
-          : 'No expired or cancelled jobs'}
-      </Text>
-      <Text style={styles.emptyText}>
-        {filter === 'active'
-          ? 'Jobs you posted or accepted will appear here'
-          : filter === 'completed'
-          ? 'Your completed jobs will appear here'
-          : 'Expired and cancelled jobs will be listed here'}
-      </Text>
-      {filter === 'active' && (
-        <Button
-          title="Post a Job"
-          onPress={() => router.push('/(tabs)/post-job')}
-          style={styles.emptyButton}
-        />
-      )}
-    </View>
-  );
+  const renderEmptyState = () => {
+    const getEmptyStateText = () => {
+      if (filter === 'active') {
+        if (hasPostedJobs && hasAppliedJobs) {
+          return 'No active jobs found';
+        } else if (hasPostedJobs) {
+          return 'No active jobs you posted';
+        } else if (hasAppliedJobs) {
+          return 'No active jobs you applied to';
+        } else {
+          return 'No active jobs';
+        }
+      } else if (filter === 'completed') {
+        return 'No completed jobs';
+      } else {
+        return 'No expired or cancelled jobs';
+      }
+    };
+
+    const getEmptyStateDescription = () => {
+      if (filter === 'active') {
+        if (hasPostedJobs && hasAppliedJobs) {
+          return 'Jobs you posted or applied to will appear here';
+        } else if (hasPostedJobs) {
+          return 'Jobs you posted will appear here';
+        } else if (hasAppliedJobs) {
+          return 'Jobs you applied to will appear here';
+        } else {
+          return 'Jobs you post or apply to will appear here';
+        }
+      } else if (filter === 'completed') {
+        return 'Your completed jobs will appear here';
+      } else {
+        return 'Expired and cancelled jobs will be listed here';
+      }
+    };
+
+    return (
+      <View style={styles.emptyState}>
+        <PlusCircle size={64} color={colors.textLight} />
+        <Text style={styles.emptyTitle}>{getEmptyStateText()}</Text>
+        <Text style={styles.emptyText}>{getEmptyStateDescription()}</Text>
+        {filter === 'active' && !hasAppliedJobs && (
+          <Button
+            title="Post a Job"
+            onPress={() => router.push('/(tabs)/post-job')}
+            style={styles.emptyButton}
+          />
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>My Jobs</Text>
-          <Text style={styles.subtitle}>Jobs you posted and requests you submitted</Text>
+          <Text style={styles.subtitle}>{getSubtitle()}</Text>
         </View>
         <TouchableOpacity
           style={styles.analyticsButton}
