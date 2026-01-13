@@ -1038,15 +1038,13 @@ export default function HomeScreen() {
         activeOpacity={0.7}
         onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
       >
+        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        </View>
         <View style={styles.listingContent}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={styles.listingTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
-            </View>
-          </View>
+          <Text style={styles.listingTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
           <Text style={styles.listingDescription} numberOfLines={2}>
             {item.description}
           </Text>
@@ -1815,6 +1813,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   listingCard: {
+    position: 'relative',
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
@@ -1828,6 +1827,7 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.text,
     marginBottom: spacing.xs,
+    paddingRight: 100,
   },
   listingDescription: {
     fontSize: fontSize.sm,
