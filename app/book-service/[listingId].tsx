@@ -239,7 +239,8 @@ export default function BookingScreen() {
         .single();
 
       if (bookingError || !bookingData) {
-        throw new Error('Failed to create booking');
+        console.error('Booking creation error:', bookingError);
+        throw new Error(bookingError?.message || 'Failed to create booking');
       }
 
       setBookingId(bookingData.id);

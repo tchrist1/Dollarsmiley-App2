@@ -394,7 +394,14 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     if (!inputText.trim() && !attachmentUrl) return;
-    if (!profile || !otherParticipant) return;
+    if (!profile) {
+      Alert.alert('Error', 'Please log in to send messages');
+      return;
+    }
+    if (!otherParticipant) {
+      Alert.alert('Error', 'Unable to identify recipient. Please try again.');
+      return;
+    }
 
     const messageText = inputText.trim();
     const tempId = `temp-${Date.now()}`;
@@ -444,8 +451,9 @@ export default function ChatScreen() {
     });
 
     if (error) {
+      console.error('Message send error:', error);
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      Alert.alert('Error', 'Failed to send message');
+      Alert.alert('Error', 'Failed to send message. Please try again.');
     }
 
     setSending(false);
@@ -715,28 +723,33 @@ export default function ChatScreen() {
 
       {!showVoiceRecorder && (
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
-          <TouchableOpacity style={styles.attachButton} onPress={handleAttachment}>
-            <Paperclip size={24} color={colors.primary} />
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={handleAttachment}
+            disabled={!otherParticipant}
+          >
+            <Paperclip size={24} color={otherParticipant ? colors.primary : colors.textLight} />
           </TouchableOpacity>
 
           <TextInput
             style={styles.input}
-            placeholder="Type a message..."
+            placeholder={otherParticipant ? "Type a message..." : "Loading conversation..."}
             placeholderTextColor={colors.textLight}
             value={inputText}
             onChangeText={handleTextChange}
             multiline
             maxLength={1000}
+            editable={!!otherParticipant}
           />
 
           {inputText.trim() || attachmentUrl ? (
             <TouchableOpacity
               style={[
                 styles.sendButton,
-                (!inputText.trim() && !attachmentUrl) && styles.sendButtonDisabled,
+                (!inputText.trim() && !attachmentUrl || !otherParticipant) && styles.sendButtonDisabled,
               ]}
               onPress={handleSend}
-              disabled={sending || (!inputText.trim() && !attachmentUrl)}
+              disabled={sending || (!inputText.trim() && !attachmentUrl) || !otherParticipant}
             >
               <Send size={20} color={colors.white} />
             </TouchableOpacity>
@@ -744,6 +757,7 @@ export default function ChatScreen() {
             <TouchableOpacity
               style={styles.voiceButton}
               onPress={() => setShowVoiceRecorder(true)}
+              disabled={!otherParticipant}
             >
               <Mic size={24} color={colors.white} />
             </TouchableOpacity>

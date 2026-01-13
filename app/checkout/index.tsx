@@ -142,7 +142,8 @@ export default function CheckoutScreen() {
         throw new Error(result.error || 'Failed to create order');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to complete order');
+      console.error('Order creation error:', error);
+      Alert.alert('Error', error.message || 'Failed to create booking. Please try again.');
     } finally {
       setProcessing(false);
     }
