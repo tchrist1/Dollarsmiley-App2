@@ -334,7 +334,7 @@ export default function DashboardScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.activityNavIcon}>
-                <ClipboardList size={20} color={colors.primary} />
+                <ClipboardList size={24} color={colors.primary} />
               </View>
               <Text style={styles.activityNavText}>Posted Jobs</Text>
             </TouchableOpacity>
@@ -346,7 +346,7 @@ export default function DashboardScreen() {
                 activeOpacity={0.7}
               >
                 <View style={styles.activityNavIcon}>
-                  <Briefcase size={20} color={colors.primary} />
+                  <Briefcase size={24} color={colors.primary} />
                 </View>
                 <Text style={styles.activityNavText}>Applied Jobs</Text>
               </TouchableOpacity>
@@ -358,7 +358,7 @@ export default function DashboardScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.activityNavIcon}>
-                <Calendar size={20} color={colors.primary} />
+                <Calendar size={24} color={colors.primary} />
               </View>
               <Text style={styles.activityNavText}>All Bookings</Text>
             </TouchableOpacity>
@@ -680,28 +680,34 @@ const styles = StyleSheet.create({
   },
   activityNavCard: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    padding: spacing.md,
-    borderRadius: 12,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border + '30',
-  },
-  activityNavIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: colors.primary + '12',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.white,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border + '30',
+    ...shadows.sm,
+    minHeight: 100,
+  },
+  activityNavIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
   },
   activityNavText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
     letterSpacing: -0.1,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   menuList: {
     gap: spacing.sm,
