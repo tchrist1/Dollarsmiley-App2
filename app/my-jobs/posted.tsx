@@ -90,81 +90,40 @@ export default function MyPostedJobsScreen() {
         statuses = ['Expired', 'Cancelled'];
       }
 
-      const { data: customerJobs, error: customerError } = await supabase
-        .from('jobs')
-        .select('*, categories(name)')
-        .eq('customer_id', profile.id)
-        .in('status', statuses.length > 0 ? statuses : ['Open', 'Booked', 'Completed', 'Expired', 'Cancelled'])
-        .order('created_at', { ascending: false });
+      const { data: jobSummaries, error } = await supabase
+        .rpc('get_my_posted_jobs', {
+          status_filter: statuses.length > 0 ? statuses : null
+        });
 
-      if (customerError) {
-        console.error('Error fetching posted jobs:', customerError);
-        throw new Error(`Failed to fetch posted jobs: ${customerError.message}`);
+      if (error) {
+        console.error('Error fetching posted jobs:', error);
+        throw new Error(`Failed to fetch posted jobs: ${error.message}`);
       }
 
-      const displayJobs = customerJobs || [];
-      const jobIds = displayJobs.map(j => j.id);
+      const jobsWithFormatting = (jobSummaries || []).map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget_min: job.budget_min,
+        budget_max: job.budget_max,
+        pricing_type: job.pricing_type,
+        fixed_price: job.fixed_price,
+        location: job.location,
+        execution_date_start: job.execution_date_start,
+        preferred_time: job.preferred_time,
+        status: job.status,
+        created_at: job.created_at,
+        categories: {
+          name: job.category_name
+        },
+        _count: {
+          quotes: job.quote_count || 0,
+          acceptances: job.acceptance_count || 0,
+        },
+        booking: job.completed_booking,
+      }));
 
-      let allJobBookings: any[] = [];
-      let allJobAcceptances: any[] = [];
-
-      if (jobIds.length > 0) {
-        const [
-          { data: jobBookings, error: jobBookingsError },
-          { data: jobAcceptances, error: jobAcceptancesError }
-        ] = await Promise.all([
-          supabase
-            .from('bookings')
-            .select('*, provider:profiles!provider_id(full_name)')
-            .in('job_id', jobIds),
-
-          supabase
-            .from('job_acceptances')
-            .select('*')
-            .in('job_id', jobIds)
-        ]);
-
-        if (jobBookingsError) {
-          console.error('Error fetching job bookings:', jobBookingsError);
-        } else {
-          allJobBookings = jobBookings || [];
-        }
-
-        if (jobAcceptancesError) {
-          console.error('Error fetching job acceptances:', jobAcceptancesError);
-        } else {
-          allJobAcceptances = jobAcceptances || [];
-        }
-      }
-
-      const jobsWithCounts = displayJobs.map((job: any) => {
-        const jobBookings = allJobBookings.filter((b: any) => b.job_id === job.id);
-        const jobAcceptances = allJobAcceptances.filter((a: any) => a.job_id === job.id);
-
-        let quotes = 0;
-        let acceptances = 0;
-
-        if (job.pricing_type === 'quote_based') {
-          quotes = jobBookings.filter((b: any) => b.status === 'Requested').length;
-        } else if (job.pricing_type === 'fixed_price') {
-          acceptances = jobAcceptances.filter((a: any) => a.status === 'pending').length;
-        }
-
-        const completedBooking = jobBookings.find((b: any) => b.status === 'Completed');
-
-        return {
-          ...job,
-          bookings: jobBookings,
-          acceptances: jobAcceptances,
-          _count: {
-            quotes,
-            acceptances,
-          },
-          booking: completedBooking || null,
-        };
-      });
-
-      setJobs(jobsWithCounts as any);
+      setJobs(jobsWithFormatting as any);
     } catch (error) {
       console.error('Unexpected error in fetchJobs:', error);
       Alert.alert(

@@ -77,65 +77,37 @@ export default function MyAppliedJobsScreen() {
         statuses = ['Expired', 'Cancelled'];
       }
 
-      const [
-        { data: userBookings, error: bookingsError },
-        { data: userAcceptances, error: acceptancesError }
-      ] = await Promise.all([
-        supabase
-          .from('bookings')
-          .select('job_id, id, status, provider_id')
-          .eq('provider_id', profile.id),
+      const { data: jobParticipations, error } = await supabase
+        .rpc('get_my_applied_jobs', {
+          status_filter: statuses.length > 0 ? statuses : null
+        });
 
-        supabase
-          .from('job_acceptances')
-          .select('job_id, id, status, provider_id')
-          .eq('provider_id', profile.id)
-      ]);
-
-      if (bookingsError) {
-        console.error('Error fetching user bookings:', bookingsError);
+      if (error) {
+        console.error('Error fetching applied jobs:', error);
+        throw new Error(`Failed to fetch applied jobs: ${error.message}`);
       }
 
-      if (acceptancesError) {
-        console.error('Error fetching user acceptances:', acceptancesError);
-      }
+      const jobsWithFormatting = (jobParticipations || []).map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        description: job.description,
+        budget_min: job.budget_min,
+        budget_max: job.budget_max,
+        pricing_type: job.pricing_type,
+        fixed_price: job.fixed_price,
+        location: job.location,
+        execution_date_start: job.execution_date_start,
+        preferred_time: job.preferred_time,
+        status: job.status,
+        created_at: job.created_at,
+        categories: {
+          name: job.category_name
+        },
+        userBooking: job.user_booking,
+        userAcceptance: job.user_acceptance,
+      }));
 
-      const bookingJobIds = userBookings?.map(b => b.job_id).filter(Boolean) || [];
-      const acceptanceJobIds = userAcceptances?.map(a => a.job_id).filter(Boolean) || [];
-      const allProviderJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
-
-      let providerJobs: any[] = [];
-      if (allProviderJobIds.length > 0) {
-        let providerQuery = supabase
-          .from('jobs')
-          .select('*, categories(name)')
-          .in('id', allProviderJobIds);
-
-        if (statuses.length > 0) {
-          providerQuery = providerQuery.in('status', statuses);
-        }
-
-        const { data: providerJobsData, error: providerError } = await providerQuery.order('created_at', { ascending: false });
-
-        if (providerError) {
-          console.error('Error fetching provider jobs:', providerError);
-        }
-
-        providerJobs = providerJobsData || [];
-      }
-
-      const jobsWithUserData = providerJobs.map((job: any) => {
-        const userAcceptance = userAcceptances?.find((a: any) => a.job_id === job.id);
-        const userBooking = userBookings?.find((b: any) => b.job_id === job.id);
-
-        return {
-          ...job,
-          userAcceptance,
-          userBooking,
-        };
-      });
-
-      setJobs(jobsWithUserData as any);
+      setJobs(jobsWithFormatting as any);
     } catch (error) {
       console.error('Unexpected error in fetchJobs:', error);
       Alert.alert(
