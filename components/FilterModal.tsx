@@ -97,72 +97,79 @@ interface FilterModalProps {
   onClose: () => void;
   onApply: (filters: FilterOptions) => void;
   currentFilters: FilterOptions;
+  categories: Category[];
 }
 
-export function FilterModal({ visible, onClose, onApply, currentFilters }: FilterModalProps) {
+type DraftFilters = {
+  selectedCategories: string[];
+  location: string;
+  priceMin: string;
+  priceMax: string;
+  sliderMinPrice: number;
+  sliderMaxPrice: number;
+  minRating: number;
+  distance: number;
+  availability: 'any' | 'today' | 'this_week' | 'this_month';
+  sortBy: 'relevance' | 'price_low' | 'price_high' | 'rating' | 'popular' | 'recent' | 'distance';
+  verified: boolean;
+  instantBooking: boolean;
+  listingType: 'all' | 'Job' | 'Service' | 'CustomService';
+  fulfillmentTypes: string[];
+  shippingMode: 'all' | 'Platform' | 'External';
+  hasVAS: boolean;
+  selectedTags: string[];
+};
+
+export function FilterModal({ visible, onClose, onApply, currentFilters, categories }: FilterModalProps) {
   const insets = useSafeAreaInsets();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    currentFilters.categories
-  );
-  const [location, setLocation] = useState(currentFilters.location);
-  const [priceMin, setPriceMin] = useState(currentFilters.priceMin);
-  const [priceMax, setPriceMax] = useState(currentFilters.priceMax);
-  const [sliderMinPrice, setSliderMinPrice] = useState(
-    currentFilters.priceMin ? parseInt(currentFilters.priceMin) : 0
-  );
-  const [sliderMaxPrice, setSliderMaxPrice] = useState(
-    currentFilters.priceMax ? parseInt(currentFilters.priceMax) : 50000
-  );
+
+  // Collapsed state object - single state update instead of 22
+  const [draftFilters, setDraftFilters] = useState<DraftFilters>({
+    selectedCategories: currentFilters.categories,
+    location: currentFilters.location,
+    priceMin: currentFilters.priceMin,
+    priceMax: currentFilters.priceMax,
+    sliderMinPrice: currentFilters.priceMin ? parseInt(currentFilters.priceMin) : 0,
+    sliderMaxPrice: currentFilters.priceMax ? parseInt(currentFilters.priceMax) : 50000,
+    minRating: currentFilters.minRating,
+    distance: currentFilters.distance || 25,
+    availability: currentFilters.availability || 'any',
+    sortBy: currentFilters.sortBy || 'relevance',
+    verified: currentFilters.verified || false,
+    instantBooking: currentFilters.instant_booking || false,
+    listingType: currentFilters.listingType || 'all',
+    fulfillmentTypes: currentFilters.fulfillmentTypes || [],
+    shippingMode: currentFilters.shippingMode || 'all',
+    hasVAS: currentFilters.hasVAS || false,
+    selectedTags: currentFilters.tags || [],
+  });
+
   const [useSlider, setUseSlider] = useState(true);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [minRating, setMinRating] = useState(currentFilters.minRating);
-  const [distance, setDistance] = useState(currentFilters.distance || 25);
-  const [availability, setAvailability] = useState(currentFilters.availability || 'any');
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
-  const [sortBy, setSortBy] = useState(currentFilters.sortBy || 'relevance');
-  const [verified, setVerified] = useState(currentFilters.verified || false);
-  const [instantBooking, setInstantBooking] = useState(currentFilters.instant_booking || false);
-  const [listingType, setListingType] = useState(currentFilters.listingType || 'all');
-  const [fulfillmentTypes, setFulfillmentTypes] = useState<string[]>(currentFilters.fulfillmentTypes || []);
-  const [shippingMode, setShippingMode] = useState(currentFilters.shippingMode || 'all');
-  const [hasVAS, setHasVAS] = useState(currentFilters.hasVAS || false);
-  const [selectedTags, setSelectedTags] = useState<string[]>(currentFilters.tags || []);
 
-  const fetchCategories = useCallback(async () => {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order');
-
-    if (data) {
-      setCategories(data);
-    }
-  }, []);
-
+  // Single state update when currentFilters changes - replaces 22 individual setState calls
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  useEffect(() => {
-    setSelectedCategories(currentFilters.categories);
-    setLocation(currentFilters.location);
-    setPriceMin(currentFilters.priceMin);
-    setPriceMax(currentFilters.priceMax);
-    setSliderMinPrice(currentFilters.priceMin ? parseInt(currentFilters.priceMin) : 0);
-    setSliderMaxPrice(currentFilters.priceMax ? parseInt(currentFilters.priceMax) : 50000);
-    setMinRating(currentFilters.minRating);
-    setDistance(currentFilters.distance || 25);
-    setAvailability(currentFilters.availability || 'any');
-    setSortBy(currentFilters.sortBy || 'relevance');
-    setVerified(currentFilters.verified || false);
-    setInstantBooking(currentFilters.instant_booking || false);
-    setListingType(currentFilters.listingType || 'all');
-    setFulfillmentTypes(currentFilters.fulfillmentTypes || []);
-    setShippingMode(currentFilters.shippingMode || 'all');
-    setHasVAS(currentFilters.hasVAS || false);
+    setDraftFilters({
+      selectedCategories: currentFilters.categories,
+      location: currentFilters.location,
+      priceMin: currentFilters.priceMin,
+      priceMax: currentFilters.priceMax,
+      sliderMinPrice: currentFilters.priceMin ? parseInt(currentFilters.priceMin) : 0,
+      sliderMaxPrice: currentFilters.priceMax ? parseInt(currentFilters.priceMax) : 50000,
+      minRating: currentFilters.minRating,
+      distance: currentFilters.distance || 25,
+      availability: currentFilters.availability || 'any',
+      sortBy: currentFilters.sortBy || 'relevance',
+      verified: currentFilters.verified || false,
+      instantBooking: currentFilters.instant_booking || false,
+      listingType: currentFilters.listingType || 'all',
+      fulfillmentTypes: currentFilters.fulfillmentTypes || [],
+      shippingMode: currentFilters.shippingMode || 'all',
+      hasVAS: currentFilters.hasVAS || false,
+      selectedTags: currentFilters.tags || [],
+    });
     setSelectedPreset(null);
   }, [currentFilters]);
 
@@ -171,98 +178,107 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   }, [categories]);
 
   const toggleCategory = useCallback((categoryId: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    );
+    setDraftFilters(prev => ({
+      ...prev,
+      selectedCategories: prev.selectedCategories.includes(categoryId)
+        ? prev.selectedCategories.filter((id) => id !== categoryId)
+        : [...prev.selectedCategories, categoryId]
+    }));
   }, []);
 
   const toggleFulfillmentType = useCallback((type: string) => {
-    setFulfillmentTypes(prev =>
-      prev.includes(type)
-        ? prev.filter((t) => t !== type)
-        : [...prev, type]
-    );
+    setDraftFilters(prev => ({
+      ...prev,
+      fulfillmentTypes: prev.fulfillmentTypes.includes(type)
+        ? prev.fulfillmentTypes.filter((t) => t !== type)
+        : [...prev.fulfillmentTypes, type]
+    }));
   }, []);
 
   const toggleTag = useCallback((tag: string) => {
-    setSelectedTags(prev =>
-      prev.includes(tag)
-        ? prev.filter((t) => t !== tag)
-        : [...prev, tag]
-    );
+    setDraftFilters(prev => ({
+      ...prev,
+      selectedTags: prev.selectedTags.includes(tag)
+        ? prev.selectedTags.filter((t) => t !== tag)
+        : [...prev.selectedTags, tag]
+    }));
   }, []);
 
   const handleApply = useCallback(() => {
-    const finalPriceMin = useSlider ? sliderMinPrice.toString() : priceMin;
-    const finalPriceMax = useSlider ? sliderMaxPrice.toString() : priceMax;
+    const finalPriceMin = useSlider ? draftFilters.sliderMinPrice.toString() : draftFilters.priceMin;
+    const finalPriceMax = useSlider ? draftFilters.sliderMaxPrice.toString() : draftFilters.priceMax;
 
     onApply({
-      categories: selectedCategories,
-      location,
+      categories: draftFilters.selectedCategories,
+      location: draftFilters.location,
       priceMin: finalPriceMin,
       priceMax: finalPriceMax,
-      minRating,
-      distance,
-      availability,
-      sortBy,
-      verified,
-      instant_booking: instantBooking,
-      listingType,
-      fulfillmentTypes,
-      shippingMode,
-      hasVAS,
-      tags: selectedTags,
+      minRating: draftFilters.minRating,
+      distance: draftFilters.distance,
+      availability: draftFilters.availability,
+      sortBy: draftFilters.sortBy,
+      verified: draftFilters.verified,
+      instant_booking: draftFilters.instantBooking,
+      listingType: draftFilters.listingType,
+      fulfillmentTypes: draftFilters.fulfillmentTypes,
+      shippingMode: draftFilters.shippingMode,
+      hasVAS: draftFilters.hasVAS,
+      tags: draftFilters.selectedTags,
     });
     onClose();
-  }, [
-    useSlider, sliderMinPrice, sliderMaxPrice, priceMin, priceMax,
-    selectedCategories, location, minRating, distance, availability,
-    sortBy, verified, instantBooking, listingType, fulfillmentTypes,
-    shippingMode, hasVAS, selectedTags, onApply, onClose
-  ]);
+  }, [useSlider, draftFilters, onApply, onClose]);
 
   const handleSliderChange = useCallback((min: number, max: number) => {
-    setSliderMinPrice(min);
-    setSliderMaxPrice(max);
-    setPriceMin(min.toString());
-    setPriceMax(max.toString());
+    setDraftFilters(prev => ({
+      ...prev,
+      sliderMinPrice: min,
+      sliderMaxPrice: max,
+      priceMin: min.toString(),
+      priceMax: max.toString(),
+    }));
     setSelectedPreset(null);
   }, []);
 
   const handleManualPriceChange = useCallback((type: 'min' | 'max', value: string) => {
     if (type === 'min') {
-      setPriceMin(value);
       const numValue = parseInt(value) || 0;
-      setSliderMinPrice(numValue);
+      setDraftFilters(prev => ({
+        ...prev,
+        priceMin: value,
+        sliderMinPrice: numValue,
+      }));
     } else {
-      setPriceMax(value);
       const numValue = parseInt(value) || 50000;
-      setSliderMaxPrice(numValue);
+      setDraftFilters(prev => ({
+        ...prev,
+        priceMax: value,
+        sliderMaxPrice: numValue,
+      }));
     }
     setSelectedPreset(null);
   }, []);
 
   const handleReset = useCallback(() => {
-    setSelectedCategories([]);
-    setLocation('');
-    setPriceMin('');
-    setPriceMax('');
-    setSliderMinPrice(0);
-    setSliderMaxPrice(50000);
+    setDraftFilters({
+      selectedCategories: [],
+      location: '',
+      priceMin: '',
+      priceMax: '',
+      sliderMinPrice: 0,
+      sliderMaxPrice: 50000,
+      minRating: 0,
+      distance: 25,
+      availability: 'any',
+      sortBy: 'relevance',
+      verified: false,
+      instantBooking: false,
+      listingType: 'all',
+      fulfillmentTypes: [],
+      shippingMode: 'all',
+      hasVAS: false,
+      selectedTags: [],
+    });
     setUseSlider(true);
-    setMinRating(0);
-    setDistance(25);
-    setAvailability('any');
-    setSortBy('relevance');
-    setVerified(false);
-    setInstantBooking(false);
-    setListingType('all');
-    setFulfillmentTypes([]);
-    setShippingMode('all');
-    setHasVAS(false);
-    setSelectedTags([]);
     setUseCurrentLocation(false);
     setSelectedPreset(null);
 
@@ -271,17 +287,20 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
-    setSliderMinPrice(min);
-    setSliderMaxPrice(max);
-    setPriceMin(min.toString());
-    setPriceMax(max.toString());
+    setDraftFilters(prev => ({
+      ...prev,
+      sliderMinPrice: min,
+      sliderMaxPrice: max,
+      priceMin: min.toString(),
+      priceMax: max.toString(),
+    }));
     setSelectedPreset(label);
   }, []);
 
   const handleUseLocationToggle = useCallback(async () => {
     if (useCurrentLocation) {
       setUseCurrentLocation(false);
-      setLocation('');
+      setDraftFilters(prev => ({ ...prev, location: '' }));
       return;
     }
 
@@ -292,7 +311,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
       if (status !== 'granted') {
         if (Platform.OS === 'web') {
-          setLocation('');
+          setDraftFilters(prev => ({ ...prev, location: '' }));
           setUseCurrentLocation(false);
         } else {
           Alert.alert(
@@ -330,7 +349,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
         locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
       }
 
-      setLocation(locationString);
+      setDraftFilters(prev => ({ ...prev, location: locationString }));
       setUseCurrentLocation(true);
     } catch (error) {
       console.error('Error getting location:', error);
@@ -389,14 +408,14 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                     key={type}
                     style={[
                       styles.optionChip,
-                      listingType === type && styles.optionChipSelected,
+                      draftFilters.listingType === type && styles.optionChipSelected,
                     ]}
-                    onPress={() => setListingType(type as any)}
+                    onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type as any }))}
                   >
                     <Text
                       style={[
                         styles.optionText,
-                        listingType === type && styles.optionTextSelected,
+                        draftFilters.listingType === type && styles.optionTextSelected,
                       ]}
                     >
                       {type === 'all' ? 'All' : type === 'CustomService' ? 'Custom Service' : type}
@@ -410,7 +429,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Categories</Text>
               <View style={styles.categoriesGrid}>
                 {parentCategories.map((category) => {
-                    const isSelected = selectedCategories.includes(category.id);
+                    const isSelected = draftFilters.selectedCategories.includes(category.id);
                     return (
                       <TouchableOpacity
                         key={category.id}
@@ -435,12 +454,12 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <MapboxAutocompleteInput
-                value={location}
-                onChangeText={setLocation}
+                value={draftFilters.location}
+                onChangeText={(text) => setDraftFilters(prev => ({ ...prev, location: text }))}
                 placeholder="Enter city, neighborhood, or zip"
                 searchTypes={['place', 'locality', 'postcode', 'neighborhood']}
                 onPlaceSelect={(place) => {
-                  setLocation(place.name || place.place_formatted);
+                  setDraftFilters(prev => ({ ...prev, location: place.name || place.place_formatted }));
                 }}
               />
             </View>
@@ -448,8 +467,8 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Distance Radius</Text>
               <DistanceRadiusSelector
-                distance={distance}
-                onDistanceChange={setDistance}
+                distance={draftFilters.distance}
+                onDistanceChange={(val) => setDraftFilters(prev => ({ ...prev, distance: val }))}
                 useCurrentLocation={useCurrentLocation}
                 onUseLocationToggle={handleUseLocationToggle}
               />
@@ -476,8 +495,8 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                 <PriceRangeSlider
                   minValue={0}
                   maxValue={50000}
-                  minPrice={sliderMinPrice}
-                  maxPrice={sliderMaxPrice}
+                  minPrice={draftFilters.sliderMinPrice}
+                  maxPrice={draftFilters.sliderMaxPrice}
                   onValuesChange={handleSliderChange}
                   step={100}
                 />
@@ -489,7 +508,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                       style={styles.priceField}
                       placeholder="$0"
                       placeholderTextColor={colors.textLight}
-                      value={priceMin}
+                      value={draftFilters.priceMin}
                       onChangeText={(value) => handleManualPriceChange('min', value)}
                       keyboardType="numeric"
                     />
@@ -501,7 +520,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                       style={styles.priceField}
                       placeholder="Any"
                       placeholderTextColor={colors.textLight}
-                      value={priceMax}
+                      value={draftFilters.priceMax}
                       onChangeText={(value) => handleManualPriceChange('max', value)}
                       keyboardType="numeric"
                     />
@@ -535,8 +554,8 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Minimum Rating</Text>
               <RatingFilter
-                minRating={minRating}
-                onRatingChange={setMinRating}
+                minRating={draftFilters.minRating}
+                onRatingChange={(val) => setDraftFilters(prev => ({ ...prev, minRating: val }))}
                 showStats={false}
               />
             </View>
@@ -544,8 +563,10 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sort By</Text>
               <SortOptionsSelector
-                sortBy={sortBy as SortOption}
-                onSortChange={(newSort) => setSortBy(newSort)}
+                sortBy={draftFilters.sortBy as SortOption}
+                onSortChange={(newSort) => {
+                  setDraftFilters(prev => ({ ...prev, sortBy: newSort as any }));
+                }}
                 showDistance={true}
               />
             </View>
@@ -554,7 +575,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Availability</Text>
               <View style={styles.availabilityContainer}>
                 {AVAILABILITY_OPTIONS.map((avail) => {
-                  const isSelected = availability === avail.value;
+                  const isSelected = draftFilters.availability === avail.value;
                   return (
                     <TouchableOpacity
                       key={avail.value}
@@ -562,7 +583,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                         styles.availabilityChip,
                         isSelected && styles.availabilityChipSelected,
                       ]}
-                      onPress={() => setAvailability(avail.value as any)}
+                      onPress={() => setDraftFilters(prev => ({ ...prev, availability: avail.value as any }))}
                       activeOpacity={0.7}
                     >
                       <Clock
@@ -587,7 +608,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Listing Type</Text>
               <View style={styles.availabilityContainer}>
                 {LISTING_TYPE_OPTIONS.map((type) => {
-                  const isSelected = listingType === type.value;
+                  const isSelected = draftFilters.listingType === type.value;
                   return (
                     <TouchableOpacity
                       key={type.value}
@@ -595,7 +616,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                         styles.availabilityChip,
                         isSelected && styles.availabilityChipSelected,
                       ]}
-                      onPress={() => setListingType(type.value as any)}
+                      onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type.value as any }))}
                     >
                       <Text
                         style={[
@@ -619,14 +640,14 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                     key={type}
                     style={[
                       styles.fulfillmentChip,
-                      fulfillmentTypes.includes(type) && styles.fulfillmentChipSelected,
+                      draftFilters.fulfillmentTypes.includes(type) && styles.fulfillmentChipSelected,
                     ]}
                     onPress={() => toggleFulfillmentType(type)}
                   >
                     <Text
                       style={[
                         styles.fulfillmentChipText,
-                        fulfillmentTypes.includes(type) && styles.fulfillmentChipTextSelected,
+                        draftFilters.fulfillmentTypes.includes(type) && styles.fulfillmentChipTextSelected,
                       ]}
                     >
                       {type}
@@ -636,12 +657,12 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               </View>
             </View>
 
-            {fulfillmentTypes.includes('Shipping') && (
+            {draftFilters.fulfillmentTypes.includes('Shipping') && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Shipping Mode</Text>
                 <View style={styles.availabilityContainer}>
                   {SHIPPING_MODE_OPTIONS.map((mode) => {
-                    const isSelected = shippingMode === mode.value;
+                    const isSelected = draftFilters.shippingMode === mode.value;
                     return (
                       <TouchableOpacity
                         key={mode.value}
@@ -649,7 +670,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                           styles.availabilityChip,
                           isSelected && styles.availabilityChipSelected,
                         ]}
-                        onPress={() => setShippingMode(mode.value as any)}
+                        onPress={() => setDraftFilters(prev => ({ ...prev, shippingMode: mode.value as any }))}
                       >
                         <Text
                           style={[
@@ -670,7 +691,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Tags</Text>
               <View style={styles.tagsGrid}>
                 {AVAILABLE_TAGS.map((tag) => {
-                  const isSelected = selectedTags.includes(tag);
+                  const isSelected = draftFilters.selectedTags.includes(tag);
                   return (
                     <TouchableOpacity
                       key={tag}
@@ -696,11 +717,11 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Additional Filters</Text>
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => setVerified(!verified)}
+                onPress={() => setDraftFilters(prev => ({ ...prev, verified: !prev.verified }))}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, verified && styles.checkboxSelected]}>
-                  {verified && <Award size={16} color={colors.white} />}
+                <View style={[styles.checkbox, draftFilters.verified && styles.checkboxSelected]}>
+                  {draftFilters.verified && <Award size={16} color={colors.white} />}
                 </View>
                 <View style={styles.checkboxContent}>
                   <Text style={styles.checkboxLabel}>Verified Providers Only</Text>
@@ -709,11 +730,11 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => setInstantBooking(!instantBooking)}
+                onPress={() => setDraftFilters(prev => ({ ...prev, instantBooking: !prev.instantBooking }))}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, instantBooking && styles.checkboxSelected]}>
-                  {instantBooking && <Clock size={16} color={colors.white} />}
+                <View style={[styles.checkbox, draftFilters.instantBooking && styles.checkboxSelected]}>
+                  {draftFilters.instantBooking && <Clock size={16} color={colors.white} />}
                 </View>
                 <View style={styles.checkboxContent}>
                   <Text style={styles.checkboxLabel}>Instant Booking Available</Text>
@@ -722,11 +743,11 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.checkboxRow}
-                onPress={() => setHasVAS(!hasVAS)}
+                onPress={() => setDraftFilters(prev => ({ ...prev, hasVAS: !prev.hasVAS }))}
                 activeOpacity={0.7}
               >
-                <View style={[styles.checkbox, hasVAS && styles.checkboxSelected]}>
-                  {hasVAS && <Star size={16} color={colors.white} />}
+                <View style={[styles.checkbox, draftFilters.hasVAS && styles.checkboxSelected]}>
+                  {draftFilters.hasVAS && <Star size={16} color={colors.white} />}
                 </View>
                 <View style={styles.checkboxContent}>
                   <Text style={styles.checkboxLabel}>Value-Added Services Available</Text>
