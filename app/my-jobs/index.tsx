@@ -311,9 +311,10 @@ export default function MyJobsScreen() {
       return 'Jobs you posted';
     } else if (hasAppliedJobs) {
       return 'Jobs you applied to';
-    } else {
-      return 'Jobs you posted and requests you submitted';
     }
+
+    // Default to customer view when no jobs exist yet
+    return roleMode === 'customer' ? 'Jobs you posted' : 'Jobs you applied to';
   };
 
   const handleCancelJob = async (jobId: string) => {
