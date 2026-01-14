@@ -12,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { testSupabaseConnection } from '@/lib/supabase-test';
 import { Button } from '@/components/Button';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import {
@@ -83,14 +84,29 @@ export default function MyJobsScreen() {
   const [hasAppliedJobs, setHasAppliedJobs] = useState(false);
 
   useEffect(() => {
+    const testConnection = async () => {
+      const result = await testSupabaseConnection();
+      if (!result.success) {
+        console.error('⚠️ Connection test failed before fetching jobs');
+      }
+    };
+
+    testConnection();
+  }, []);
+
+  useEffect(() => {
     if (profile) {
       fetchJobs();
     }
   }, [profile, filter]);
 
   const fetchJobs = async () => {
-    if (!profile) return;
+    if (!profile) {
+      console.log('⚠️ No profile available');
+      return;
+    }
 
+    console.log('📥 Fetching jobs for profile:', profile.id);
     setLoading(true);
 
     try {
@@ -103,6 +119,8 @@ export default function MyJobsScreen() {
       } else if (filter === 'expired') {
         statuses = ['Expired', 'Cancelled'];
       }
+
+      console.log('🔍 Fetching customer jobs with statuses:', statuses);
 
       // Fetch jobs where user is the customer - SIMPLIFIED QUERY (no nested bookings)
       let customerQuery = supabase
@@ -268,12 +286,18 @@ export default function MyJobsScreen() {
         })
       );
 
+      console.log('✅ Successfully fetched', jobsWithCounts.length, 'jobs');
       setJobs(jobsWithCounts as any);
-    } catch (error) {
-      console.error('Unexpected error in fetchJobs:', error);
+    } catch (error: any) {
+      console.error('❌ Error in fetchJobs:');
+      console.error('  Type:', error?.constructor?.name);
+      console.error('  Message:', error?.message);
+      console.error('  Stack:', error?.stack);
+      console.error('  Full Error:', JSON.stringify(error, null, 2));
+
       Alert.alert(
         'Error Loading Jobs',
-        'Failed to load your jobs. Please check your internet connection and try again.',
+        `Failed to load your jobs: ${error?.message || 'Unknown error'}\n\nPlease check your internet connection and try again.`,
         [
           { text: 'Dismiss', style: 'cancel' },
           { text: 'Retry', onPress: () => fetchJobs() },
