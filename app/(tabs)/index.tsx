@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
@@ -214,7 +214,7 @@ export default function HomeScreen() {
   };
 
   const handleVoiceError = (error: string) => {
-    console.error('Voice search error:', error);
+    // Error handled silently
   };
 
   const handleImageResults = (matches: any[], analysis: any) => {
@@ -237,10 +237,10 @@ export default function HomeScreen() {
   };
 
   const handleImageError = (error: string) => {
-    console.error('Image search error:', error);
+    // Error handled silently
   };
 
-  const fetchCarouselSections = async () => {
+  const fetchCarouselSections = useCallback(async () => {
     setCarouselsLoading(true);
     try {
       const { data: serviceData } = await supabase
@@ -295,11 +295,11 @@ export default function HomeScreen() {
         setRecommendedListings(recommended);
       }
     } catch (error) {
-      console.error('Error fetching carousel sections:', error);
+      // Error handled silently
     } finally {
       setCarouselsLoading(false);
     }
-  };
+  }, []);
 
   const recordSearch = async (query: string, resultsCount: number) => {
     if (!query.trim()) return;
@@ -538,7 +538,7 @@ export default function HomeScreen() {
               referenceLocation = geocoded;
             }
           } catch (error) {
-            console.error('Error geocoding location:', error);
+            // Geocoding error handled silently
           }
         }
 
@@ -630,7 +630,7 @@ export default function HomeScreen() {
 
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
     } catch (error) {
-      console.error('Error fetching listings:', error);
+      // Error fetching listings handled silently
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -638,7 +638,7 @@ export default function HomeScreen() {
     }
   };
 
-  const buildFeedData = () => {
+  const buildFeedData = useCallback(() => {
     if (searchQuery || activeFilterCount > 0) {
       const groupedListings: any[] = [];
       for (let i = 0; i < listings.length; i += 2) {
@@ -658,7 +658,6 @@ export default function HomeScreen() {
     feed.push({ type: 'banner', id: 'admin-banner' });
 
     if (trendingListings.length > 0) {
-      console.log('Adding Trending carousel to feed with', trendingListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'trending',
@@ -666,8 +665,6 @@ export default function HomeScreen() {
         icon: 'trending',
         data: trendingListings
       });
-    } else {
-      console.log('Skipping Trending carousel - no data');
     }
 
     const block1 = listings.slice(0, ITEMS_PER_BLOCK);
@@ -680,7 +677,6 @@ export default function HomeScreen() {
     }
 
     if (popularListings.length > 0) {
-      console.log('Adding Popular carousel to feed with', popularListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'popular',
@@ -688,8 +684,6 @@ export default function HomeScreen() {
         icon: 'star',
         data: popularListings
       });
-    } else {
-      console.log('Skipping Popular carousel - no data');
     }
 
     const block2 = listings.slice(ITEMS_PER_BLOCK, ITEMS_PER_BLOCK * 2);
@@ -702,7 +696,6 @@ export default function HomeScreen() {
     }
 
     if (recommendedListings.length > 0) {
-      console.log('Adding Recommended carousel to feed with', recommendedListings.length, 'items');
       feed.push({
         type: 'carousel',
         id: 'recommended',
@@ -710,8 +703,6 @@ export default function HomeScreen() {
         icon: 'sparkles',
         data: recommendedListings
       });
-    } else {
-      console.log('Skipping Recommended carousel - no data');
     }
 
     const remaining = listings.slice(ITEMS_PER_BLOCK * 2);
@@ -723,9 +714,8 @@ export default function HomeScreen() {
       });
     }
 
-    console.log('Feed built with', feed.length, 'items. Carousels:', feed.filter(f => f.type === 'carousel').map(f => f.id));
     setFeedData(feed);
-  };
+  }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   const getActiveFilterCount = () => {
     let count = 0;
@@ -743,17 +733,17 @@ export default function HomeScreen() {
     buildFeedData();
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
-  const handleLoadMore = () => {
+  const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !loading && !isLoadingMoreRef.current) {
       fetchListings(false);
     }
-  };
+  }, [loadingMore, hasMore, loading]);
 
-  const handleApplyFilters = (newFilters: FilterOptions) => {
+  const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
     setFilters(newFilters);
-  };
+  }, []);
 
-  const getMapMarkers = () => {
+  const getMapMarkers = useMemo(() => {
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
@@ -794,19 +784,11 @@ export default function HomeScreen() {
         }
       });
 
-      const markers = Array.from(providersMap.values());
-      console.log('Provider markers:', markers.length);
-      return markers;
+      return Array.from(providersMap.values());
     }
 
     const listingMarkers = listings
-      .filter((listing) => {
-        const hasCoords = listing.latitude != null && listing.longitude != null;
-        if (!hasCoords) {
-          console.log('Listing missing coordinates:', listing.id, listing.title);
-        }
-        return hasCoords;
-      })
+      .filter((listing) => listing.latitude != null && listing.longitude != null)
       .map((listing) => {
         let price: number | undefined = 0;
         let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
@@ -815,16 +797,13 @@ export default function HomeScreen() {
 
         if (listing.marketplace_type === 'Job') {
           listingType = 'Job';
-          // For quote-based jobs, set price to undefined to show "Quote Required"
           if (listing.pricing_type === 'quote_based' || (!listing.fixed_price && !listing.budget_min)) {
             price = undefined;
           } else {
             price = listing.fixed_price || listing.budget_min || 0;
           }
 
-          // For customers viewing jobs, generalize location to city-level (reduce precision)
           if (profile?.user_type === 'Customer') {
-            // Round to ~0.01 degrees (~1.1km precision at equator)
             lat = Math.round(lat * 100) / 100;
             lng = Math.round(lng * 100) / 100;
           }
@@ -844,15 +823,10 @@ export default function HomeScreen() {
         };
       });
 
-    console.log('Listing markers:', listingMarkers.length, 'out of', listings.length, 'total listings');
-    console.log('Markers by type:', listingMarkers.reduce((acc: any, m: any) => {
-      acc[m.listingType] = (acc[m.listingType] || 0) + 1;
-      return acc;
-    }, {}));
     return listingMarkers;
-  };
+  }, [listings, mapMode, profile?.user_type]);
 
-  const handleMarkerPress = (marker: any) => {
+  const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
       router.push(`/provider/store/${marker.id}` as any);
     } else {
@@ -862,9 +836,9 @@ export default function HomeScreen() {
         router.push(isJob ? `/jobs/${listing.id}` : `/listing/${listing.id}`);
       }
     }
-  };
+  }, [listings]);
 
-  const renderStars = (rating: number) => {
+  const renderStars = useCallback((rating: number) => {
     const stars = [];
     const fullStars = Math.floor(rating);
     const hasHalfStar = rating % 1 >= 0.5;
@@ -879,9 +853,9 @@ export default function HomeScreen() {
       }
     }
     return stars;
-  };
+  }, []);
 
-  const getListingTypeLabel = (item: MarketplaceListing) => {
+  const getListingTypeLabel = useCallback((item: MarketplaceListing) => {
     if (item.marketplace_type === 'Job') {
       return { text: 'JOB', color: colors.primary };
     }
@@ -890,9 +864,21 @@ export default function HomeScreen() {
       return { text: 'CUSTOM SERVICE', color: '#8B5CF6' };
     }
     return { text: 'SERVICE', color: colors.success };
-  };
+  }, []);
 
-  const renderCarouselSection = (title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
+  const handleSeeAll = useCallback((type: string) => {
+    if (type === 'recommended') {
+      setListings(recommendedListings);
+    } else if (type === 'trending') {
+      setListings(trendingListings);
+    } else if (type === 'popular') {
+      setListings(popularListings);
+    }
+    setPage(0);
+    setHasMore(false);
+  }, [recommendedListings, trendingListings, popularListings]);
+
+  const renderCarouselSection = useCallback((title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
     if (data.length === 0) return null;
 
     return (
@@ -970,19 +956,7 @@ export default function HomeScreen() {
         />
       </View>
     );
-  };
-
-  const handleSeeAll = (type: string) => {
-    if (type === 'recommended') {
-      setListings(recommendedListings);
-    } else if (type === 'trending') {
-      setListings(trendingListings);
-    } else if (type === 'popular') {
-      setListings(popularListings);
-    }
-    setPage(0);
-    setHasMore(false);
-  };
+  }, [handleSeeAll, getListingTypeLabel]);
 
   const renderCarouselsHeader = () => {
     if (searchQuery || activeFilterCount > 0) return null;
@@ -1011,7 +985,7 @@ export default function HomeScreen() {
     );
   };
 
-  const renderListingCard = ({ item }: { item: MarketplaceListing }) => {
+  const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
     const isJob = item.marketplace_type === 'Job';
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
@@ -1096,9 +1070,9 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [getListingTypeLabel]);
 
-  const renderGridCard = ({ item }: { item: MarketplaceListing }) => {
+  const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
     const isJob = item.marketplace_type === 'Job';
     const profile = isJob ? item.customer : item.provider;
     const listing = item as any;
@@ -1204,9 +1178,9 @@ export default function HomeScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [getListingTypeLabel]);
 
-  const renderFeedItem = ({ item, index }: { item: any; index: number }) => {
+  const renderFeedItem = useCallback(({ item, index }: { item: any; index: number }) => {
     if (item.type === 'banner') {
       return <AdminBanner autoRotate={true} interval={4500} />;
     }
@@ -1346,7 +1320,7 @@ export default function HomeScreen() {
       return renderGridCard({ item: item.data });
     }
     return renderListingCard({ item: item.data });
-  };
+  }, [viewMode, handleSeeAll, getListingTypeLabel, renderListingCard, renderGridCard]);
 
   return (
     <View style={styles.container}>
@@ -1583,7 +1557,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.mapViewContainer}>
             <InteractiveMapViewPlatform
-              markers={getMapMarkers()}
+              markers={getMapMarkers}
               onMarkerPress={handleMarkerPress}
               initialRegion={
                 profile?.latitude && profile?.longitude
