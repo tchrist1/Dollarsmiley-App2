@@ -1180,131 +1180,149 @@ export default function HomeScreen() {
     );
   }, [getListingTypeLabel]);
 
-  const renderFeedItem = useCallback(({ item, index }: { item: any; index: number }) => {
+  // Shared carousel renderer for feed items - no viewMode dependency
+  const renderFeedCarousel = useCallback((item: any) => {
+    const IconComponent = item.icon === 'trending' ? TrendingUp : item.icon === 'star' ? Star : Sparkles;
+    return (
+      <View style={styles.embeddedCarouselSection}>
+        <View style={styles.embeddedCarouselHeader}>
+          <View style={styles.embeddedCarouselTitleRow}>
+            <IconComponent size={22} color={colors.primary} />
+            <Text style={styles.embeddedCarouselTitle}>{item.title}</Text>
+          </View>
+          <TouchableOpacity onPress={() => handleSeeAll(item.id)} activeOpacity={0.7}>
+            <Text style={styles.embeddedSeeAllText}>See All →</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          horizontal
+          data={item.data}
+          renderItem={({ item: carouselItem }) => {
+            const carouselListing = carouselItem as any;
+
+            let carouselPhotos: string[] = [];
+            if (carouselListing.photos) {
+              if (Array.isArray(carouselListing.photos)) {
+                carouselPhotos = carouselListing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
+              } else if (typeof carouselListing.photos === 'string') {
+                try {
+                  const parsed = JSON.parse(carouselListing.photos);
+                  carouselPhotos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
+                } catch (e) {
+                  if (carouselListing.photos.trim() !== '') {
+                    carouselPhotos = [carouselListing.photos];
+                  }
+                }
+              }
+            }
+            const carouselMainImage = carouselPhotos.length > 0 ? carouselPhotos[0] : null;
+            const isJob = carouselListing.marketplace_type === 'Job';
+            const carouselTypeLabel = getListingTypeLabel(carouselItem);
+
+            return (
+              <TouchableOpacity
+                style={styles.embeddedCarouselCard}
+                onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}` : `/listing/${carouselItem.id}`)}
+                activeOpacity={0.7}
+              >
+                {carouselMainImage ? (
+                  <Image
+                    source={{ uri: carouselMainImage }}
+                    style={styles.embeddedCarouselCardImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.embeddedCarouselCardImage, styles.embeddedCarouselCardImagePlaceholder]}>
+                    <Text style={styles.embeddedCarouselCardImagePlaceholderText}>
+                      {isJob ? '💼' : carouselListing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: carouselTypeLabel.color, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 3, zIndex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{carouselTypeLabel.text}</Text>
+                </View>
+                <View style={styles.embeddedCarouselCardContent}>
+                  <View style={styles.embeddedCarouselProfileRow}>
+                    {(carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url) ? (
+                      <Image
+                        source={{ uri: carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url }}
+                        style={styles.embeddedCarouselAvatar}
+                      />
+                    ) : (
+                      <View style={[styles.embeddedCarouselAvatar, styles.embeddedCarouselAvatarPlaceholder]}>
+                        <Text style={styles.embeddedCarouselAvatarText}>
+                          {(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'P').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
+                      {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
+                    </Text>
+                  </View>
+                  <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
+                    {carouselItem.title}
+                  </Text>
+                  <View style={styles.embeddedCarouselCardFooter}>
+                    <Text style={styles.embeddedCarouselCardPrice}>
+                      {formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0)}
+                    </Text>
+                    {(carouselListing.rating_average || carouselListing.provider?.rating_average) > 0 && (
+                      <View style={styles.embeddedCarouselCardRating}>
+                        <Star size={12} color={colors.warning} fill={colors.warning} />
+                        <Text style={styles.embeddedCarouselCardRatingText}>
+                          {(carouselListing.rating_average || carouselListing.provider?.rating_average)?.toFixed(1) || 'N/A'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+          keyExtractor={(carouselItem) => carouselItem.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.embeddedCarouselList}
+        />
+      </View>
+    );
+  }, [handleSeeAll, getListingTypeLabel]);
+
+  // List view renderer - stable, no viewMode dependency
+  const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
     if (item.type === 'banner') {
       return <AdminBanner autoRotate={true} interval={4500} />;
     }
 
     if (item.type === 'carousel') {
-      const IconComponent = item.icon === 'trending' ? TrendingUp : item.icon === 'star' ? Star : Sparkles;
+      return renderFeedCarousel(item);
+    }
+
+    if (item.type === 'row') {
       return (
-        <View style={styles.embeddedCarouselSection}>
-          <View style={styles.embeddedCarouselHeader}>
-            <View style={styles.embeddedCarouselTitleRow}>
-              <IconComponent size={22} color={colors.primary} />
-              <Text style={styles.embeddedCarouselTitle}>{item.title}</Text>
+        <View>
+          {item.items.map((listing: MarketplaceListing) => (
+            <View key={listing.id} style={{ marginBottom: spacing.md }}>
+              {renderListingCard({ item: listing })}
             </View>
-            <TouchableOpacity onPress={() => handleSeeAll(item.id)} activeOpacity={0.7}>
-              <Text style={styles.embeddedSeeAllText}>See All →</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            horizontal
-            data={item.data}
-            renderItem={({ item: carouselItem }) => {
-              const carouselListing = carouselItem as any;
-
-              let carouselPhotos: string[] = [];
-              if (carouselListing.photos) {
-                if (Array.isArray(carouselListing.photos)) {
-                  carouselPhotos = carouselListing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
-                } else if (typeof carouselListing.photos === 'string') {
-                  try {
-                    const parsed = JSON.parse(carouselListing.photos);
-                    carouselPhotos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
-                  } catch (e) {
-                    if (carouselListing.photos.trim() !== '') {
-                      carouselPhotos = [carouselListing.photos];
-                    }
-                  }
-                }
-              }
-              const carouselMainImage = carouselPhotos.length > 0 ? carouselPhotos[0] : null;
-              const isJob = carouselListing.marketplace_type === 'Job';
-              const carouselTypeLabel = getListingTypeLabel(carouselItem);
-
-              return (
-                <TouchableOpacity
-                  style={styles.embeddedCarouselCard}
-                  onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}` : `/listing/${carouselItem.id}`)}
-                  activeOpacity={0.7}
-                >
-                  {carouselMainImage ? (
-                    <Image
-                      source={{ uri: carouselMainImage }}
-                      style={styles.embeddedCarouselCardImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={[styles.embeddedCarouselCardImage, styles.embeddedCarouselCardImagePlaceholder]}>
-                      <Text style={styles.embeddedCarouselCardImagePlaceholderText}>
-                        {isJob ? '💼' : carouselListing.listing_type === 'CustomService' ? '✨' : '🛠️'}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: carouselTypeLabel.color, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 3, zIndex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{carouselTypeLabel.text}</Text>
-                  </View>
-                  <View style={styles.embeddedCarouselCardContent}>
-                    <View style={styles.embeddedCarouselProfileRow}>
-                      {(carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url) ? (
-                        <Image
-                          source={{ uri: carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url }}
-                          style={styles.embeddedCarouselAvatar}
-                        />
-                      ) : (
-                        <View style={[styles.embeddedCarouselAvatar, styles.embeddedCarouselAvatarPlaceholder]}>
-                          <Text style={styles.embeddedCarouselAvatarText}>
-                            {(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'P').charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                      )}
-                      <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
-                        {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
-                      </Text>
-                    </View>
-                    <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
-                      {carouselItem.title}
-                    </Text>
-                    <View style={styles.embeddedCarouselCardFooter}>
-                      <Text style={styles.embeddedCarouselCardPrice}>
-                        {formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0)}
-                      </Text>
-                      {(carouselListing.rating_average || carouselListing.provider?.rating_average) > 0 && (
-                        <View style={styles.embeddedCarouselCardRating}>
-                          <Star size={12} color={colors.warning} fill={colors.warning} />
-                          <Text style={styles.embeddedCarouselCardRatingText}>
-                            {(carouselListing.rating_average || carouselListing.provider?.rating_average)?.toFixed(1) || 'N/A'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
-            keyExtractor={(carouselItem) => carouselItem.id}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.embeddedCarouselList}
-          />
+          ))}
         </View>
       );
     }
 
+    return renderListingCard({ item: item.data });
+  }, [renderFeedCarousel, renderListingCard]);
+
+  // Grid view renderer - stable, no viewMode dependency
+  const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
+    if (item.type === 'banner') {
+      return <AdminBanner autoRotate={true} interval={4500} />;
+    }
+
+    if (item.type === 'carousel') {
+      return renderFeedCarousel(item);
+    }
+
     if (item.type === 'row') {
-      // For list view, render as individual list cards
-      if (viewMode === 'list') {
-        return (
-          <View>
-            {item.items.map((listing: MarketplaceListing) => (
-              <View key={listing.id} style={{ marginBottom: spacing.md }}>
-                {renderListingCard({ item: listing })}
-              </View>
-            ))}
-          </View>
-        );
-      }
-      // For grid view, render as grid row
       return (
         <View style={styles.gridRow}>
           {item.items.map((listing: MarketplaceListing) => (
@@ -1316,11 +1334,8 @@ export default function HomeScreen() {
       );
     }
 
-    if (viewMode === 'grid') {
-      return renderGridCard({ item: item.data });
-    }
-    return renderListingCard({ item: item.data });
-  }, [viewMode, handleSeeAll, getListingTypeLabel, renderListingCard, renderGridCard]);
+    return renderGridCard({ item: item.data });
+  }, [renderFeedCarousel, renderGridCard]);
 
   return (
     <View style={styles.container}>
@@ -1508,54 +1523,78 @@ export default function HomeScreen() {
           <RecommendationsCarousel type="popular" limit={8} />
         </View>
       ) : listings.length > 0 ? (
-        viewMode === 'list' ? (
-          <FlatList
-            key="list-view"
-            data={feedData}
-            renderItem={renderFeedItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listingsContainer}
-            showsVerticalScrollIndicator={false}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.loadingMoreContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingMoreText}>Loading more...</Text>
-                </View>
-              ) : !hasMore && listings.length > 0 ? (
-                <View style={styles.endReachedContainer}>
-                  <Text style={styles.endReachedText}>You've reached the end</Text>
-                </View>
-              ) : null
-            }
-          />
-        ) : viewMode === 'grid' ? (
-          <FlatList
-            key="grid-view"
-            data={feedData}
-            renderItem={renderFeedItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.gridContainer}
-            showsVerticalScrollIndicator={false}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={styles.loadingMoreContainer}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                  <Text style={styles.loadingMoreText}>Loading more...</Text>
-                </View>
-              ) : !hasMore && listings.length > 0 ? (
-                <View style={styles.endReachedContainer}>
-                  <Text style={styles.endReachedText}>You've reached the end</Text>
-                </View>
-              ) : null
-            }
-          />
-        ) : (
-          <View style={styles.mapViewContainer}>
+        <View style={{ flex: 1 }}>
+          {/* List View - kept mounted, visibility toggled */}
+          <View
+            style={[
+              styles.viewContainer,
+              viewMode !== 'list' && styles.viewContainerHidden
+            ]}
+            pointerEvents={viewMode === 'list' ? 'auto' : 'none'}
+          >
+            <FlatList
+              data={feedData}
+              renderItem={renderFeedItemList}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listingsContainer}
+              showsVerticalScrollIndicator={false}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                loadingMore ? (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingMoreText}>Loading more...</Text>
+                  </View>
+                ) : !hasMore && listings.length > 0 ? (
+                  <View style={styles.endReachedContainer}>
+                    <Text style={styles.endReachedText}>You've reached the end</Text>
+                  </View>
+                ) : null
+              }
+            />
+          </View>
+
+          {/* Grid View - kept mounted, visibility toggled */}
+          <View
+            style={[
+              styles.viewContainer,
+              viewMode !== 'grid' && styles.viewContainerHidden
+            ]}
+            pointerEvents={viewMode === 'grid' ? 'auto' : 'none'}
+          >
+            <FlatList
+              data={feedData}
+              renderItem={renderFeedItemGrid}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.gridContainer}
+              showsVerticalScrollIndicator={false}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={
+                loadingMore ? (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={styles.loadingMoreText}>Loading more...</Text>
+                  </View>
+                ) : !hasMore && listings.length > 0 ? (
+                  <View style={styles.endReachedContainer}>
+                    <Text style={styles.endReachedText}>You've reached the end</Text>
+                  </View>
+                ) : null
+              }
+            />
+          </View>
+
+          {/* Map View - kept mounted, visibility toggled */}
+          <View
+            style={[
+              styles.viewContainer,
+              styles.mapViewContainer,
+              viewMode !== 'map' && styles.viewContainerHidden
+            ]}
+            pointerEvents={viewMode === 'map' ? 'auto' : 'none'}
+          >
             <InteractiveMapViewPlatform
               markers={getMapMarkers}
               onMarkerPress={handleMarkerPress}
@@ -1610,7 +1649,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        )
+        </View>
       ) : (
         <View style={styles.centerContent}>
           <Text style={styles.emptyText}>
@@ -2378,5 +2417,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.text,
     fontWeight: '600' as const,
+  },
+  viewContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  viewContainerHidden: {
+    opacity: 0,
   },
 });

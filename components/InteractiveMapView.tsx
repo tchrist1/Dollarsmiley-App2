@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -87,11 +87,8 @@ export default function InteractiveMapView({
       const bounds = calculateBounds(markers);
       setRegion(bounds);
     }
-    // Set map as loaded after a short delay
-    const timer = setTimeout(() => {
-      setMapLoaded(true);
-    }, 500);
-    return () => clearTimeout(timer);
+    // Set map as loaded immediately - no artificial delay
+    setMapLoaded(true);
   }, [markers]);
 
   const calculateBounds = (points: MapMarker[]): MapRegion => {
@@ -263,8 +260,9 @@ export default function InteractiveMapView({
     return 'count' in item && 'markers' in item;
   };
 
-  const visibleMarkers = markers.filter(isMarkerInView);
-  const clusteredItems = clusterMarkers(visibleMarkers);
+  // Memoize expensive filtering and clustering calculations
+  const visibleMarkers = useMemo(() => markers.filter(isMarkerInView), [markers, region]);
+  const clusteredItems = useMemo(() => clusterMarkers(visibleMarkers), [visibleMarkers, enableClustering, clusterRadius, region.latitudeDelta]);
 
   return (
     <View style={[styles.container, style]}>
