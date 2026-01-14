@@ -148,6 +148,20 @@ export function FilterModal({ visible, onClose, onApply, currentFilters, categor
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
+
+  // Defer content rendering by one frame for smooth modal animation
+  useEffect(() => {
+    if (visible) {
+      setContentReady(false);
+      const timer = requestAnimationFrame(() => {
+        setTimeout(() => setContentReady(true), 0);
+      });
+      return () => cancelAnimationFrame(timer);
+    } else {
+      setContentReady(false);
+    }
+  }, [visible]);
 
   // Single state update when currentFilters changes - replaces 22 individual setState calls
   useEffect(() => {
@@ -366,6 +380,11 @@ export function FilterModal({ visible, onClose, onApply, currentFilters, categor
     }
   }, [useCurrentLocation]);
 
+  // Don't render modal content until visible to improve performance
+  if (!visible && !contentReady) {
+    return null;
+  }
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView
@@ -399,6 +418,10 @@ export function FilterModal({ visible, onClose, onApply, currentFilters, categor
                 removeClippedSubviews={Platform.OS === 'android'}
                 scrollEventThrottle={16}
               >
+            {!contentReady ? (
+              <View style={styles.loadingPlaceholder} />
+            ) : (
+              <>
             {/* Listing Type - First */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Listing Type</Text>
@@ -755,6 +778,8 @@ export function FilterModal({ visible, onClose, onApply, currentFilters, categor
                 </View>
               </TouchableOpacity>
             </View>
+              </>
+            )}
               </ScrollView>
 
               <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
@@ -1165,6 +1190,17 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     marginTop: spacing.sm,
+    fontWeight: fontWeight.medium,
+  },
+  loadingPlaceholder: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  loadingText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
   },
 });
