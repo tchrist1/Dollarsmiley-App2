@@ -32,14 +32,6 @@ export function PriceRangeSlider({
   const [maxThumbPosition] = useState(new Animated.Value(1));
   const minThumbRef = useRef(0);
   const maxThumbRef = useRef(1);
-  const sliderWidthRef = useRef(0);
-  const onValuesChangeRef = useRef(onValuesChange);
-
-  // Update refs when props change
-  useEffect(() => {
-    sliderWidthRef.current = sliderWidth;
-    onValuesChangeRef.current = onValuesChange;
-  }, [sliderWidth, onValuesChange]);
 
   const normalizeValue = (value: number): number => {
     return (value - minValue) / (maxValue - minValue);
@@ -69,7 +61,7 @@ export function PriceRangeSlider({
 
     minThumbPosition.setValue(clampedNormalized);
     minThumbRef.current = clampedNormalized;
-    onValuesChangeRef.current(newMin, currentMax);
+    onValuesChange(newMin, currentMax);
   };
 
   const updateMaxPrice = (normalized: number) => {
@@ -79,44 +71,38 @@ export function PriceRangeSlider({
 
     maxThumbPosition.setValue(clampedNormalized);
     maxThumbRef.current = clampedNormalized;
-    onValuesChangeRef.current(currentMin, newMax);
+    onValuesChange(currentMin, newMax);
   };
 
-  // Persisted PanResponder - created once, never recreated
-  const minPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        // Capture current position from ref at gesture start
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (sliderWidthRef.current > 0) {
-          const delta = gestureState.dx / sliderWidthRef.current;
-          const newNormalized = minThumbRef.current + delta;
-          updateMinPrice(newNormalized);
-        }
-      },
-    })
-  ).current;
+  const minPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      minThumbRef.current = minThumbPosition._value;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (sliderWidth > 0) {
+        const delta = gestureState.dx / sliderWidth;
+        const newNormalized = minThumbRef.current + delta;
+        updateMinPrice(newNormalized);
+      }
+    },
+  });
 
-  // Persisted PanResponder - created once, never recreated
-  const maxPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        // Capture current position from ref at gesture start
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (sliderWidthRef.current > 0) {
-          const delta = gestureState.dx / sliderWidthRef.current;
-          const newNormalized = maxThumbRef.current + delta;
-          updateMaxPrice(newNormalized);
-        }
-      },
-    })
-  ).current;
+  const maxPanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: () => {
+      maxThumbRef.current = maxThumbPosition._value;
+    },
+    onPanResponderMove: (_, gestureState) => {
+      if (sliderWidth > 0) {
+        const delta = gestureState.dx / sliderWidth;
+        const newNormalized = maxThumbRef.current + delta;
+        updateMaxPrice(newNormalized);
+      }
+    },
+  });
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;

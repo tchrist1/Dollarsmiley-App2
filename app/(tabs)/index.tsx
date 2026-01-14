@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import { ServiceListing, MarketplaceListing, Job, Category } from '@/types/database';
+import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 import { FilterModal } from '@/components/FilterModal';
@@ -57,9 +57,6 @@ export default function HomeScreen() {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLoadingMoreRef = useRef(false);
 
-  // Cached categories - fetched once per session
-  const [categories, setCategories] = useState<Category[]>([]);
-
   // Carousel sections
   const [recommendedListings, setRecommendedListings] = useState<MarketplaceListing[]>([]);
   const [trendingListings, setTrendingListings] = useState<MarketplaceListing[]>([]);
@@ -82,21 +79,7 @@ export default function HomeScreen() {
 
   const PAGE_SIZE = 20;
 
-  // Fetch categories once on mount - cached for session
   useEffect(() => {
-    const fetchCategories = async () => {
-      const { data } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (data) {
-        setCategories(data);
-      }
-    };
-
-    fetchCategories();
     fetchTrendingSearches();
     requestLocationPermission();
     fetchCarouselSections();
@@ -1705,7 +1688,6 @@ export default function HomeScreen() {
         onClose={() => setShowFilters(false)}
         onApply={handleApplyFilters}
         currentFilters={filters}
-        categories={categories}
       />
     </View>
   );
