@@ -105,42 +105,41 @@ export default function MyJobsScreen() {
         statuses = ['Expired', 'Cancelled'];
       }
 
-      // Fetch jobs where user is the customer - SIMPLIFIED QUERY (no nested bookings)
-      let customerQuery = supabase
-        .from('jobs')
-        .select('*, categories(name)')
-        .eq('customer_id', profile.id);
+      // Parallelize independent queries for faster loading
+      const [
+        { data: customerJobs, error: customerError },
+        { data: userBookings, error: bookingsError },
+        { data: userAcceptances, error: acceptancesError }
+      ] = await Promise.all([
+        // Fetch jobs where user is the customer
+        supabase
+          .from('jobs')
+          .select('*, categories(name)')
+          .eq('customer_id', profile.id)
+          .in('status', statuses.length > 0 ? statuses : ['Open', 'Booked', 'Completed', 'Expired', 'Cancelled'])
+          .order('created_at', { ascending: false }),
 
-      if (statuses.length > 0) {
-        customerQuery = customerQuery.in('status', statuses);
-      }
+        // Get all job IDs where user has bookings (quote-based jobs)
+        supabase
+          .from('bookings')
+          .select('job_id, id, status, provider_id')
+          .eq('provider_id', profile.id),
 
-      customerQuery = customerQuery.order('created_at', { ascending: false });
-
-      const { data: customerJobs, error: customerError } = await customerQuery;
+        // Get all job IDs where user has acceptances (fixed-price jobs)
+        supabase
+          .from('job_acceptances')
+          .select('job_id, id, status, provider_id')
+          .eq('provider_id', profile.id)
+      ]);
 
       if (customerError) {
         console.error('Error fetching customer jobs:', customerError);
         throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
       }
 
-      // Fetch jobs where user is a provider (through bookings OR job_acceptances)
-
-      // First, get all job IDs where user has bookings (quote-based jobs)
-      const { data: userBookings, error: bookingsError } = await supabase
-        .from('bookings')
-        .select('job_id, id, status, provider_id')
-        .eq('provider_id', profile.id);
-
       if (bookingsError) {
         console.error('Error fetching user bookings:', bookingsError);
       }
-
-      // Also get all job IDs where user has acceptances (fixed-price jobs)
-      const { data: userAcceptances, error: acceptancesError } = await supabase
-        .from('job_acceptances')
-        .select('job_id, id, status, provider_id')
-        .eq('provider_id', profile.id);
 
       if (acceptancesError) {
         console.error('Error fetching user acceptances:', acceptancesError);
@@ -210,30 +209,32 @@ export default function MyJobsScreen() {
       // Sort by created_at descending
       displayJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      // Fetch bookings for all jobs separately to avoid nested query issues
+      // Parallelize fetching bookings and acceptances for better performance
       const jobIds = displayJobs.map(j => j.id);
       let allJobBookings: any[] = [];
+      let allJobAcceptances: any[] = [];
 
       if (jobIds.length > 0) {
-        const { data: jobBookings, error: jobBookingsError } = await supabase
-          .from('bookings')
-          .select('*, provider:profiles!provider_id(full_name)')
-          .in('job_id', jobIds);
+        const [
+          { data: jobBookings, error: jobBookingsError },
+          { data: jobAcceptances, error: jobAcceptancesError }
+        ] = await Promise.all([
+          supabase
+            .from('bookings')
+            .select('*, provider:profiles!provider_id(full_name)')
+            .in('job_id', jobIds),
+
+          supabase
+            .from('job_acceptances')
+            .select('*')
+            .in('job_id', jobIds)
+        ]);
 
         if (jobBookingsError) {
           console.error('Error fetching job bookings:', jobBookingsError);
         } else {
           allJobBookings = jobBookings || [];
         }
-      }
-
-      // Fetch job acceptances for all jobs
-      let allJobAcceptances: any[] = [];
-      if (jobIds.length > 0) {
-        const { data: jobAcceptances, error: jobAcceptancesError } = await supabase
-          .from('job_acceptances')
-          .select('*')
-          .in('job_id', jobIds);
 
         if (jobAcceptancesError) {
           console.error('Error fetching job acceptances:', jobAcceptancesError);
@@ -242,49 +243,38 @@ export default function MyJobsScreen() {
         }
       }
 
-      // Attach bookings and acceptances to jobs
-      const jobsWithBookings = displayJobs.map((job: any) => ({
-        ...job,
-        bookings: allJobBookings.filter((b: any) => b.job_id === job.id),
-        acceptances: allJobAcceptances.filter((a: any) => a.job_id === job.id),
-        userAcceptance: allJobAcceptances.find((a: any) => a.job_id === job.id && a.provider_id === profile.id),
-        userBooking: allJobBookings.find((b: any) => b.job_id === job.id && b.provider_id === profile.id),
-      }));
+      // Attach bookings and acceptances to jobs and calculate counts efficiently
+      const jobsWithCounts = displayJobs.map((job: any) => {
+        const jobBookings = allJobBookings.filter((b: any) => b.job_id === job.id);
+        const jobAcceptances = allJobAcceptances.filter((a: any) => a.job_id === job.id);
 
-      // Add counts and find completed booking
-      const jobsWithCounts = await Promise.all(
-        jobsWithBookings.map(async (job: any) => {
-          let quotes = 0;
-          let acceptances = 0;
+        // Calculate counts from already-fetched data (no additional queries needed)
+        let quotes = 0;
+        let acceptances = 0;
 
-          if (job.pricing_type === 'quote_based') {
-            const { count } = await supabase
-              .from('bookings')
-              .select('*', { count: 'exact', head: true })
-              .eq('job_id', job.id)
-              .eq('status', 'Requested');
-            quotes = count || 0;
-          } else if (job.pricing_type === 'fixed_price') {
-            const { count } = await supabase
-              .from('job_acceptances')
-              .select('*', { count: 'exact', head: true })
-              .eq('job_id', job.id)
-              .eq('status', 'pending');
-            acceptances = count || 0;
-          }
+        if (job.pricing_type === 'quote_based') {
+          quotes = jobBookings.filter((b: any) => b.status === 'Requested').length;
+        } else if (job.pricing_type === 'fixed_price') {
+          acceptances = jobAcceptances.filter((a: any) => a.status === 'pending').length;
+        }
 
-          const completedBooking = job.bookings?.find((b: any) => b.status === 'Completed');
+        const completedBooking = jobBookings.find((b: any) => b.status === 'Completed');
+        const userAcceptance = jobAcceptances.find((a: any) => a.provider_id === profile.id);
+        const userBooking = jobBookings.find((b: any) => b.provider_id === profile.id);
 
-          return {
-            ...job,
-            _count: {
-              quotes,
-              acceptances,
-            },
-            booking: completedBooking || null,
-          };
-        })
-      );
+        return {
+          ...job,
+          bookings: jobBookings,
+          acceptances: jobAcceptances,
+          userAcceptance,
+          userBooking,
+          _count: {
+            quotes,
+            acceptances,
+          },
+          booking: completedBooking || null,
+        };
+      });
 
       setJobs(jobsWithCounts as any);
     } catch (error) {
