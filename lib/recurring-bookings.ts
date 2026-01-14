@@ -92,7 +92,14 @@ export async function createRecurringBooking(
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Table doesn't exist - migration not applied yet
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('Recurring bookings table not found. Feature may not be enabled yet.');
+        return null;
+      }
+      throw error;
+    }
 
     // Create first booking
     await createBookingFromRecurring(recurring.id);
@@ -383,11 +390,20 @@ async function checkBookingConflict(
 
 async function createBookingFromRecurring(recurringId: string): Promise<void> {
   try {
-    const { data: recurring } = await supabase
+    const { data: recurring, error } = await supabase
       .from('recurring_bookings')
       .select('*')
       .eq('id', recurringId)
       .single();
+
+    if (error) {
+      // Table doesn't exist - migration not applied yet
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('Recurring bookings table not found. Feature may not be enabled yet.');
+        return;
+      }
+      throw error;
+    }
 
     if (!recurring || !recurring.next_booking_date) return;
 
@@ -443,7 +459,14 @@ export async function cancelRecurringBooking(recurringId: string): Promise<boole
       .update({ is_active: false })
       .eq('id', recurringId);
 
-    if (error) throw error;
+    if (error) {
+      // Table doesn't exist - migration not applied yet
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('Recurring bookings table not found. Feature may not be enabled yet.');
+        return false;
+      }
+      throw error;
+    }
 
     return true;
   } catch (error) {
@@ -460,7 +483,14 @@ export async function getRecurringBookings(userId: string): Promise<RecurringBoo
       .eq('customer_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      // Table doesn't exist - migration not applied yet
+      if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+        console.warn('Recurring bookings table not found. Feature may not be enabled yet.');
+        return [];
+      }
+      throw error;
+    }
 
     return data || [];
   } catch (error) {

@@ -55,7 +55,14 @@ export default function RecurringBookingsScreen() {
         .update({ is_active: false })
         .eq('id', bookingId);
 
-      if (error) throw error;
+      if (error) {
+        // Table doesn't exist - migration not applied yet
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          Alert.alert('Feature Unavailable', 'Recurring bookings feature is not enabled yet.');
+          return;
+        }
+        throw error;
+      }
 
       setBookings(
         bookings.map(b => (b.id === bookingId ? { ...b, is_active: false } : b))
@@ -75,7 +82,14 @@ export default function RecurringBookingsScreen() {
         .update({ is_active: true })
         .eq('id', bookingId);
 
-      if (error) throw error;
+      if (error) {
+        // Table doesn't exist - migration not applied yet
+        if (error.code === 'PGRST205' || error.message?.includes('Could not find the table')) {
+          Alert.alert('Feature Unavailable', 'Recurring bookings feature is not enabled yet.');
+          return;
+        }
+        throw error;
+      }
 
       setBookings(
         bookings.map(b => (b.id === bookingId ? { ...b, is_active: true } : b))
