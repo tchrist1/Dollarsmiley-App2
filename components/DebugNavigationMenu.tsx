@@ -150,12 +150,20 @@ const navigationItems: NavigationItem[] = [
     description: 'Browse available jobs',
   },
   {
-    label: 'My Jobs',
-    route: '/my-jobs',
+    label: 'My Posted Jobs',
+    route: '/my-jobs/posted',
     icon: FileText,
     category: 'Jobs & Services',
     requiresAuth: true,
-    description: 'Your posted jobs',
+    description: 'Jobs you posted',
+  },
+  {
+    label: 'My Applied Jobs',
+    route: '/my-jobs/applied',
+    icon: FileText,
+    category: 'Jobs & Services',
+    requiresAuth: true,
+    description: 'Jobs you applied to',
   },
   {
     label: 'My Bookings',
