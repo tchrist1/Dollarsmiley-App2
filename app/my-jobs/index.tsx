@@ -75,7 +75,7 @@ interface Quote {
 
 export default function MyJobsScreen() {
   const { profile } = useAuth();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [allJobs, setAllJobs] = useState<{ customer: Job[], provider: Job[] }>({ customer: [], provider: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'active' | 'completed' | 'expired'>('active');
@@ -87,7 +87,7 @@ export default function MyJobsScreen() {
     if (profile) {
       fetchJobs();
     }
-  }, [profile, filter, roleMode]);
+  }, [profile, filter]);
 
   const fetchJobs = async () => {
     if (!profile) return;
@@ -173,44 +173,25 @@ export default function MyJobsScreen() {
       // Determine if user is hybrid (has both posted and applied jobs)
       const hasPosted = (customerJobs?.length || 0) > 0;
       const hasApplied = providerJobs.length > 0;
-      const isHybrid = hasPosted && hasApplied;
 
       // Track states
       setHasPostedJobs(hasPosted);
       setHasAppliedJobs(hasApplied);
 
-      // Determine which jobs to display based on role mode
-      // For Hybrid accounts: show only customer jobs in customer mode, only provider jobs in provider mode
-      // For Customer-only accounts: always show customer jobs
-      // For Provider-only accounts: always show provider jobs
+      // Prepare customer jobs with metadata
+      const customerJobsData = customerJobs || [];
+      customerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-      let displayJobs: any[] = [];
-      if (isHybrid) {
-        // Hybrid account: filter by role mode
-        if (roleMode === 'customer') {
-          displayJobs = customerJobs || [];
-        } else {
-          displayJobs = providerJobs;
-        }
-      } else {
-        // Non-hybrid account: show all jobs (either customer or provider)
-        const allJobs = customerJobs || [];
-        const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+      // Prepare provider jobs with metadata
+      const providerJobsData = providerJobs || [];
+      providerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        // Add provider jobs that aren't already in the list
-        for (const job of providerJobs) {
-          if (!jobIdsMap.has(job.id)) {
-            jobIdsMap.set(job.id, job);
-          }
-        }
-        displayJobs = Array.from(jobIdsMap.values());
-      }
-
-      // Sort by created_at descending
-      displayJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Parallelize fetching bookings and acceptances for better performance
-      const jobIds = displayJobs.map(j => j.id);
+      // Parallelize fetching bookings and acceptances for all jobs
+      const allJobIds = Array.from(new Set([
+        ...customerJobsData.map(j => j.id),
+        ...providerJobsData.map(j => j.id)
+      ]));
+      const jobIds = allJobIds;
       let allJobBookings: any[] = [];
       let allJobAcceptances: any[] = [];
 
@@ -244,7 +225,7 @@ export default function MyJobsScreen() {
       }
 
       // Attach bookings and acceptances to jobs and calculate counts efficiently
-      const jobsWithCounts = displayJobs.map((job: any) => {
+      const enrichJob = (job: any) => {
         const jobBookings = allJobBookings.filter((b: any) => b.job_id === job.id);
         const jobAcceptances = allJobAcceptances.filter((a: any) => a.job_id === job.id);
 
@@ -274,9 +255,15 @@ export default function MyJobsScreen() {
           },
           booking: completedBooking || null,
         };
-      });
+      };
 
-      setJobs(jobsWithCounts as any);
+      const enrichedCustomerJobs = customerJobsData.map(enrichJob);
+      const enrichedProviderJobs = providerJobsData.map(enrichJob);
+
+      setAllJobs({
+        customer: enrichedCustomerJobs as any,
+        provider: enrichedProviderJobs as any,
+      });
     } catch (error) {
       console.error('Unexpected error in fetchJobs:', error);
       Alert.alert(
@@ -287,7 +274,7 @@ export default function MyJobsScreen() {
           { text: 'Retry', onPress: () => fetchJobs() },
         ]
       );
-      setJobs([]);
+      setAllJobs({ customer: [], provider: [] });
       setHasPostedJobs(false);
       setHasAppliedJobs(false);
     } finally {
@@ -630,6 +617,31 @@ export default function MyJobsScreen() {
   };
 
   const isHybrid = hasPostedJobs && hasAppliedJobs;
+
+  // Compute displayed jobs based on roleMode (local filtering - no re-fetch)
+  const jobs = React.useMemo(() => {
+    if (isHybrid) {
+      // Hybrid account: show only jobs for the selected role
+      return roleMode === 'customer' ? allJobs.customer : allJobs.provider;
+    } else {
+      // Non-hybrid account: combine all jobs
+      const combinedJobsMap = new Map();
+
+      // Add customer jobs
+      for (const job of allJobs.customer) {
+        combinedJobsMap.set(job.id, job);
+      }
+
+      // Add provider jobs that aren't duplicates
+      for (const job of allJobs.provider) {
+        if (!combinedJobsMap.has(job.id)) {
+          combinedJobsMap.set(job.id, job);
+        }
+      }
+
+      return Array.from(combinedJobsMap.values());
+    }
+  }, [allJobs, roleMode, isHybrid]);
 
   return (
     <View style={styles.container}>
