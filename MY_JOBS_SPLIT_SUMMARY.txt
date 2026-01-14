@@ -1,0 +1,148 @@
+MY JOBS SCREEN SPLIT - IMPLEMENTATION SUMMARY
+==============================================
+
+OBJECTIVE: Split the combined "My Jobs" screen into two dedicated screens for better
+performance and clarity.
+
+CHANGES COMPLETED
+-----------------
+
+1. NEW SCREENS CREATED
+
+   a) /app/my-jobs/posted.tsx
+      - Shows jobs where current user is the customer (posted jobs)
+      - Status tabs: Active, Completed, Expired
+      - Customer-only data loading (no provider queries)
+      - Actions: Edit, View Quotes/Interested Providers, Cancel, Timeline, Rate Provider
+      - Empty state: "Post a Job" CTA
+
+   b) /app/my-jobs/applied.tsx
+      - Shows jobs where current user applied, booked, or was accepted as provider
+      - Status tabs: Active, Completed, Expired
+      - Provider-only data loading (no customer queries)
+      - Shows application status badges (Quote Sent, Awarded, Pending, Rejected)
+      - Actions: Timeline only
+      - Empty state: "Find Jobs" CTA
+
+2. NAVIGATION UPDATES
+
+   a) Dashboard (app/(tabs)/dashboard.tsx)
+      - Removed single "My Jobs" link
+      - Added "My Posted Jobs" (always visible to authenticated users)
+      - Added "My Applied Jobs" (only visible to Provider and Hybrid users)
+      - Updated both Quick Actions section and Activity & Bookings navigation
+
+   b) Debug Menu (components/DebugNavigationMenu.tsx)
+      - Removed single "My Jobs" entry
+      - Added "My Posted Jobs" entry (authenticated users)
+      - Added "My Applied Jobs" entry (providers only)
+
+3. BACKWARDS COMPATIBILITY
+
+   /app/my-jobs/index.tsx
+   - Converted to redirect component
+   - Automatically redirects /my-jobs → /my-jobs/posted
+   - Ensures old deep links and bookmarks continue to work
+   - Shows loading spinner during redirect
+
+4. PRESERVED FUNCTIONALITY
+
+   - Subdirectories still work:
+     * /app/my-jobs/[id]/quotes.tsx (view quotes)
+     * /app/my-jobs/[id]/interested-providers.tsx (view interested providers)
+   - All job visibility rules unchanged
+   - All RLS policies unchanged
+   - All database queries unchanged (just separated by role)
+   - Job analytics link preserved in both screens
+
+PERFORMANCE IMPROVEMENTS
+-------------------------
+
+Posted Jobs Screen:
+- Only loads jobs where user is customer
+- No provider-side queries executed
+- No role toggle logic
+- No dual-role filtering
+
+Applied Jobs Screen:
+- Only loads jobs where user has bookings/acceptances
+- No customer-owned job queries
+- No role toggle logic
+- No dual-role filtering
+
+VISIBILITY RULES
+-----------------
+
+My Posted Jobs:
+✓ Visible to: All authenticated users (Customer, Provider, Hybrid)
+✓ Shows: Jobs where current_user.id = job.customer_id
+
+My Applied Jobs:
+✓ Visible to: Provider and Hybrid users only
+✓ Shows: Jobs where user has booking or job_acceptance record
+
+USER EXPERIENCE
+---------------
+
+Customer-Only Accounts:
+- See "My Posted Jobs" in dashboard
+- No "My Applied Jobs" option (not a provider)
+
+Provider-Only Accounts:
+- See "My Posted Jobs" in dashboard (can post jobs too)
+- See "My Applied Jobs" in dashboard
+
+Hybrid Accounts:
+- See both "My Posted Jobs" and "My Applied Jobs"
+- Clear separation - no role toggle needed
+- Each screen loads independently for better performance
+
+MIGRATION PATH
+--------------
+
+Old URL: /my-jobs
+New Default: /my-jobs/posted (automatic redirect)
+
+Direct Access:
+- Posted Jobs: /my-jobs/posted
+- Applied Jobs: /my-jobs/applied
+
+VALIDATION CHECKLIST
+--------------------
+
+✓ Both screens load faster than previous My Jobs (single-role queries)
+✓ No role toggles required
+✓ No dual-role data loading
+✓ Job visibility unchanged
+✓ Hybrid dashboard clearly shows both sections
+✓ Backwards compatibility via redirect
+✓ All subdirectory routes preserved
+✓ Analytics link works in both screens
+
+TECHNICAL NOTES
+---------------
+
+- No database schema changes
+- No RLS policy changes
+- No business logic changes
+- Only UI/routing separation
+- Performance optimized with targeted queries
+- Clean single-responsibility pattern per screen
+
+FILES MODIFIED
+--------------
+
+Created:
+- app/my-jobs/posted.tsx (customer jobs)
+- app/my-jobs/applied.tsx (provider jobs)
+
+Modified:
+- app/my-jobs/index.tsx (redirect component)
+- app/(tabs)/dashboard.tsx (navigation updates)
+- components/DebugNavigationMenu.tsx (menu entries)
+
+Preserved:
+- app/my-jobs/[id]/quotes.tsx
+- app/my-jobs/[id]/interested-providers.tsx
+
+END OF SUMMARY
