@@ -209,29 +209,15 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => router.push('/my-jobs/posted' as any)}
+              onPress={() => router.push('/my-jobs' as any)}
               activeOpacity={0.7}
             >
               <View style={styles.actionIconContainer}>
                 <ClipboardList size={24} color={colors.secondary} />
               </View>
-              <Text style={styles.actionTitle}>My Posted Jobs</Text>
-              <Text style={styles.actionDescription}>Jobs you posted</Text>
+              <Text style={styles.actionTitle}>My Jobs</Text>
+              <Text style={styles.actionDescription}>View job posts</Text>
             </TouchableOpacity>
-
-            {(profile?.account_type === 'Provider' || profile?.account_type === 'Hybrid') && (
-              <TouchableOpacity
-                style={styles.actionCard}
-                onPress={() => router.push('/my-jobs/applied' as any)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.actionIconContainer}>
-                  <ClipboardList size={24} color={colors.info} />
-                </View>
-                <Text style={styles.actionTitle}>My Applied Jobs</Text>
-                <Text style={styles.actionDescription}>Jobs you applied to</Text>
-              </TouchableOpacity>
-            )}
 
             <TouchableOpacity
               style={styles.actionCard}
@@ -330,27 +316,14 @@ export default function DashboardScreen() {
           <View style={styles.activityNav}>
             <TouchableOpacity
               style={styles.activityNavCard}
-              onPress={() => router.push('/my-jobs/posted')}
+              onPress={() => router.push('/my-jobs')}
               activeOpacity={0.7}
             >
               <View style={styles.activityNavIcon}>
                 <ClipboardList size={20} color={colors.primary} />
               </View>
-              <Text style={styles.activityNavText}>Posted Jobs</Text>
+              <Text style={styles.activityNavText}>Job Posts</Text>
             </TouchableOpacity>
-
-            {(profile?.account_type === 'Provider' || profile?.account_type === 'Hybrid') && (
-              <TouchableOpacity
-                style={styles.activityNavCard}
-                onPress={() => router.push('/my-jobs/applied')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.activityNavIcon}>
-                  <ClipboardList size={20} color={colors.info} />
-                </View>
-                <Text style={styles.activityNavText}>Applied Jobs</Text>
-              </TouchableOpacity>
-            )}
 
             <TouchableOpacity
               style={styles.activityNavCard}
