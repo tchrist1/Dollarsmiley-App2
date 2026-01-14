@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
@@ -16,6 +17,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
+    storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
@@ -26,3 +28,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+export async function clearAuthStorage() {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const authKeys = keys.filter(key =>
+      key.includes('supabase') ||
+      key.includes('auth') ||
+      key.includes('session')
+    );
+
+    if (authKeys.length > 0) {
+      await AsyncStorage.multiRemove(authKeys);
+      console.log('Cleared auth storage keys:', authKeys);
+    }
+  } catch (error) {
+    console.error('Error clearing auth storage:', error);
+  }
+}

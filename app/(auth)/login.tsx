@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert, TouchableOpacity, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase, clearAuthStorage } from '@/lib/supabase';
 import { signInWithGoogle, signInWithApple } from '@/lib/oauth';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
@@ -43,17 +43,35 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
 
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      Alert.alert('Login Failed', error.message);
-    } else {
-      router.replace('/(tabs)');
+      setLoading(false);
+
+      if (error) {
+        console.error('Login error:', error);
+        Alert.alert('Login Failed', error.message || 'Unable to sign in. Please check your credentials.');
+      } else if (data?.session) {
+        router.replace('/(tabs)');
+      }
+    } catch (err: any) {
+      setLoading(false);
+      console.error('Login exception:', err);
+
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+
+      if (err.message && err.message.includes('JSON')) {
+        await clearAuthStorage();
+        errorMessage = 'Storage cleared. Please try logging in again.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      Alert.alert('Login Failed', errorMessage);
     }
   };
 
