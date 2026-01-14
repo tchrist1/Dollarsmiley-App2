@@ -82,6 +82,7 @@ export default function MyJobsScreen() {
   const [hasPostedJobs, setHasPostedJobs] = useState(false);
   const [hasAppliedJobs, setHasAppliedJobs] = useState(false);
   const [roleMode, setRoleMode] = useState<'customer' | 'provider'>('customer');
+  const [metadataLoading, setMetadataLoading] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -89,164 +90,191 @@ export default function MyJobsScreen() {
     }
   }, [profile, filter]);
 
-  const fetchJobs = async () => {
+  // STAGE 1: Fetch core job data (critical - blocking)
+  const fetchCoreJobs = async () => {
+    if (!profile) return null;
+
+    // Determine which statuses to fetch based on filter
+    let statuses: string[] = [];
+    if (filter === 'active') {
+      statuses = ['Open', 'Booked'];
+    } else if (filter === 'completed') {
+      statuses = ['Completed'];
+    } else if (filter === 'expired') {
+      statuses = ['Expired', 'Cancelled'];
+    }
+
+    // Parallelize independent queries for faster loading
+    const [
+      { data: customerJobs, error: customerError },
+      { data: userBookings, error: bookingsError },
+      { data: userAcceptances, error: acceptancesError }
+    ] = await Promise.all([
+      // Fetch jobs where user is the customer
+      supabase
+        .from('jobs')
+        .select('*, categories(name)')
+        .eq('customer_id', profile.id)
+        .in('status', statuses.length > 0 ? statuses : ['Open', 'Booked', 'Completed', 'Expired', 'Cancelled'])
+        .order('created_at', { ascending: false }),
+
+      // Get all job IDs where user has bookings (quote-based jobs)
+      supabase
+        .from('bookings')
+        .select('job_id, id, status, provider_id')
+        .eq('provider_id', profile.id),
+
+      // Get all job IDs where user has acceptances (fixed-price jobs)
+      supabase
+        .from('job_acceptances')
+        .select('job_id, id, status, provider_id')
+        .eq('provider_id', profile.id)
+    ]);
+
+    if (customerError) {
+      console.error('Error fetching customer jobs:', customerError);
+      throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
+    }
+
+    if (bookingsError) {
+      console.error('Error fetching user bookings:', bookingsError);
+    }
+
+    if (acceptancesError) {
+      console.error('Error fetching user acceptances:', acceptancesError);
+    }
+
+    // Combine job IDs from both sources
+    const bookingJobIds = userBookings?.map(b => b.job_id).filter(Boolean) || [];
+    const acceptanceJobIds = userAcceptances?.map(a => a.job_id).filter(Boolean) || [];
+    const allProviderJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
+
+    let providerJobs: any[] = [];
+    if (allProviderJobIds.length > 0) {
+      let providerQuery = supabase
+        .from('jobs')
+        .select('*, categories(name)')
+        .in('id', allProviderJobIds);
+
+      if (statuses.length > 0) {
+        providerQuery = providerQuery.in('status', statuses);
+      }
+
+      const { data: providerJobsData, error: providerError } = await providerQuery;
+
+      if (providerError) {
+        console.error('Error fetching provider jobs:', providerError);
+      }
+
+      providerJobs = providerJobsData || [];
+    }
+
+    // Determine if user is hybrid (has both posted and applied jobs)
+    const hasPosted = (customerJobs?.length || 0) > 0;
+    const hasApplied = providerJobs.length > 0;
+
+    // Track states
+    setHasPostedJobs(hasPosted);
+    setHasAppliedJobs(hasApplied);
+
+    // Prepare customer jobs
+    const customerJobsData = customerJobs || [];
+    customerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Prepare provider jobs
+    const providerJobsData = providerJobs || [];
+    providerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    // Return jobs with basic structure (no metadata yet)
+    const basicEnrichJob = (job: any) => ({
+      ...job,
+      bookings: [],
+      acceptances: [],
+      userAcceptance: null,
+      userBooking: null,
+      _count: {
+        quotes: 0,
+        acceptances: 0,
+      },
+      booking: null,
+    });
+
+    return {
+      customer: customerJobsData.map(basicEnrichJob),
+      provider: providerJobsData.map(basicEnrichJob),
+    };
+  };
+
+  // STAGE 2: Fetch metadata (deferred - non-blocking)
+  const fetchJobMetadata = async (jobsData: { customer: any[], provider: any[] }) => {
     if (!profile) return;
 
-    setLoading(true);
-
     try {
-      // Determine which statuses to fetch based on filter
-      let statuses: string[] = [];
-      if (filter === 'active') {
-        statuses = ['Open', 'Booked'];
-      } else if (filter === 'completed') {
-        statuses = ['Completed'];
-      } else if (filter === 'expired') {
-        statuses = ['Expired', 'Cancelled'];
+      setMetadataLoading(true);
+
+      // Get all job IDs
+      const allJobIds = Array.from(new Set([
+        ...jobsData.customer.map(j => j.id),
+        ...jobsData.provider.map(j => j.id)
+      ]));
+
+      if (allJobIds.length === 0) {
+        setMetadataLoading(false);
+        return;
       }
 
-      // Parallelize independent queries for faster loading
+      // Fetch detailed bookings and acceptances for all jobs
       const [
-        { data: customerJobs, error: customerError },
-        { data: userBookings, error: bookingsError },
-        { data: userAcceptances, error: acceptancesError }
+        { data: jobBookings, error: jobBookingsError },
+        { data: jobAcceptances, error: jobAcceptancesError }
       ] = await Promise.all([
-        // Fetch jobs where user is the customer
-        supabase
-          .from('jobs')
-          .select('*, categories(name)')
-          .eq('customer_id', profile.id)
-          .in('status', statuses.length > 0 ? statuses : ['Open', 'Booked', 'Completed', 'Expired', 'Cancelled'])
-          .order('created_at', { ascending: false }),
-
-        // Get all job IDs where user has bookings (quote-based jobs)
         supabase
           .from('bookings')
-          .select('job_id, id, status, provider_id')
-          .eq('provider_id', profile.id),
+          .select('*, provider:profiles!provider_id(full_name)')
+          .in('job_id', allJobIds),
 
-        // Get all job IDs where user has acceptances (fixed-price jobs)
         supabase
           .from('job_acceptances')
-          .select('job_id, id, status, provider_id')
-          .eq('provider_id', profile.id)
+          .select('*')
+          .in('job_id', allJobIds)
       ]);
 
-      if (customerError) {
-        console.error('Error fetching customer jobs:', customerError);
-        throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
+      if (jobBookingsError) {
+        console.error('Error fetching job bookings:', jobBookingsError);
+        return;
       }
 
-      if (bookingsError) {
-        console.error('Error fetching user bookings:', bookingsError);
+      if (jobAcceptancesError) {
+        console.error('Error fetching job acceptances:', jobAcceptancesError);
+        return;
       }
 
-      if (acceptancesError) {
-        console.error('Error fetching user acceptances:', acceptancesError);
-      }
+      const allJobBookings = jobBookings || [];
+      const allJobAcceptances = jobAcceptances || [];
 
-      // Combine job IDs from both sources
-      const bookingJobIds = userBookings?.map(b => b.job_id).filter(Boolean) || [];
-      const acceptanceJobIds = userAcceptances?.map(a => a.job_id).filter(Boolean) || [];
-      const allProviderJobIds = Array.from(new Set([...bookingJobIds, ...acceptanceJobIds]));
+      // Enrich jobs with metadata
+      const enrichJobWithMetadata = (job: any) => {
+        const jobBookingsForJob = allJobBookings.filter((b: any) => b.job_id === job.id);
+        const jobAcceptancesForJob = allJobAcceptances.filter((a: any) => a.job_id === job.id);
 
-      let providerJobs: any[] = [];
-      if (allProviderJobIds.length > 0) {
-        let providerQuery = supabase
-          .from('jobs')
-          .select('*, categories(name)')
-          .in('id', allProviderJobIds);
-
-        if (statuses.length > 0) {
-          providerQuery = providerQuery.in('status', statuses);
-        }
-
-        const { data: providerJobsData, error: providerError } = await providerQuery;
-
-        if (providerError) {
-          console.error('Error fetching provider jobs:', providerError);
-        }
-
-        providerJobs = providerJobsData || [];
-      }
-
-      // Determine if user is hybrid (has both posted and applied jobs)
-      const hasPosted = (customerJobs?.length || 0) > 0;
-      const hasApplied = providerJobs.length > 0;
-
-      // Track states
-      setHasPostedJobs(hasPosted);
-      setHasAppliedJobs(hasApplied);
-
-      // Prepare customer jobs with metadata
-      const customerJobsData = customerJobs || [];
-      customerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Prepare provider jobs with metadata
-      const providerJobsData = providerJobs || [];
-      providerJobsData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-      // Parallelize fetching bookings and acceptances for all jobs
-      const allJobIds = Array.from(new Set([
-        ...customerJobsData.map(j => j.id),
-        ...providerJobsData.map(j => j.id)
-      ]));
-      const jobIds = allJobIds;
-      let allJobBookings: any[] = [];
-      let allJobAcceptances: any[] = [];
-
-      if (jobIds.length > 0) {
-        const [
-          { data: jobBookings, error: jobBookingsError },
-          { data: jobAcceptances, error: jobAcceptancesError }
-        ] = await Promise.all([
-          supabase
-            .from('bookings')
-            .select('*, provider:profiles!provider_id(full_name)')
-            .in('job_id', jobIds),
-
-          supabase
-            .from('job_acceptances')
-            .select('*')
-            .in('job_id', jobIds)
-        ]);
-
-        if (jobBookingsError) {
-          console.error('Error fetching job bookings:', jobBookingsError);
-        } else {
-          allJobBookings = jobBookings || [];
-        }
-
-        if (jobAcceptancesError) {
-          console.error('Error fetching job acceptances:', jobAcceptancesError);
-        } else {
-          allJobAcceptances = jobAcceptances || [];
-        }
-      }
-
-      // Attach bookings and acceptances to jobs and calculate counts efficiently
-      const enrichJob = (job: any) => {
-        const jobBookings = allJobBookings.filter((b: any) => b.job_id === job.id);
-        const jobAcceptances = allJobAcceptances.filter((a: any) => a.job_id === job.id);
-
-        // Calculate counts from already-fetched data (no additional queries needed)
+        // Calculate counts
         let quotes = 0;
         let acceptances = 0;
 
         if (job.pricing_type === 'quote_based') {
-          quotes = jobBookings.filter((b: any) => b.status === 'Requested').length;
+          quotes = jobBookingsForJob.filter((b: any) => b.status === 'Requested').length;
         } else if (job.pricing_type === 'fixed_price') {
-          acceptances = jobAcceptances.filter((a: any) => a.status === 'pending').length;
+          acceptances = jobAcceptancesForJob.filter((a: any) => a.status === 'pending').length;
         }
 
-        const completedBooking = jobBookings.find((b: any) => b.status === 'Completed');
-        const userAcceptance = jobAcceptances.find((a: any) => a.provider_id === profile.id);
-        const userBooking = jobBookings.find((b: any) => b.provider_id === profile.id);
+        const completedBooking = jobBookingsForJob.find((b: any) => b.status === 'Completed');
+        const userAcceptance = jobAcceptancesForJob.find((a: any) => a.provider_id === profile.id);
+        const userBooking = jobBookingsForJob.find((b: any) => b.provider_id === profile.id);
 
         return {
           ...job,
-          bookings: jobBookings,
-          acceptances: jobAcceptances,
+          bookings: jobBookingsForJob,
+          acceptances: jobAcceptancesForJob,
           userAcceptance,
           userBooking,
           _count: {
@@ -257,13 +285,49 @@ export default function MyJobsScreen() {
         };
       };
 
-      const enrichedCustomerJobs = customerJobsData.map(enrichJob);
-      const enrichedProviderJobs = providerJobsData.map(enrichJob);
-
+      // Update jobs with metadata
       setAllJobs({
-        customer: enrichedCustomerJobs as any,
-        provider: enrichedProviderJobs as any,
+        customer: jobsData.customer.map(enrichJobWithMetadata),
+        provider: jobsData.provider.map(enrichJobWithMetadata),
       });
+    } catch (error) {
+      console.error('Error fetching job metadata:', error);
+      // Non-critical error - jobs are already displayed
+    } finally {
+      setMetadataLoading(false);
+    }
+  };
+
+  // Main fetch function coordinating two-stage loading
+  const fetchJobs = async () => {
+    if (!profile) return;
+
+    setLoading(true);
+
+    try {
+      // STAGE 1: Fetch core jobs (blocking)
+      const coreJobs = await fetchCoreJobs();
+
+      if (!coreJobs) {
+        throw new Error('Failed to fetch core jobs');
+      }
+
+      // Set jobs immediately - UI can render now
+      setAllJobs({
+        customer: coreJobs.customer as any,
+        provider: coreJobs.provider as any,
+      });
+
+      // Release loading state - UI renders
+      setLoading(false);
+      setRefreshing(false);
+
+      // STAGE 2: Fetch metadata (non-blocking, deferred)
+      // Run after a brief delay to allow UI to render
+      setTimeout(() => {
+        fetchJobMetadata(coreJobs);
+      }, 50);
+
     } catch (error) {
       console.error('Unexpected error in fetchJobs:', error);
       Alert.alert(
@@ -277,7 +341,6 @@ export default function MyJobsScreen() {
       setAllJobs({ customer: [], provider: [] });
       setHasPostedJobs(false);
       setHasAppliedJobs(false);
-    } finally {
       setLoading(false);
       setRefreshing(false);
     }
