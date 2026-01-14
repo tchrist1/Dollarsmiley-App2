@@ -81,12 +81,13 @@ export default function MyJobsScreen() {
   const [filter, setFilter] = useState<'active' | 'completed' | 'expired'>('active');
   const [hasPostedJobs, setHasPostedJobs] = useState(false);
   const [hasAppliedJobs, setHasAppliedJobs] = useState(false);
+  const [roleMode, setRoleMode] = useState<'customer' | 'provider'>('customer');
 
   useEffect(() => {
     if (profile) {
       fetchJobs();
     }
-  }, [profile, filter]);
+  }, [profile, filter, roleMode]);
 
   const fetchJobs = async () => {
     if (!profile) return;
@@ -122,9 +123,6 @@ export default function MyJobsScreen() {
         console.error('Error fetching customer jobs:', customerError);
         throw new Error(`Failed to fetch customer jobs: ${customerError.message}`);
       }
-
-      // Track if user has posted jobs
-      setHasPostedJobs((customerJobs?.length || 0) > 0);
 
       // Fetch jobs where user is a provider (through bookings OR job_acceptances)
 
@@ -173,27 +171,47 @@ export default function MyJobsScreen() {
         providerJobs = providerJobsData || [];
       }
 
-      // Track if user has applied to jobs
-      setHasAppliedJobs(providerJobs.length > 0);
+      // Determine if user is hybrid (has both posted and applied jobs)
+      const hasPosted = (customerJobs?.length || 0) > 0;
+      const hasApplied = providerJobs.length > 0;
+      const isHybrid = hasPosted && hasApplied;
 
-      // Combine customer and provider jobs, removing duplicates
-      const allJobs = customerJobs || [];
-      const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+      // Track states
+      setHasPostedJobs(hasPosted);
+      setHasAppliedJobs(hasApplied);
 
-      // Add provider jobs that aren't already in the list
-      for (const job of providerJobs) {
-        if (!jobIdsMap.has(job.id)) {
-          jobIdsMap.set(job.id, job);
+      // Determine which jobs to display based on role mode
+      // For Hybrid accounts: show only customer jobs in customer mode, only provider jobs in provider mode
+      // For Customer-only accounts: always show customer jobs
+      // For Provider-only accounts: always show provider jobs
+
+      let displayJobs: any[] = [];
+      if (isHybrid) {
+        // Hybrid account: filter by role mode
+        if (roleMode === 'customer') {
+          displayJobs = customerJobs || [];
+        } else {
+          displayJobs = providerJobs;
         }
+      } else {
+        // Non-hybrid account: show all jobs (either customer or provider)
+        const allJobs = customerJobs || [];
+        const jobIdsMap = new Map(allJobs.map(job => [job.id, job]));
+
+        // Add provider jobs that aren't already in the list
+        for (const job of providerJobs) {
+          if (!jobIdsMap.has(job.id)) {
+            jobIdsMap.set(job.id, job);
+          }
+        }
+        displayJobs = Array.from(jobIdsMap.values());
       }
 
-      const combinedJobs = Array.from(jobIdsMap.values());
-
       // Sort by created_at descending
-      combinedJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      displayJobs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       // Fetch bookings for all jobs separately to avoid nested query issues
-      const jobIds = combinedJobs.map(j => j.id);
+      const jobIds = displayJobs.map(j => j.id);
       let allJobBookings: any[] = [];
 
       if (jobIds.length > 0) {
@@ -225,7 +243,7 @@ export default function MyJobsScreen() {
       }
 
       // Attach bookings and acceptances to jobs
-      const jobsWithBookings = combinedJobs.map((job: any) => ({
+      const jobsWithBookings = displayJobs.map((job: any) => ({
         ...job,
         bookings: allJobBookings.filter((b: any) => b.job_id === job.id),
         acceptances: allJobAcceptances.filter((a: any) => a.job_id === job.id),
@@ -294,8 +312,11 @@ export default function MyJobsScreen() {
   };
 
   const getSubtitle = () => {
-    if (hasPostedJobs && hasAppliedJobs) {
-      return 'Jobs you posted and applied to';
+    const isHybrid = hasPostedJobs && hasAppliedJobs;
+
+    if (isHybrid) {
+      // Hybrid account: show role-specific subtitle
+      return roleMode === 'customer' ? 'Jobs you posted' : 'Jobs you applied to';
     } else if (hasPostedJobs) {
       return 'Jobs you posted';
     } else if (hasAppliedJobs) {
@@ -382,54 +403,61 @@ export default function MyJobsScreen() {
     return 'Flexible';
   };
 
-  const renderJobCard = ({ item }: { item: Job }) => (
-    <TouchableOpacity
-      style={styles.jobCard}
-      activeOpacity={0.7}
-      onPress={() => router.push(`/jobs/${item.id}` as any)}
-    >
-      <View style={styles.jobHeader}>
-        <View style={styles.statusContainer}>
-          {getStatusIcon(item.status)}
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {item.status}
-          </Text>
+  const renderJobCard = ({ item }: { item: Job }) => {
+    const isHybrid = hasPostedJobs && hasAppliedJobs;
+    const isCustomerView = !isHybrid || roleMode === 'customer';
+    const isProviderView = !isHybrid || roleMode === 'provider';
+
+    return (
+      <TouchableOpacity
+        style={styles.jobCard}
+        activeOpacity={0.7}
+        onPress={() => router.push(`/jobs/${item.id}` as any)}
+      >
+        <View style={styles.jobHeader}>
+          <View style={styles.statusContainer}>
+            {getStatusIcon(item.status)}
+            <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+              {item.status}
+            </Text>
+          </View>
+          <View style={styles.badgesContainer}>
+            {/* Provider mode: show quote/acceptance status */}
+            {isProviderView && item.userBooking && item.pricing_type === 'quote_based' && (
+              <View style={[styles.quoteBadge, { backgroundColor: colors.info }]}>
+                <MessageCircle size={12} color={colors.white} />
+                <Text style={styles.quoteCount}>Quote Sent</Text>
+              </View>
+            )}
+            {isProviderView && item.userAcceptance && item.pricing_type === 'fixed_price' && (
+              <View style={[
+                styles.quoteBadge,
+                item.userAcceptance.status === 'awarded' && { backgroundColor: colors.success },
+                item.userAcceptance.status === 'pending' && { backgroundColor: colors.warning },
+                item.userAcceptance.status === 'rejected' && { backgroundColor: colors.error },
+              ]}>
+                <CheckCircle size={12} color={colors.white} />
+                <Text style={styles.quoteCount}>
+                  {item.userAcceptance.status === 'awarded' ? 'Awarded' :
+                   item.userAcceptance.status === 'pending' ? 'Pending' : 'Rejected'}
+                </Text>
+              </View>
+            )}
+            {/* Customer mode: show received quotes/acceptances count */}
+            {isCustomerView && item._count && item._count.quotes > 0 && (
+              <View style={styles.quoteBadge}>
+                <MessageCircle size={12} color={colors.white} />
+                <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
+              </View>
+            )}
+            {isCustomerView && item._count && item._count.acceptances > 0 && (
+              <View style={styles.quoteBadge}>
+                <CheckCircle size={12} color={colors.white} />
+                <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <View style={styles.badgesContainer}>
-          {item.userBooking && item.pricing_type === 'quote_based' && (
-            <View style={[styles.quoteBadge, { backgroundColor: colors.info }]}>
-              <MessageCircle size={12} color={colors.white} />
-              <Text style={styles.quoteCount}>Quote Sent</Text>
-            </View>
-          )}
-          {item.userAcceptance && item.pricing_type === 'fixed_price' && (
-            <View style={[
-              styles.quoteBadge,
-              item.userAcceptance.status === 'awarded' && { backgroundColor: colors.success },
-              item.userAcceptance.status === 'pending' && { backgroundColor: colors.warning },
-              item.userAcceptance.status === 'rejected' && { backgroundColor: colors.error },
-            ]}>
-              <CheckCircle size={12} color={colors.white} />
-              <Text style={styles.quoteCount}>
-                {item.userAcceptance.status === 'awarded' ? 'Awarded' :
-                 item.userAcceptance.status === 'pending' ? 'Pending' : 'Rejected'}
-              </Text>
-            </View>
-          )}
-          {!item.userBooking && !item.userAcceptance && item._count && item._count.quotes > 0 && (
-            <View style={styles.quoteBadge}>
-              <MessageCircle size={12} color={colors.white} />
-              <Text style={styles.quoteCount}>{item._count.quotes} quote{item._count.quotes > 1 ? 's' : ''}</Text>
-            </View>
-          )}
-          {!item.userBooking && !item.userAcceptance && item._count && item._count.acceptances > 0 && (
-            <View style={styles.quoteBadge}>
-              <CheckCircle size={12} color={colors.white} />
-              <Text style={styles.quoteCount}>{item._count.acceptances} interested</Text>
-            </View>
-          )}
-        </View>
-      </View>
 
       <Text style={styles.jobTitle} numberOfLines={2}>
         {item.title}
@@ -466,7 +494,8 @@ export default function MyJobsScreen() {
       </View>
 
       <View style={styles.actionButtons}>
-        {item.status === 'Open' && (
+        {/* Customer mode actions */}
+        {isCustomerView && item.status === 'Open' && (
           <>
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -515,6 +544,20 @@ export default function MyJobsScreen() {
           </>
         )}
 
+        {/* Provider mode actions (only timeline) */}
+        {isProviderView && item.status === 'Open' && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.timelineButtonFull}
+              onPress={() => router.push(`/jobs/${item.id}/timeline` as any)}
+            >
+              <GitBranch size={16} color={colors.textSecondary} />
+              <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Non-Open status actions */}
         {item.status !== 'Open' && (
           <View style={styles.actionRow}>
             <TouchableOpacity
@@ -524,7 +567,7 @@ export default function MyJobsScreen() {
               <GitBranch size={16} color={colors.textSecondary} />
               <Text style={styles.timelineText} numberOfLines={1}>Timeline</Text>
             </TouchableOpacity>
-            {item.status === 'Completed' && item.booking && item.booking.can_review && !item.booking.review_submitted && (
+            {isCustomerView && item.status === 'Completed' && item.booking && item.booking.can_review && !item.booking.review_submitted && (
               <TouchableOpacity
                 style={styles.rateProviderButton}
                 onPress={() => router.push(`/review/${item.booking!.id}` as any)}
@@ -537,13 +580,16 @@ export default function MyJobsScreen() {
         )}
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const renderEmptyState = () => {
+    const isHybrid = hasPostedJobs && hasAppliedJobs;
+
     const getEmptyStateText = () => {
       if (filter === 'active') {
-        if (hasPostedJobs && hasAppliedJobs) {
-          return 'No active jobs found';
+        if (isHybrid) {
+          return roleMode === 'customer' ? 'No active jobs you posted' : 'No active jobs you applied to';
         } else if (hasPostedJobs) {
           return 'No active jobs you posted';
         } else if (hasAppliedJobs) {
@@ -560,8 +606,8 @@ export default function MyJobsScreen() {
 
     const getEmptyStateDescription = () => {
       if (filter === 'active') {
-        if (hasPostedJobs && hasAppliedJobs) {
-          return 'Jobs you posted or applied to will appear here';
+        if (isHybrid) {
+          return roleMode === 'customer' ? 'Jobs you posted will appear here' : 'Jobs you applied to will appear here';
         } else if (hasPostedJobs) {
           return 'Jobs you posted will appear here';
         } else if (hasAppliedJobs) {
@@ -581,7 +627,7 @@ export default function MyJobsScreen() {
         <PlusCircle size={64} color={colors.textLight} />
         <Text style={styles.emptyTitle}>{getEmptyStateText()}</Text>
         <Text style={styles.emptyText}>{getEmptyStateDescription()}</Text>
-        {filter === 'active' && !hasAppliedJobs && (
+        {filter === 'active' && (!isHybrid || roleMode === 'customer') && (
           <Button
             title="Post a Job"
             onPress={() => router.push('/(tabs)/post-job')}
@@ -591,6 +637,8 @@ export default function MyJobsScreen() {
       </View>
     );
   };
+
+  const isHybrid = hasPostedJobs && hasAppliedJobs;
 
   return (
     <View style={styles.container}>
@@ -606,6 +654,28 @@ export default function MyJobsScreen() {
           <BarChart3 size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* Role toggle for Hybrid accounts */}
+      {isHybrid && (
+        <View style={styles.roleToggleContainer}>
+          <TouchableOpacity
+            style={[styles.roleToggleButton, roleMode === 'customer' && styles.roleToggleButtonActive]}
+            onPress={() => setRoleMode('customer')}
+          >
+            <Text style={[styles.roleToggleText, roleMode === 'customer' && styles.roleToggleTextActive]}>
+              Customer
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roleToggleButton, roleMode === 'provider' && styles.roleToggleButtonActive]}
+            onPress={() => setRoleMode('provider')}
+          >
+            <Text style={[styles.roleToggleText, roleMode === 'provider' && styles.roleToggleTextActive]}>
+              Provider
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <View style={styles.filterContainer}>
         <TouchableOpacity
@@ -686,6 +756,34 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
+  },
+  roleToggleContainer: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  roleToggleButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  roleToggleButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  roleToggleText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  roleToggleTextActive: {
+    color: colors.white,
   },
   filterContainer: {
     flexDirection: 'row',
