@@ -1,0 +1,166 @@
+================================================================================
+BATCH 4 - DEFAULT PRIVILEGES CONFIGURATION (MANUAL STEPS REQUIRED)
+================================================================================
+
+ISSUE
+-----
+Default privileges in Supabase automatically grant ALL permissions to anon and
+authenticated roles on newly created tables, sequences, and functions. This is
+overly permissive and bypasses the RLS security model.
+
+WHAT WAS DONE IN MIGRATION
+---------------------------
+✓ Revoked INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER from ~123 existing tables
+✓ Verified SELECT remains on all tables (RLS controls visibility)
+✓ Ensured service_role retains ALL privileges (server operations)
+✓ Added schema documentation
+
+WHAT REQUIRES ADMIN CONSOLE
+----------------------------
+Default privileges for FUTURE objects cannot be changed via standard migrations
+because they require superuser/admin privileges. This must be configured in the
+Supabase Dashboard or via admin SQL access.
+
+CURRENT DEFAULT PRIVILEGES (OVERLY PERMISSIVE)
+-----------------------------------------------
+For objects created by: postgres, supabase_admin
+
+Tables:     anon/authenticated get ALL (arwdDxtm)
+            - a: INSERT
+            - r: SELECT
+            - w: UPDATE
+            - d: DELETE
+            - D: TRUNCATE
+            - x: REFERENCES
+            - t: TRIGGER
+            - m: MAINTAIN
+
+Sequences:  anon/authenticated get ALL (rwU)
+            - r: SELECT
+            - w: UPDATE
+            - U: USAGE
+
+Functions:  anon/authenticated get EXECUTE (X)
+
+RECOMMENDED CONFIGURATION
+-------------------------
+For NEW tables:    anon/authenticated should get SELECT only (RLS controls rows)
+For NEW sequences: anon/authenticated should get USAGE, SELECT only
+For NEW functions: anon/authenticated should get EXECUTE (with search_path set)
+
+MANUAL SQL TO APPLY (Requires Superuser/Admin)
+-----------------------------------------------
+These commands require elevated privileges and should be run by a database admin:
+
+-- For postgres role
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+REVOKE ALL ON TABLES FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT SELECT ON TABLES TO anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+REVOKE ALL ON FUNCTIONS FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+
+-- For supabase_admin role
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+REVOKE ALL ON TABLES FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT SELECT ON TABLES TO anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+REVOKE ALL ON FUNCTIONS FROM anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+
+-- Ensure service_role retains ALL (for server operations)
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT ALL ON TABLES TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT ALL ON SEQUENCES TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+GRANT ALL ON FUNCTIONS TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT ALL ON TABLES TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT ALL ON SEQUENCES TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
+GRANT ALL ON FUNCTIONS TO service_role;
+
+VERIFICATION AFTER APPLYING
+---------------------------
+Run this query to verify default privileges are correctly configured:
+
+SELECT
+  pg_get_userbyid(defaclrole) as role,
+  defaclnamespace::regnamespace as schema,
+  CASE defaclobjtype
+    WHEN 'r' THEN 'table'
+    WHEN 'S' THEN 'sequence'
+    WHEN 'f' THEN 'function'
+  END as object_type,
+  defaclacl as default_acl
+FROM pg_default_acl
+WHERE defaclnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+ORDER BY role, object_type;
+
+Expected results:
+- Tables: anon/authenticated have SELECT only
+- Sequences: anon/authenticated have USAGE, SELECT only
+- Functions: anon/authenticated have EXECUTE only
+- service_role: ALL on everything
+
+SECURITY IMPACT
+----------------
+Without this configuration:
+- NEW tables automatically get INSERT/UPDATE/DELETE for all users
+- RLS policies must deny instead of grant (inverted security model)
+- Higher risk of accidental data exposure
+
+With this configuration:
+- NEW tables only get SELECT (RLS controls what rows are visible)
+- RLS policies grant specific INSERT/UPDATE/DELETE access
+- Follows principle of least privilege
+- Aligns with Supabase security best practices
+
+ALTERNATIVE: Supabase CLI
+--------------------------
+If you have access to Supabase CLI with admin credentials, you can apply these
+changes using:
+
+supabase db execute -f default_privileges.sql
+
+Where default_privileges.sql contains the SQL commands above.
+
+STATUS
+------
+[ ] Default privileges configured for postgres role
+[ ] Default privileges configured for supabase_admin role
+[ ] service_role privileges verified
+[ ] Verification query run successfully
+
+================================================================================
+END OF MANUAL STEPS
+================================================================================
