@@ -110,6 +110,30 @@ export default function NativeInteractiveMapView({
     }
   }, []);
 
+  // Build invisible hit-test GeoJSON layer from markers
+  const hitTestFeatureCollection = React.useMemo(() => {
+    const features = markers.map((marker) => ({
+      type: 'Feature' as const,
+      id: marker.id,
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [marker.longitude, marker.latitude],
+      },
+      properties: {
+        markerId: marker.id,
+        entityId: marker.id,
+        entityType: marker.listingType || 'listing',
+        title: marker.title,
+        price: marker.price,
+      },
+    }));
+
+    return {
+      type: 'FeatureCollection' as const,
+      features,
+    };
+  }, [markers]);
+
   const centerCoordinate = initialRegion
     ? [initialRegion.longitude, initialRegion.latitude]
     : markers.length > 0
@@ -201,6 +225,47 @@ export default function NativeInteractiveMapView({
 
   const handleRecenter = () => {
     fitBoundsToMarkers();
+  };
+
+  // Map press handler: Query features at tap point for reliable pin opens
+  const handleMapPress = async (event: any) => {
+    if (!mapRef.current) return;
+
+    try {
+      const { geometry } = event;
+      if (!geometry || !geometry.coordinates) return;
+
+      // Query rendered features at the tap point for hit-test layer only
+      const features = await mapRef.current.queryRenderedFeaturesAtPoint(
+        geometry.coordinates,
+        undefined,
+        ['marker-hit-layer']
+      );
+
+      if (features && features.features && features.features.length > 0) {
+        const feature = features.features[0];
+        const { markerId } = feature.properties || {};
+
+        if (markerId) {
+          // Find the corresponding marker
+          const marker = markers.find((m) => m.id === markerId);
+          if (marker) {
+            if (__DEV__) {
+              console.log('[MAP_PIN_TRACE] ✅ HIT_TEST_SUCCESS', {
+                markerId,
+                title: marker.title,
+                timestamp: Date.now(),
+              });
+            }
+            handleMarkerPress(marker);
+          }
+        }
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.log('[MAP_PIN_TRACE] ⚠️ HIT_TEST_ERROR', error);
+      }
+    }
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
@@ -354,6 +419,7 @@ export default function NativeInteractiveMapView({
         onCameraChanged={(state) => {
           setZoomLevel(state.properties.zoom);
         }}
+        onPress={handleMapPress}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -370,6 +436,21 @@ export default function NativeInteractiveMapView({
             minDisplacement={10}
           />
         )}
+
+        {/* Invisible hit-test layer for reliable tap detection */}
+        <Mapbox.ShapeSource
+          id="marker-hit-source"
+          shape={hitTestFeatureCollection}
+        >
+          <Mapbox.CircleLayer
+            id="marker-hit-layer"
+            style={{
+              circleRadius: 20,
+              circleOpacity: 0,
+              circleColor: '#000000',
+            }}
+          />
+        </Mapbox.ShapeSource>
 
         {markers.map((marker) => (
           <Mapbox.MarkerView
