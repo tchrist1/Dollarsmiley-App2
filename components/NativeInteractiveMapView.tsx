@@ -144,7 +144,9 @@ export default function NativeInteractiveMapView({
 
       // Determine letter text for marker
       let letterText = 'S'; // Default to Service
-      if (marker.listingType === 'Job') {
+      if (marker.type === 'provider') {
+        letterText = 'SP';
+      } else if (marker.listingType === 'Job') {
         letterText = marker.pricingType === 'fixed_price' ? 'J' : 'JQ';
       } else if (marker.listingType === 'Service' || marker.listingType === 'CustomService') {
         letterText = 'S';
