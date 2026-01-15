@@ -141,6 +141,20 @@ export default function NativeInteractiveMapView({
       const config = getMarkerConfig(marker.listingType);
       const isSelected = selectedMarker?.id === marker.id;
 
+      // Determine if this is a quote job (Job type with no price)
+      const isQuoteJob = marker.listingType === 'Job' &&
+                        (marker.price === undefined || marker.price === null);
+
+      // Format the label text
+      let labelText = '';
+      if (marker.type === 'provider') {
+        labelText = marker.rating?.toFixed(1) || '';
+      } else if (isQuoteJob) {
+        labelText = 'Quote';
+      } else if (marker.price !== undefined && marker.price !== null) {
+        labelText = formatCurrency(marker.price);
+      }
+
       return {
         type: 'Feature' as const,
         id: marker.id,
@@ -158,6 +172,8 @@ export default function NativeInteractiveMapView({
           isProvider: marker.type === 'provider',
           bubbleColor: config.bubbleColor,
           iconType: marker.listingType || 'Service',
+          labelText: labelText,
+          isQuoteJob: isQuoteJob,
         },
       };
     });
@@ -432,14 +448,73 @@ export default function NativeInteractiveMapView({
           shape={markerFeatureCollection}
           onPress={handleShapeSourcePress}
         >
+          {/* Pin pointer/tip (bottom part of teardrop) */}
           <Mapbox.CircleLayer
-            id="markers-layer"
+            id="pin-tip"
             style={{
               circleRadius: [
                 'case',
                 ['get', 'isSelected'],
-                26,
-                20,
+                6,
+                4,
+              ],
+              circleColor: ['get', 'bubbleColor'],
+              circleOpacity: 1,
+              circleTranslate: [0, 18],
+              circleSortKey: 0,
+            }}
+          />
+
+          {/* Pin body shadow (for depth) */}
+          <Mapbox.CircleLayer
+            id="pin-shadow"
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                30,
+                24,
+              ],
+              circleColor: '#000000',
+              circleOpacity: 0.15,
+              circleBlur: 0.8,
+              circleTranslate: [0, -1],
+              circleSortKey: 1,
+            }}
+          />
+
+          {/* Pin body (outer circle) */}
+          <Mapbox.CircleLayer
+            id="pin-body"
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                28,
+                22,
+              ],
+              circleColor: '#FFFFFF',
+              circleStrokeWidth: [
+                'case',
+                ['get', 'isSelected'],
+                4,
+                3,
+              ],
+              circleStrokeColor: ['get', 'bubbleColor'],
+              circleOpacity: 1,
+              circleSortKey: 2,
+            }}
+          />
+
+          {/* Pin inner icon circle */}
+          <Mapbox.CircleLayer
+            id="pin-icon-circle"
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                24,
+                18,
               ],
               circleColor: [
                 'case',
@@ -447,14 +522,134 @@ export default function NativeInteractiveMapView({
                 ['get', 'bubbleColor'],
                 '#FFFFFF',
               ],
-              circleStrokeWidth: 3,
-              circleStrokeColor: ['get', 'bubbleColor'],
-              circleSortKey: [
+              circleOpacity: 1,
+              circleSortKey: 3,
+            }}
+          />
+
+          {/* Pin icon (using Mapbox Maki icons) */}
+          <Mapbox.SymbolLayer
+            id="pin-icon"
+            style={{
+              iconImage: [
+                'match',
+                ['get', 'iconType'],
+                'Service',
+                'marker-15',
+                'Job',
+                'briefcase-15',
+                'CustomService',
+                'star-15',
+                'marker-15',
+              ],
+              iconSize: [
                 'case',
                 ['get', 'isSelected'],
-                1,
-                0,
+                1.4,
+                1.1,
               ],
+              iconColor: [
+                'case',
+                ['get', 'isSelected'],
+                '#FFFFFF',
+                ['get', 'bubbleColor'],
+              ],
+              iconAllowOverlap: true,
+              iconIgnorePlacement: true,
+              symbolSortKey: 4,
+            }}
+          />
+
+          {/* Label pill background shadow */}
+          <Mapbox.CircleLayer
+            id="label-pill-shadow"
+            filter={['!=', ['get', 'labelText'], '']}
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                20,
+                16,
+              ],
+              circleColor: '#000000',
+              circleOpacity: 0.1,
+              circleBlur: 0.5,
+              circleTranslate: [0, 41],
+              circleStrokeWidth: [
+                'case',
+                ['get', 'isQuoteJob'],
+                [
+                  'case',
+                  ['get', 'isSelected'],
+                  16,
+                  12,
+                ],
+                [
+                  'case',
+                  ['get', 'isSelected'],
+                  8,
+                  6,
+                ],
+              ],
+              circleStrokeColor: ['get', 'bubbleColor'],
+              circleStrokeOpacity: 0,
+              circleSortKey: 5,
+            }}
+          />
+
+          {/* Label pill background (elongated for text) */}
+          <Mapbox.CircleLayer
+            id="label-pill"
+            filter={['!=', ['get', 'labelText'], '']}
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                11,
+                9,
+              ],
+              circleColor: '#FFFFFF',
+              circleStrokeWidth: [
+                'case',
+                ['get', 'isQuoteJob'],
+                [
+                  'case',
+                  ['get', 'isSelected'],
+                  16,
+                  12,
+                ],
+                [
+                  'case',
+                  ['get', 'isSelected'],
+                  8,
+                  6,
+                ],
+              ],
+              circleStrokeColor: ['get', 'bubbleColor'],
+              circleOpacity: 1,
+              circleTranslate: [0, 40],
+              circleSortKey: 6,
+            }}
+          />
+
+          {/* Label text */}
+          <Mapbox.SymbolLayer
+            id="label-text"
+            filter={['!=', ['get', 'labelText'], '']}
+            style={{
+              textField: ['get', 'labelText'],
+              textSize: [
+                'case',
+                ['get', 'isSelected'],
+                13,
+                11,
+              ],
+              textColor: ['get', 'bubbleColor'],
+              textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              textOffset: [0, 2.8],
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
+              symbolSortKey: 7,
             }}
           />
         </Mapbox.ShapeSource>
