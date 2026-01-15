@@ -141,6 +141,12 @@ export default function NativeInteractiveMapView({
       const config = getMarkerConfig(marker.listingType);
       const isSelected = selectedMarker?.id === marker.id;
 
+      const hasPrice = marker.price !== undefined && marker.price !== null;
+      const priceLabel = hasPrice
+        ? (typeof marker.price === 'number' ? formatCurrency(marker.price) : String(marker.price))
+        : 'Quote';
+      const isPriceQuote = !hasPrice;
+
       return {
         type: 'Feature' as const,
         id: marker.id,
@@ -154,6 +160,8 @@ export default function NativeInteractiveMapView({
           entityType: marker.listingType || 'listing',
           title: marker.title,
           price: marker.price,
+          priceLabel: priceLabel,
+          isPriceQuote: isPriceQuote,
           isSelected: isSelected,
           isProvider: marker.type === 'provider',
           bubbleColor: config.bubbleColor,
@@ -432,29 +440,113 @@ export default function NativeInteractiveMapView({
           shape={markerFeatureCollection}
           onPress={handleShapeSourcePress}
         >
+          {/* Pin pointer shadow (small circle at bottom for teardrop effect) */}
           <Mapbox.CircleLayer
-            id="markers-layer"
+            id="markers-pointer"
             style={{
               circleRadius: [
                 'case',
                 ['get', 'isSelected'],
-                26,
-                20,
+                5,
+                4,
               ],
-              circleColor: [
+              circleColor: ['get', 'bubbleColor'],
+              circleTranslate: [0, 24],
+              circleOpacity: 0.8,
+            }}
+          />
+
+          {/* Main pin body (colored circle) */}
+          <Mapbox.CircleLayer
+            id="markers-pin-body"
+            style={{
+              circleRadius: [
                 'case',
                 ['get', 'isSelected'],
-                ['get', 'bubbleColor'],
-                '#FFFFFF',
+                22,
+                18,
               ],
-              circleStrokeWidth: 3,
+              circleColor: ['get', 'bubbleColor'],
+              circleStrokeWidth: [
+                'case',
+                ['get', 'isSelected'],
+                3,
+                2,
+              ],
+              circleStrokeColor: '#FFFFFF',
+            }}
+          />
+
+          {/* Inner icon background (white circle) */}
+          <Mapbox.CircleLayer
+            id="markers-icon-bg"
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                16,
+                13,
+              ],
+              circleColor: '#FFFFFF',
+            }}
+          />
+
+          {/* Label pill background (below pin) */}
+          <Mapbox.CircleLayer
+            id="markers-label-bg"
+            style={{
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                18,
+                15,
+              ],
+              circleColor: '#FFFFFF',
+              circleStrokeWidth: 2,
               circleStrokeColor: ['get', 'bubbleColor'],
-              circleSortKey: [
+              circleTranslate: [0, 36],
+            }}
+          />
+
+          {/* Icon symbol */}
+          <Mapbox.SymbolLayer
+            id="markers-icon"
+            style={{
+              textField: [
+                'case',
+                ['==', ['get', 'iconType'], 'Job'],
+                '💼',
+                ['==', ['get', 'iconType'], 'CustomService'],
+                '✨',
+                '📍',
+              ],
+              textSize: [
                 'case',
                 ['get', 'isSelected'],
-                1,
-                0,
+                18,
+                14,
               ],
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
+            }}
+          />
+
+          {/* Price/Quote label text */}
+          <Mapbox.SymbolLayer
+            id="markers-label"
+            style={{
+              textField: ['get', 'priceLabel'],
+              textSize: [
+                'case',
+                ['get', 'isSelected'],
+                12,
+                10,
+              ],
+              textColor: ['get', 'bubbleColor'],
+              textTranslate: [0, 36],
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
+              textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
             }}
           />
         </Mapbox.ShapeSource>
