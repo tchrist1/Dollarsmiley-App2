@@ -98,16 +98,16 @@ export default function HomeScreen() {
 
   // Handle category parameter from navigation (from Categories screen)
   useEffect(() => {
-    if (params.categoryId) {
+    if (params.categoryId && params.categoryName) {
+      // Use searchQuery-based filtering for subcategory selection
+      // This ensures identical behavior to typing in the search bar
+      setSearchQuery(params.categoryName as string);
+
+      // Clear any incompatible category filters to prevent zero results
       setFilters(prev => ({
         ...prev,
-        categories: [params.categoryId as string],
+        categories: [],
       }));
-
-      // Update search query with category name if provided
-      if (params.categoryName) {
-        setSearchQuery(params.categoryName as string);
-      }
     }
   }, [params.categoryId, params.categoryName]);
 
@@ -1425,7 +1425,8 @@ export default function HomeScreen() {
               {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
             </Text>
             <TouchableOpacity
-              onPress={() =>
+              onPress={() => {
+                setSearchQuery('');
                 setFilters({
                   categories: [],
                   location: '',
@@ -1438,8 +1439,8 @@ export default function HomeScreen() {
                   verified: false,
                   instant_booking: false,
                   listingType: 'all',
-                })
-              }
+                });
+              }}
             >
               <Text style={styles.clearFiltersText}>Clear all</Text>
             </TouchableOpacity>
