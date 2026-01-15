@@ -92,7 +92,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
               { color: isSelected ? colors.white : config.bubbleColor },
             ]}
           >
-            {price !== undefined ? formatCurrency(price) : 'Quote Required'}
+            {price !== undefined ? formatCurrency(price) : 'Quote'}
           </Text>
         </View>
       )}

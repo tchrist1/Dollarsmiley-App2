@@ -534,7 +534,7 @@ export default function InteractiveMapView({
                   <Text style={styles.markerInfoPrice}>
                     {selectedMarker.price !== undefined
                       ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
-                      : 'Quote Required'}
+                      : 'Quote'}
                   </Text>
                 )}
                 <View style={styles.markerInfoDistance}>

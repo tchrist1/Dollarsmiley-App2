@@ -307,7 +307,7 @@ export default function NativeInteractiveMapView({
             <Text style={[styles.markerPriceText, { color: isSelected ? colors.white : config.bubbleColor }, isSelected && styles.markerPriceTextSelected]}>
               {marker.price !== undefined && marker.price !== null
                 ? (typeof marker.price === 'number' ? formatCurrency(marker.price) : String(marker.price))
-                : 'Quote Required'}
+                : 'Quote'}
             </Text>
           </View>
         )}
@@ -585,7 +585,7 @@ export default function NativeInteractiveMapView({
                       ? (typeof selectedMarker.price === 'number'
                         ? `$${Math.round(selectedMarker.price).toLocaleString('en-US')}`
                         : String(selectedMarker.price))
-                      : 'Quote Required'
+                      : 'Quote'
                     }
                   </Text>
                 )}
