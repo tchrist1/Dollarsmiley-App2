@@ -828,12 +828,13 @@ export default function HomeScreen() {
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
-      router.push(`/provider/store/${marker.id}` as any);
+      router.push(`/provider/store/${marker.id}?ts=${Date.now()}` as any);
     } else {
       const listing = listings.find((l) => l.id === marker.id);
       if (listing) {
         const isJob = listing.marketplace_type === 'Job';
-        router.push(isJob ? `/jobs/${listing.id}` : `/listing/${listing.id}`);
+        const timestamp = Date.now();
+        router.push(isJob ? `/jobs/${listing.id}?ts=${timestamp}` : `/listing/${listing.id}?ts=${timestamp}`);
       }
     }
   }, [listings]);
@@ -908,7 +909,7 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity
                 style={styles.carouselCard}
-                onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
+                onPress={() => router.push(isJob ? `/jobs/${item.id}?ts=${Date.now()}` : `/listing/${item.id}?ts=${Date.now()}`)}
                 activeOpacity={0.7}
               >
                 <View style={styles.carouselCardContent}>
@@ -1011,7 +1012,7 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.listingCard}
         activeOpacity={0.7}
-        onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
+        onPress={() => router.push(isJob ? `/jobs/${item.id}?ts=${Date.now()}` : `/listing/${item.id}?ts=${Date.now()}`)}
       >
         <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
           <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
@@ -1106,7 +1107,7 @@ export default function HomeScreen() {
       <TouchableOpacity
         style={styles.gridCard}
         activeOpacity={0.7}
-        onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
+        onPress={() => router.push(isJob ? `/jobs/${item.id}?ts=${Date.now()}` : `/listing/${item.id}?ts=${Date.now()}`)}
       >
         {mainImage ? (
           <Image
@@ -1222,7 +1223,7 @@ export default function HomeScreen() {
             return (
               <TouchableOpacity
                 style={styles.embeddedCarouselCard}
-                onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}` : `/listing/${carouselItem.id}`)}
+                onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}?ts=${Date.now()}` : `/listing/${carouselItem.id}?ts=${Date.now()}`)}
                 activeOpacity={0.7}
               >
                 {carouselMainImage ? (
