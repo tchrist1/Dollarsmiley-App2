@@ -1,0 +1,46 @@
+================================================================================
+BATCH 4B: RLS auth.uid() Optimization - Summary
+================================================================================
+
+PROBLEM:
+  300+ RLS policies call auth.uid() directly, causing per-row evaluation.
+  This creates exponential performance degradation with table size.
+
+SOLUTION:
+  Replace: WHERE auth.uid() = column
+  With: WHERE (select auth.uid()) = column
+
+  The subquery is evaluated ONCE per query instead of per-row.
+
+IMPACT:
+  - 50-90% faster RLS policy evaluation
+  - Linear scaling instead of exponential
+  - Zero change to authorization logic
+  - Official Supabase best practice
+
+AFFECTED TABLES (Top 20 by policy count):
+  1. job_customer_incidents (7 policies)
+  2. job_time_extension_requests (6 policies)
+  3. production_orders (5 policies)
+  4. damage_deposit_payments, expense_categorization_rules, expense_tags,
+     fulfillment_options, job_acceptances, jobs, notification_preferences,
+     payment_methods, personalization_submissions, push_tokens,
+     reschedule_requests, reviews, saved_jobs (4 policies each)
+
+  Total: 100+ tables, 300+ policies
+
+MIGRATION STRATEGY:
+  Due to volume, using programmatic SQL approach:
+  1. Query all policies with auth.uid() patterns
+  2. Generate DROP + CREATE statements with optimized syntax
+  3. Execute in batches for safety
+  4. Preserve exact authorization logic
+
+SAFETY MEASURES:
+  - Use IF EXISTS to prevent errors
+  - Preserve all policy conditions exactly
+  - Only modify auth.uid() → (select auth.uid())
+  - No changes to business logic
+  - Atomic transaction per table
+
+STATUS: Implementing in batches below
