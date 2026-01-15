@@ -379,11 +379,15 @@ export default function NativeInteractiveMapView({
             anchor={{ x: 0.5, y: 1 }}
             allowOverlap={true}
             isSelected={selectedMarker?.id === marker.id}
-            onPress={() => handleMarkerPress(marker)}
           >
-            <View style={{ padding: spacing.sm }}>
+            <TouchableOpacity
+              onPress={() => handleMarkerPress(marker)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
+              style={{ padding: spacing.sm }}
+            >
               {renderMarkerContent(marker)}
-            </View>
+            </TouchableOpacity>
           </Mapbox.MarkerView>
         ))}
       </Mapbox.MapView>
