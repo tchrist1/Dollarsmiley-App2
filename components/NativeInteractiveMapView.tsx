@@ -42,6 +42,7 @@ interface MapMarker {
   price?: number;
   type?: 'listing' | 'provider';
   listingType?: 'Service' | 'CustomService' | 'Job';
+  pricingType?: 'fixed_price' | 'quote_based';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -141,6 +142,14 @@ export default function NativeInteractiveMapView({
       const config = getMarkerConfig(marker.listingType);
       const isSelected = selectedMarker?.id === marker.id;
 
+      // Determine letter text for marker
+      let letterText = 'S'; // Default to Service
+      if (marker.listingType === 'Job') {
+        letterText = marker.pricingType === 'fixed_price' ? 'J' : 'JQ';
+      } else if (marker.listingType === 'Service' || marker.listingType === 'CustomService') {
+        letterText = 'S';
+      }
+
       return {
         type: 'Feature' as const,
         id: marker.id,
@@ -158,6 +167,7 @@ export default function NativeInteractiveMapView({
           isProvider: marker.type === 'provider',
           bubbleColor: config.bubbleColor,
           iconType: marker.listingType || 'Service',
+          letterText: letterText,
         },
       };
     });
@@ -432,29 +442,50 @@ export default function NativeInteractiveMapView({
           shape={markerFeatureCollection}
           onPress={handleShapeSourcePress}
         >
+          {/* Circle background */}
           <Mapbox.CircleLayer
-            id="markers-layer"
+            id="markers-circle-layer"
             style={{
               circleRadius: [
                 'case',
                 ['get', 'isSelected'],
-                26,
-                20,
+                22,
+                18,
               ],
-              circleColor: [
-                'case',
-                ['get', 'isSelected'],
-                ['get', 'bubbleColor'],
-                '#FFFFFF',
-              ],
-              circleStrokeWidth: 3,
-              circleStrokeColor: ['get', 'bubbleColor'],
+              circleColor: ['get', 'bubbleColor'],
               circleSortKey: [
                 'case',
                 ['get', 'isSelected'],
                 1,
                 0,
               ],
+              circleOpacity: 1,
+            }}
+          />
+          {/* White outer ring for selected state */}
+          <Mapbox.CircleLayer
+            id="markers-circle-selected-ring"
+            filter={['==', ['get', 'isSelected'], true]}
+            style={{
+              circleRadius: 26,
+              circleColor: 'transparent',
+              circleStrokeWidth: 3,
+              circleStrokeColor: '#FFFFFF',
+              circleOpacity: 1,
+            }}
+          />
+          {/* Letter text */}
+          <Mapbox.SymbolLayer
+            id="markers-text-layer"
+            style={{
+              textField: ['get', 'letterText'],
+              textSize: 14,
+              textColor: '#FFFFFF',
+              textHaloColor: 'transparent',
+              textHaloWidth: 0,
+              textFont: ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              textAllowOverlap: true,
+              textIgnorePlacement: true,
             }}
           />
         </Mapbox.ShapeSource>

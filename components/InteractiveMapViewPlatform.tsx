@@ -11,6 +11,7 @@ interface MapMarker {
   price?: number;
   type?: 'listing' | 'provider';
   listingType?: 'Service' | 'CustomService' | 'Job';
+  pricingType?: 'fixed_price' | 'quote_based';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;

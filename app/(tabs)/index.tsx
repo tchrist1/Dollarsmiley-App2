@@ -820,6 +820,7 @@ export default function HomeScreen() {
           price: price,
           type: 'listing' as const,
           listingType: listingType,
+          pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
         };
       });
 
