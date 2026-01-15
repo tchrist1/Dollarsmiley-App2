@@ -1,0 +1,339 @@
+========================================
+NATIVE MAP MARKER TOUCH EVENT FLOW
+========================================
+INSPECTION REPORT — NO FIXES APPLIED
+Platform: iOS/Android Native
+Library: @rnmapbox/maps ^10.2.7
+Component: components/NativeInteractiveMapView.tsx
+========================================
+
+────────────────────────────────────────
+EXACT TOUCH EVENT FLOW (INTENDED)
+────────────────────────────────────────
+
+USER TAP ON MARKER BUBBLE
+  ↓
+NATIVE LAYER (iOS UIView / Android View)
+  ↓
+Mapbox.MarkerView (Native View Manager)
+  ↓
+TouchableOpacity (React Native Gesture Handler)
+  - hitSlop: { top: 30, bottom: 30, left: 30, right: 30 }
+  - activeOpacity: 0.7
+  - style: { padding: spacing.sm }
+  ↓
+TouchableOpacity.onPress → handleMarkerPress(marker)
+  ↓
+handleMarkerPress function:
+  1. setSelectedMarker(marker)
+  2. onMarkerPress?.(marker) [parent callback]
+  3. cameraRef.current.setCamera(...) [animate to marker]
+
+────────────────────────────────────────
+FALLBACK TOUCH EVENT FLOW (RECENTLY ADDED)
+────────────────────────────────────────
+
+USER TAP ON MAP
+  ↓
+Mapbox.MapView.onPress → handleMapPress(event)
+  ↓
+mapRef.current.queryRenderedFeaturesAtPoint(
+  event.geometry.coordinates,
+  undefined,
+  ['marker-hit-layer']
+)
+  ↓
+IF feature found with markerId:
+  markers.find(m => m.id === markerId)
+  ↓
+  handleMarkerPress(marker)
+
+────────────────────────────────────────
+TOUCH INTERCEPTION POINTS (FAILURE SUSPECTS)
+────────────────────────────────────────
+
+[1] Mapbox.MarkerView Native Wrapper
+    Location: Line 390-401
+    Behavior: Native view manager wraps RN content
+    Suspect: May consume touch events at native layer
+    Evidence: No tracksViewChanges flag to optimize
+
+[2] TouchableOpacity Gesture Recognizer
+    Location: Line 397-404
+    Behavior: RN gesture handler inside native view
+    Suspect: Gesture priority vs map pan/zoom unclear
+    Evidence: hitSlop present but may be insufficient
+
+[3] Child View Hierarchy Depth
+    Location: renderMarkerContent (lines 314-393)
+    Behavior: 3-4 nested <View> components
+    Suspect: Transform styles may affect hit detection
+    Evidence:
+      - styles.markerSelected: transform: [{ scale: 1.3 }]
+      - styles.markerProviderContainer: transform: [{ scale: 1.1 }]
+      - Shadow styles: ...shadows.lg
+
+[4] Map Gesture Priority
+    Location: Mapbox.MapView (line 409)
+    Behavior: Pan/zoom gestures compete with marker taps
+    Suspect: Map gestures may take precedence
+    Evidence: No explicit gesture priority configuration
+
+[5] Invisible Hit-Test Layer
+    Location: Lines 374-387
+    Behavior: ShapeSource + CircleLayer at opacity 0
+    Suspect: May create additional gesture competition
+    Evidence: Recently added as mitigation, not original design
+
+────────────────────────────────────────
+MARKER RENDER STRUCTURE
+────────────────────────────────────────
+
+Mapbox.MarkerView
+└── TouchableOpacity (onPress handler HERE)
+    └── View (markerContainer)
+        ├── View (markerContent)
+        │   └── Icon (Lucide component)
+        ├── View (markerPointer - triangle)
+        └── View (markerPrice - optional)
+            └── Text
+
+Total depth: 4-5 levels from touch surface to handler
+
+────────────────────────────────────────
+RE-RENDER CHARACTERISTICS
+────────────────────────────────────────
+
+markers.map() executes on EVERY render when:
+• markers array reference changes
+• selectedMarker state changes
+• mapLoaded state changes
+• zoomLevel state changes (frequent during pan/zoom)
+
+NO OPTIMIZATIONS PRESENT:
+❌ No React.memo() on marker component
+❌ No useMemo() on marker rendering
+❌ No tracksViewChanges={false} on Mapbox.MarkerView
+❌ All markers re-render on any state change
+
+Consequence: High re-render frequency may affect touch responsiveness
+
+────────────────────────────────────────
+TOUCH TARGET DIMENSIONS
+────────────────────────────────────────
+
+Visual Marker Size:
+• markerContent: 40x40 (circle)
+• markerPointer: 12x10 (triangle)
+• markerPrice: dynamic width, ~20px height
+
+Effective Touch Target:
+• hitSlop adds 30px on all sides
+• padding adds spacing.sm (likely 8-12px)
+• Total tap area: ~100x100 minimum
+
+Expected: Should be highly tappable
+Observed: First tap often fails
+
+────────────────────────────────────────
+MAPBOX.MARKERVIEW PROPS
+────────────────────────────────────────
+
+key={marker.id}
+id={marker.id}
+coordinate={[marker.longitude, marker.latitude]}
+anchor={{ x: 0.5, y: 1 }}         ← May affect tap coordinate translation
+allowOverlap={true}                ← Markers can overlap, affects hit zones
+isSelected={selectedMarker?.id === marker.id}  ← Triggers transform style
+
+MISSING PROPS THAT MAY HELP:
+• tracksViewChanges (undefined → defaults to true, causes re-renders)
+
+────────────────────────────────────────
+TOUCHABLEOPACITY PROPS
+────────────────────────────────────────
+
+onPress={() => handleMarkerPress(marker)}  ← Arrow function creates new ref each render
+activeOpacity={0.7}
+hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
+style={{ padding: spacing.sm }}
+
+CONCERN: Arrow function in onPress creates new function reference
+on every render, may affect gesture recognizer attachment
+
+────────────────────────────────────────
+TRANSFORM STYLE SIDE EFFECTS
+────────────────────────────────────────
+
+markerSelected: transform: [{ scale: 1.3 }]
+markerProviderContainer: transform: [{ scale: 1.1 }]
+
+When marker selected, scale changes dynamically
+• May affect hit zone calculation
+• May cause gesture recognizer reattachment
+• Occurs mid-interaction if tap succeeds
+
+────────────────────────────────────────
+INVISIBLE HIT-TEST LAYER DETAILS
+────────────────────────────────────────
+
+Implementation:
+<Mapbox.ShapeSource
+  id="marker-hit-source"
+  shape={hitTestFeatureCollection}
+>
+  <Mapbox.CircleLayer
+    id="marker-hit-layer"
+    style={{
+      circleRadius: 20,
+      circleOpacity: 0,
+      circleColor: '#000000',
+    }}
+  />
+</Mapbox.ShapeSource>
+
+Behavior:
+• Renders invisible circles at marker coordinates
+• circleRadius: 20 (smaller than visual marker)
+• MapView.onPress queries this layer
+• Fallback if TouchableOpacity fails
+
+Timing:
+• Added recently as mitigation
+• Not part of original design
+• Indicates TouchableOpacity reliability issues
+
+────────────────────────────────────────
+OBSERVED FAILURE PATTERN
+────────────────────────────────────────
+
+Symptom: First tap on marker fails to open
+Frequency: Inconsistent, but common on first attempt
+Platforms: Both iOS and Android
+Visual Feedback: activeOpacity sometimes shows
+Actual Handler: onPress does not fire
+
+Pattern Suggests:
+• Touch event reaches TouchableOpacity (activeOpacity)
+• Gesture recognizer activates visually
+• onPress callback not invoked or lost
+• Possible gesture cancellation by map gestures
+
+────────────────────────────────────────
+COMPARISON: WEB VS NATIVE
+────────────────────────────────────────
+
+Web Implementation:
+• Uses different map library (MapboxGL JS)
+• HTML/DOM event model
+• Likely different gesture handling
+
+Native Implementation:
+• Uses @rnmapbox/maps native views
+• Native gesture recognizers (UIGestureRecognizer / Android)
+• Gesture priority handled at native layer
+
+This explains why issue is Native-only
+
+────────────────────────────────────────
+POTENTIAL ROOT CAUSES (RANKED)
+────────────────────────────────────────
+
+[HIGH PROBABILITY]
+1. Gesture Priority Conflict
+   - Map pan/zoom gestures may suppress marker taps
+   - No explicit gesture priority configuration
+   - @rnmapbox/maps default behavior unclear
+
+2. MarkerView Re-render Timing
+   - Frequent re-renders due to no optimization
+   - Gesture recognizer may detach/reattach
+   - onPress arrow function creates new refs
+
+3. Native View Manager Touch Handling
+   - Mapbox.MarkerView uses native wrapper
+   - Touch events may not propagate to RN layer
+   - Inconsistent across iOS/Android
+
+[MEDIUM PROBABILITY]
+4. Transform Style Side Effects
+   - Scale animations on selection
+   - May affect hit zone calculation
+   - Timing issues with gesture recognition
+
+5. hitSlop Coordinate Translation
+   - Extended touch area may not align with native coords
+   - anchor: { x: 0.5, y: 1 } may complicate calculation
+
+[LOW PROBABILITY]
+6. Invisible Layer Interference
+   - Recently added, but opacity 0 should not block
+   - May add complexity to gesture system
+
+────────────────────────────────────────
+CODE LOCATIONS FOR DEBUGGING
+────────────────────────────────────────
+
+Primary Marker Component:
+  Lines 389-401 (Mapbox.MarkerView + TouchableOpacity)
+
+Marker Content Renderer:
+  Lines 314-393 (renderMarkerContent function)
+
+Touch Handler:
+  Lines 197-208 (handleMarkerPress function)
+
+Fallback Handler:
+  Lines 206-245 (handleMapPress function)
+
+MapView Instance:
+  Lines 409-457 (Mapbox.MapView + children)
+
+Hit-Test Layer:
+  Lines 374-387 (ShapeSource + CircleLayer)
+
+────────────────────────────────────────
+LIBRARY VERSION CONTEXT
+────────────────────────────────────────
+
+@rnmapbox/maps: ^10.2.7
+react-native-gesture-handler: ~2.28.0
+react-native: 0.81.5
+
+Mapbox RN SDK 10.x Notes:
+• Uses native view managers for MarkerView
+• Different from SDK 8.x/9.x touch handling
+• Known issues with gesture conflicts in some versions
+• Check changelog for touch-related fixes/regressions
+
+────────────────────────────────────────
+NEXT DEBUGGING STEPS (RECOMMENDED)
+────────────────────────────────────────
+
+1. Add console.log in TouchableOpacity.onPress
+   Verify if handler fires at all
+
+2. Add console.log in handleMapPress
+   Check if fallback layer catches failed taps
+
+3. Test with tracksViewChanges={false}
+   Reduce re-renders, see if stability improves
+
+4. Test with useCallback on handleMarkerPress
+   Stabilize function reference
+
+5. Test with hitSlop: { top: 50, bottom: 50, left: 50, right: 50 }
+   Increase touch target significantly
+
+6. Test removing transform styles temporarily
+   Isolate scale animation as factor
+
+7. Check @rnmapbox/maps GitHub issues
+   Search for "MarkerView touch", "onPress not firing"
+
+8. Test on multiple devices/OS versions
+   Narrow down platform-specific behavior
+
+────────────────────────────────────────
+END OF INSPECTION REPORT
+────────────────────────────────────────
