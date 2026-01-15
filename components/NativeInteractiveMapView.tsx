@@ -98,6 +98,18 @@ export default function NativeInteractiveMapView({
   const [showStyleSelector, setShowStyleSelector] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(12);
 
+  // DEV-ONLY: Startup diagnostic log
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[MAP_PIN_TRACE] 🚀 NATIVE_MAP_MOUNTED', {
+        markerCount: markers.length,
+        hasOnMarkerPress: !!onMarkerPress,
+        timestamp: Date.now(),
+        platform: 'Native',
+      });
+    }
+  }, []);
+
   const centerCoordinate = initialRegion
     ? [initialRegion.longitude, initialRegion.latitude]
     : markers.length > 0

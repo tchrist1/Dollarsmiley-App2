@@ -82,6 +82,18 @@ export default function InteractiveMapView({
 
   const mapContainerRef = useRef<View>(null);
 
+  // DEV-ONLY: Startup diagnostic log
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[MAP_PIN_TRACE] 🚀 WEB_MAP_MOUNTED', {
+        markerCount: markers.length,
+        hasOnMarkerPress: !!onMarkerPress,
+        timestamp: Date.now(),
+        platform: 'Web',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (markers.length > 0 && !initialRegion) {
       const bounds = calculateBounds(markers);
