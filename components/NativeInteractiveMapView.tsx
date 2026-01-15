@@ -110,29 +110,63 @@ export default function NativeInteractiveMapView({
     }
   }, []);
 
-  // Build invisible hit-test GeoJSON layer from markers
-  const hitTestFeatureCollection = React.useMemo(() => {
-    const features = markers.map((marker) => ({
-      type: 'Feature' as const,
-      id: marker.id,
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [marker.longitude, marker.latitude],
-      },
-      properties: {
-        markerId: marker.id,
-        entityId: marker.id,
-        entityType: marker.listingType || 'listing',
-        title: marker.title,
-        price: marker.price,
-      },
-    }));
+  const getMarkerConfig = (listingType?: 'Service' | 'CustomService' | 'Job') => {
+    switch (listingType) {
+      case 'Service':
+        return {
+          bubbleColor: '#10B981',
+          icon: MapPin,
+        };
+      case 'CustomService':
+        return {
+          bubbleColor: '#8B5CF6',
+          icon: Sparkles,
+        };
+      case 'Job':
+        return {
+          bubbleColor: '#F59E0B',
+          icon: Briefcase,
+        };
+      default:
+        return {
+          bubbleColor: '#10B981',
+          icon: MapPin,
+        };
+    }
+  };
+
+  // Build GeoJSON FeatureCollection for native marker rendering
+  const markerFeatureCollection = React.useMemo(() => {
+    const features = markers.map((marker) => {
+      const config = getMarkerConfig(marker.listingType);
+      const isSelected = selectedMarker?.id === marker.id;
+
+      return {
+        type: 'Feature' as const,
+        id: marker.id,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [marker.longitude, marker.latitude],
+        },
+        properties: {
+          markerId: marker.id,
+          entityId: marker.id,
+          entityType: marker.listingType || 'listing',
+          title: marker.title,
+          price: marker.price,
+          isSelected: isSelected,
+          isProvider: marker.type === 'provider',
+          bubbleColor: config.bubbleColor,
+          iconType: marker.listingType || 'Service',
+        },
+      };
+    });
 
     return {
       type: 'FeatureCollection' as const,
       features,
     };
-  }, [markers]);
+  }, [markers, selectedMarker]);
 
   const centerCoordinate = initialRegion
     ? [initialRegion.longitude, initialRegion.latitude]
@@ -227,43 +261,24 @@ export default function NativeInteractiveMapView({
     fitBoundsToMarkers();
   };
 
-  // Map press handler: Query features at tap point for reliable pin opens
-  const handleMapPress = async (event: any) => {
-    if (!mapRef.current) return;
+  // Native marker press handler via ShapeSource
+  const handleShapeSourcePress = (event: any) => {
+    if (!event.features || event.features.length === 0) return;
 
-    try {
-      const { geometry } = event;
-      if (!geometry || !geometry.coordinates) return;
+    const feature = event.features[0];
+    const { markerId } = feature.properties || {};
 
-      // Query rendered features at the tap point for hit-test layer only
-      const features = await mapRef.current.queryRenderedFeaturesAtPoint(
-        geometry.coordinates,
-        undefined,
-        ['marker-hit-layer']
-      );
-
-      if (features && features.features && features.features.length > 0) {
-        const feature = features.features[0];
-        const { markerId } = feature.properties || {};
-
-        if (markerId) {
-          // Find the corresponding marker
-          const marker = markers.find((m) => m.id === markerId);
-          if (marker) {
-            if (__DEV__) {
-              console.log('[MAP_PIN_TRACE] ✅ HIT_TEST_SUCCESS', {
-                markerId,
-                title: marker.title,
-                timestamp: Date.now(),
-              });
-            }
-            handleMarkerPress(marker);
-          }
+    if (markerId) {
+      const marker = markers.find((m) => m.id === markerId);
+      if (marker) {
+        if (__DEV__) {
+          console.log('[MAP_PIN_TRACE] ✅ NATIVE_PRESS_SUCCESS', {
+            markerId,
+            title: marker.title,
+            timestamp: Date.now(),
+          });
         }
-      }
-    } catch (error) {
-      if (__DEV__) {
-        console.log('[MAP_PIN_TRACE] ⚠️ HIT_TEST_ERROR', error);
+        handleMarkerPress(marker);
       }
     }
   };
@@ -285,31 +300,6 @@ export default function NativeInteractiveMapView({
       return `${(distance * 5280).toFixed(0)} ft`;
     }
     return `${distance.toFixed(1)} mi`;
-  };
-
-  const getMarkerConfig = (listingType?: 'Service' | 'CustomService' | 'Job') => {
-    switch (listingType) {
-      case 'Service':
-        return {
-          bubbleColor: '#10B981',
-          icon: MapPin,
-        };
-      case 'CustomService':
-        return {
-          bubbleColor: '#8B5CF6',
-          icon: Sparkles,
-        };
-      case 'Job':
-        return {
-          bubbleColor: '#F59E0B',
-          icon: Briefcase,
-        };
-      default:
-        return {
-          bubbleColor: '#10B981',
-          icon: MapPin,
-        };
-    }
   };
 
   const renderMarkerContent = (marker: MapMarker) => {
@@ -419,7 +409,6 @@ export default function NativeInteractiveMapView({
         onCameraChanged={(state) => {
           setZoomLevel(state.properties.zoom);
         }}
-        onPress={handleMapPress}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -437,40 +426,38 @@ export default function NativeInteractiveMapView({
           />
         )}
 
-        {/* Invisible hit-test layer for reliable tap detection */}
+        {/* Native marker rendering with reliable tap detection */}
         <Mapbox.ShapeSource
-          id="marker-hit-source"
-          shape={hitTestFeatureCollection}
+          id="markers-source"
+          shape={markerFeatureCollection}
+          onPress={handleShapeSourcePress}
         >
           <Mapbox.CircleLayer
-            id="marker-hit-layer"
+            id="markers-layer"
             style={{
-              circleRadius: 20,
-              circleOpacity: 0,
-              circleColor: '#000000',
+              circleRadius: [
+                'case',
+                ['get', 'isSelected'],
+                26,
+                20,
+              ],
+              circleColor: [
+                'case',
+                ['get', 'isSelected'],
+                ['get', 'bubbleColor'],
+                '#FFFFFF',
+              ],
+              circleStrokeWidth: 3,
+              circleStrokeColor: ['get', 'bubbleColor'],
+              circleSortKey: [
+                'case',
+                ['get', 'isSelected'],
+                1,
+                0,
+              ],
             }}
           />
         </Mapbox.ShapeSource>
-
-        {markers.map((marker) => (
-          <Mapbox.MarkerView
-            key={marker.id}
-            id={marker.id}
-            coordinate={[marker.longitude, marker.latitude]}
-            anchor={{ x: 0.5, y: 1 }}
-            allowOverlap={true}
-            isSelected={selectedMarker?.id === marker.id}
-          >
-            <TouchableOpacity
-              onPress={() => handleMarkerPress(marker)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
-              style={{ padding: spacing.sm }}
-            >
-              {renderMarkerContent(marker)}
-            </TouchableOpacity>
-          </Mapbox.MarkerView>
-        ))}
       </Mapbox.MapView>
 
       {!mapLoaded && (
