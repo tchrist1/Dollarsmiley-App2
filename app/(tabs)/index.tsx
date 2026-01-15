@@ -1614,7 +1614,7 @@ export default function HomeScreen() {
               showUserLocation={true}
               enableClustering={true}
             />
-            <View style={styles.mapModeToggle}>
+            <View style={styles.mapModeToggle} pointerEvents="box-none">
               <TouchableOpacity
                 style={[styles.mapModeButton, mapMode === 'listings' && styles.mapModeButtonActive]}
                 onPress={() => setMapMode('listings')}

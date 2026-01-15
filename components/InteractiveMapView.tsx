@@ -366,6 +366,7 @@ export default function InteractiveMapView({
                   top: position.y - 60,
                 },
               ]}
+              pointerEvents="box-none"
             >
               <MapMarkerPin
                 type={marker.listingType || 'Service'}
@@ -399,7 +400,7 @@ export default function InteractiveMapView({
 
       {/* Map Controls */}
       {showControls && (
-        <View style={styles.controls}>
+        <View style={styles.controls} pointerEvents="box-none">
           <View style={styles.controlsColumn}>
             <TouchableOpacity style={styles.controlButton} onPress={handleZoomIn} activeOpacity={0.7}>
               <Plus size={20} color={colors.text} />
@@ -425,7 +426,7 @@ export default function InteractiveMapView({
 
       {/* Selected Marker Info */}
       {selectedMarker && (
-        <View style={styles.markerInfo}>
+        <View style={styles.markerInfo} pointerEvents="box-none">
           <TouchableOpacity
             style={[
               styles.markerInfoCard,

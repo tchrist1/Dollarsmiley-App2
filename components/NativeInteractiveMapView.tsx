@@ -371,7 +371,7 @@ export default function NativeInteractiveMapView({
             <TouchableOpacity
               onPress={() => handleMarkerPress(marker)}
               activeOpacity={0.7}
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              hitSlop={{ top: 30, bottom: 30, left: 30, right: 30 }}
               style={{ padding: spacing.sm }}
             >
               {renderMarkerContent(marker)}
@@ -398,7 +398,7 @@ export default function NativeInteractiveMapView({
       )}
 
       {showControls && (
-        <View style={styles.controls}>
+        <View style={styles.controls} pointerEvents="box-none">
           <TouchableOpacity
             style={styles.controlButton}
             onPress={() => setShowStyleSelector(!showStyleSelector)}
@@ -605,7 +605,7 @@ export default function NativeInteractiveMapView({
         </View>
       )}
 
-      <View style={styles.statsBar}>
+      <View style={styles.statsBar} pointerEvents="none">
         <View style={styles.statItem}>
           <MapPin size={14} color={colors.white} />
           <Text style={styles.statText}>{markers.length} locations</Text>
