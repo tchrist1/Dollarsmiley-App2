@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Location from 'expo-location';
 import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
@@ -44,6 +45,7 @@ interface SearchSuggestion {
 export default function HomeScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams();
+  const tabBarHeight = useBottomTabBarHeight();
   const [searchQuery, setSearchQuery] = useState('');
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1670,7 +1672,7 @@ export default function HomeScreen() {
             />
 
             {viewMode === 'map' && (
-              <>
+              <View style={styles.mapOverlayLayer} pointerEvents="box-none">
                 <MapStatusHint
                   locationCount={getMapMarkers.length}
                   zoomLevel={mapZoomLevel}
@@ -1683,7 +1685,7 @@ export default function HomeScreen() {
                   onZoomOut={handleMapZoomOut}
                   onFullscreen={handleMapRecenter}
                   onLayersPress={handleMapLayers}
-                  bottomOffset={130}
+                  bottomOffset={tabBarHeight}
                 />
 
                 <MapBottomSheet
@@ -1693,7 +1695,7 @@ export default function HomeScreen() {
                 >
                   {/* Bottom sheet content - can show listing cards here */}
                 </MapBottomSheet>
-              </>
+              </View>
             )}
           </View>
         </View>
@@ -2440,5 +2442,9 @@ const styles = StyleSheet.create({
   },
   viewContainerHidden: {
     opacity: 0,
+  },
+  mapOverlayLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
   },
 });

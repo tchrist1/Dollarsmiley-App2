@@ -222,6 +222,8 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     ...shadows.lg,
+    zIndex: 2000,
+    elevation: 20,
   },
   handle: {
     alignItems: 'center',
