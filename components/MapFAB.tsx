@@ -51,7 +51,7 @@ export default function MapFAB({
         styles.container,
         {
           bottom: insets.bottom + spacing.sm,
-          right: spacing.sm,
+          right: 6,
         },
       ]}
     >
@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
