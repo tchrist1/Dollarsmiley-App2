@@ -50,7 +50,7 @@ export default function MapFAB({
       style={[
         styles.container,
         {
-          bottom: insets.bottom + 2,
+          bottom: insets.bottom - 4,
           right: 6,
         },
       ]}
