@@ -38,18 +38,18 @@ export default function MapBottomSheet({
   const HALF_HEIGHT = SCREEN_HEIGHT * 0.5;
   const FULL_HEIGHT = SCREEN_HEIGHT - 100;
 
-  const translateY = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT - COLLAPSED_HEIGHT)).current;
 
   const getTargetHeight = (state: SheetState): number => {
     switch (state) {
       case 'collapsed':
-        return 0;
+        return SCREEN_HEIGHT - COLLAPSED_HEIGHT;
       case 'half':
-        return -(HALF_HEIGHT - COLLAPSED_HEIGHT);
+        return SCREEN_HEIGHT - HALF_HEIGHT;
       case 'full':
-        return -(FULL_HEIGHT - COLLAPSED_HEIGHT);
+        return SCREEN_HEIGHT - FULL_HEIGHT;
       default:
-        return 0;
+        return SCREEN_HEIGHT - COLLAPSED_HEIGHT;
     }
   };
 
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
+    top: 0,
     height: SCREEN_HEIGHT,
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.xl,
