@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -65,10 +65,20 @@ interface NativeInteractiveMapViewProps {
   onMarkerPress?: (marker: MapMarker) => void;
   initialRegion?: MapRegion;
   style?: any;
-  showControls?: boolean;
-  onSwitchToList?: () => void;
   showUserLocation?: boolean;
   enableClustering?: boolean;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onRecenter?: () => void;
+  onLayersPress?: () => void;
+  onZoomChange?: (zoom: number) => void;
+}
+
+export interface NativeInteractiveMapViewRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  recenter: () => void;
+  toggleLayers: () => void;
 }
 
 const MAP_STYLES = [
@@ -80,16 +90,19 @@ const MAP_STYLES = [
 
 const DEFAULT_COORDINATES = [-74.006, 40.7128];
 
-export default function NativeInteractiveMapView({
+const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeInteractiveMapViewProps>(({
   markers,
   onMarkerPress,
   initialRegion,
   style,
-  showControls = true,
-  onSwitchToList,
   showUserLocation = true,
   enableClustering = true,
-}: NativeInteractiveMapViewProps) {
+  onZoomIn: externalOnZoomIn,
+  onZoomOut: externalOnZoomOut,
+  onRecenter: externalOnRecenter,
+  onLayersPress: externalOnLayersPress,
+  onZoomChange,
+}, ref) => {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<Mapbox.Camera>(null);
   const mapRef = useRef<Mapbox.MapView>(null);
@@ -247,6 +260,7 @@ export default function NativeInteractiveMapView({
       const newZoom = Math.min(zoomLevel + 1, 20);
       setZoomLevel(newZoom);
       cameraRef.current.zoomTo(newZoom, 300);
+      externalOnZoomIn?.();
     }
   };
 
@@ -255,12 +269,26 @@ export default function NativeInteractiveMapView({
       const newZoom = Math.max(zoomLevel - 1, 0);
       setZoomLevel(newZoom);
       cameraRef.current.zoomTo(newZoom, 300);
+      externalOnZoomOut?.();
     }
   };
 
   const handleRecenter = () => {
     fitBoundsToMarkers();
+    externalOnRecenter?.();
   };
+
+  const handleLayersPress = () => {
+    setShowStyleSelector(!showStyleSelector);
+    externalOnLayersPress?.();
+  };
+
+  useImperativeHandle(ref, () => ({
+    zoomIn: handleZoomIn,
+    zoomOut: handleZoomOut,
+    recenter: handleRecenter,
+    toggleLayers: handleLayersPress,
+  }));
 
   // Native marker press handler via ShapeSource
   const handleShapeSourcePress = (event: any) => {
@@ -401,7 +429,9 @@ export default function NativeInteractiveMapView({
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
         onCameraChanged={(state) => {
-          setZoomLevel(state.properties.zoom);
+          const newZoom = state.properties.zoom;
+          setZoomLevel(newZoom);
+          onZoomChange?.(newZoom);
         }}
       >
         <Mapbox.Camera
@@ -489,36 +519,6 @@ export default function NativeInteractiveMapView({
           <Text style={styles.emptyStateText}>
             Listings don't have location data yet.{'\n'}Try using list or grid view.
           </Text>
-        </View>
-      )}
-
-      {showControls && (
-        <View style={styles.controls} pointerEvents="box-none">
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={() => setShowStyleSelector(!showStyleSelector)}
-            activeOpacity={0.7}
-          >
-            <Layers size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={handleZoomIn} activeOpacity={0.7}>
-            <Plus size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={handleZoomOut} activeOpacity={0.7}>
-            <Minus size={20} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={handleRecenter} activeOpacity={0.7}>
-            <Maximize2 size={20} color={colors.text} />
-          </TouchableOpacity>
-          {onSwitchToList && (
-            <TouchableOpacity
-              style={[styles.controlButton, styles.controlButtonPrimary]}
-              onPress={onSwitchToList}
-              activeOpacity={0.7}
-            >
-              <List size={20} color={colors.white} />
-            </TouchableOpacity>
-          )}
         </View>
       )}
 
@@ -714,7 +714,9 @@ export default function NativeInteractiveMapView({
       </View>
     </View>
   );
-}
+});
+
+export default NativeInteractiveMapView;
 
 const styles = StyleSheet.create({
   container: {

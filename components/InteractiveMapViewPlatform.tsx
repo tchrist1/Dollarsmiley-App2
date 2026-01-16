@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Platform } from 'react-native';
-import NativeInteractiveMapView from './NativeInteractiveMapView';
+import NativeInteractiveMapView, { NativeInteractiveMapViewRef } from './NativeInteractiveMapView';
 import InteractiveMapView from './InteractiveMapView';
 
 interface MapMarker {
@@ -39,9 +39,14 @@ interface InteractiveMapViewPlatformProps {
   enableClustering?: boolean;
   clusterRadius?: number;
   showUserLocation?: boolean;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onRecenter?: () => void;
+  onLayersPress?: () => void;
+  onZoomChange?: (zoom: number) => void;
 }
 
-export default function InteractiveMapViewPlatform(props: InteractiveMapViewPlatformProps) {
+const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, InteractiveMapViewPlatformProps>((props, ref) => {
   if (Platform.OS === 'web') {
     return (
       <InteractiveMapView
@@ -53,20 +58,27 @@ export default function InteractiveMapViewPlatform(props: InteractiveMapViewPlat
         onSwitchToList={props.onSwitchToList}
         enableClustering={props.enableClustering}
         clusterRadius={props.clusterRadius}
+        onZoomChange={props.onZoomChange}
       />
     );
   }
 
   return (
     <NativeInteractiveMapView
+      ref={ref}
       markers={props.markers}
       onMarkerPress={props.onMarkerPress}
       initialRegion={props.initialRegion}
       style={props.style}
-      showControls={props.showControls}
-      onSwitchToList={props.onSwitchToList}
       showUserLocation={props.showUserLocation}
       enableClustering={props.enableClustering}
+      onZoomIn={props.onZoomIn}
+      onZoomOut={props.onZoomOut}
+      onRecenter={props.onRecenter}
+      onLayersPress={props.onLayersPress}
+      onZoomChange={props.onZoomChange}
     />
   );
-}
+});
+
+export default InteractiveMapViewPlatform;

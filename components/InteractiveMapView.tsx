@@ -54,6 +54,7 @@ interface InteractiveMapViewProps {
   onSwitchToList?: () => void;
   enableClustering?: boolean;
   clusterRadius?: number;
+  onZoomChange?: (zoom: number) => void;
 }
 
 const { width, height } = Dimensions.get('window');

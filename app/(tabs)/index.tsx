@@ -15,6 +15,10 @@ import FeaturedListingsSection from '@/components/FeaturedListingsSection';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
 import AdminBanner from '@/components/AdminBanner';
+import MapBottomSheet from '@/components/MapBottomSheet';
+import MapFAB from '@/components/MapFAB';
+import MapStatusHint from '@/components/MapStatusHint';
+import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
 
@@ -56,6 +60,10 @@ export default function HomeScreen() {
   const [searchLocation, setSearchLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLoadingMoreRef = useRef(false);
+  const [mapZoomLevel, setMapZoomLevel] = useState(12);
+  const [showMapStatusHint, setShowMapStatusHint] = useState(false);
+  const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const mapRef = useRef<NativeInteractiveMapViewRef>(null);
 
   // Carousel sections
   const [recommendedListings, setRecommendedListings] = useState<MarketplaceListing[]>([]);
@@ -879,6 +887,51 @@ export default function HomeScreen() {
     setHasMore(false);
   }, [recommendedListings, trendingListings, popularListings]);
 
+  const triggerMapStatusHint = useCallback(() => {
+    if (mapStatusHintTimer.current) {
+      clearTimeout(mapStatusHintTimer.current);
+    }
+    setShowMapStatusHint(true);
+    mapStatusHintTimer.current = setTimeout(() => {
+      setShowMapStatusHint(false);
+    }, 2000);
+  }, []);
+
+  const handleMapZoomChange = useCallback((zoom: number) => {
+    const roundedZoom = Math.round(zoom * 10) / 10;
+    if (Math.abs(roundedZoom - mapZoomLevel) >= 0.5) {
+      setMapZoomLevel(roundedZoom);
+      triggerMapStatusHint();
+    }
+  }, [mapZoomLevel, triggerMapStatusHint]);
+
+  const handleMapModeChange = useCallback((mode: 'listings' | 'providers') => {
+    setMapMode(mode);
+    triggerMapStatusHint();
+  }, [triggerMapStatusHint]);
+
+  useEffect(() => {
+    if (viewMode === 'map') {
+      triggerMapStatusHint();
+    }
+  }, [filters, viewMode, triggerMapStatusHint]);
+
+  const handleMapZoomIn = useCallback(() => {
+    mapRef.current?.zoomIn();
+  }, []);
+
+  const handleMapZoomOut = useCallback(() => {
+    mapRef.current?.zoomOut();
+  }, []);
+
+  const handleMapRecenter = useCallback(() => {
+    mapRef.current?.recenter();
+  }, []);
+
+  const handleMapLayers = useCallback(() => {
+    mapRef.current?.toggleLayers();
+  }, []);
+
   const renderCarouselSection = useCallback((title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
     if (data.length === 0) return null;
 
@@ -1598,6 +1651,7 @@ export default function HomeScreen() {
             pointerEvents={viewMode === 'map' ? 'auto' : 'none'}
           >
             <InteractiveMapViewPlatform
+              ref={mapRef}
               markers={getMapMarkers}
               onMarkerPress={handleMarkerPress}
               initialRegion={
@@ -1610,46 +1664,37 @@ export default function HomeScreen() {
                     }
                   : undefined
               }
-              showControls={true}
-              onSwitchToList={() => setViewMode('list')}
               showUserLocation={true}
               enableClustering={true}
+              onZoomChange={handleMapZoomChange}
             />
-            <View style={styles.mapModeToggle} pointerEvents="box-none">
-              <TouchableOpacity
-                style={[styles.mapModeButton, mapMode === 'listings' && styles.mapModeButtonActive]}
-                onPress={() => setMapMode('listings')}
-                activeOpacity={0.7}
-              >
-                <MapPin
-                  size={16}
-                  color={mapMode === 'listings' ? colors.white : colors.text}
+
+            {viewMode === 'map' && (
+              <>
+                <MapStatusHint
+                  locationCount={getMapMarkers.length}
+                  zoomLevel={mapZoomLevel}
+                  visible={showMapStatusHint}
+                  mode={mapMode}
                 />
-                <Text
-                  style={[
-                    styles.mapModeButtonText,
-                    mapMode === 'listings' && styles.mapModeButtonTextActive,
-                  ]}
+
+                <MapFAB
+                  onZoomIn={handleMapZoomIn}
+                  onZoomOut={handleMapZoomOut}
+                  onFullscreen={handleMapRecenter}
+                  onLayersPress={handleMapLayers}
+                  bottomOffset={140}
+                />
+
+                <MapBottomSheet
+                  mode={mapMode}
+                  onModeChange={handleMapModeChange}
+                  listingsCount={getMapMarkers.length}
                 >
-                  Listings
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.mapModeButton, mapMode === 'providers' && styles.mapModeButtonActive]}
-                onPress={() => setMapMode('providers')}
-                activeOpacity={0.7}
-              >
-                <User size={16} color={mapMode === 'providers' ? colors.white : colors.text} />
-                <Text
-                  style={[
-                    styles.mapModeButtonText,
-                    mapMode === 'providers' && styles.mapModeButtonTextActive,
-                  ]}
-                >
-                  Providers
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  {/* Bottom sheet content - can show listing cards here */}
+                </MapBottomSheet>
+              </>
+            )}
           </View>
         </View>
       ) : (
@@ -2174,36 +2219,6 @@ const styles = StyleSheet.create({
   mapViewContainer: {
     flex: 1,
     position: 'relative',
-  },
-  mapModeToggle: {
-    position: 'absolute',
-    top: spacing.xxl + spacing.md,
-    left: '50%',
-    transform: [{ translateX: -100 }],
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.full,
-    padding: spacing.xs,
-    ...shadows.lg,
-  },
-  mapModeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-  },
-  mapModeButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  mapModeButtonText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  mapModeButtonTextActive: {
-    color: colors.white,
   },
   carouselsContainer: {
     backgroundColor: colors.white,
