@@ -1552,7 +1552,7 @@ export default function HomeScreen() {
       {loading ? (
         <View style={styles.centerContent}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading services...</Text>
+          <Text style={styles.loadingText}>Loading services & jobs...</Text>
         </View>
       ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.recommendationsSection}>
