@@ -99,17 +99,6 @@ export default function NativeInteractiveMapView({
   const [showStyleSelector, setShowStyleSelector] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(12);
 
-  // DEV-ONLY: Startup diagnostic log
-  useEffect(() => {
-    if (__DEV__) {
-      console.log('[MAP_PIN_TRACE] 🚀 NATIVE_MAP_MOUNTED', {
-        markerCount: markers.length,
-        hasOnMarkerPress: !!onMarkerPress,
-        timestamp: Date.now(),
-        platform: 'Native',
-      });
-    }
-  }, []);
 
   const getMarkerConfig = (listingType?: 'Service' | 'CustomService' | 'Job') => {
     switch (listingType) {
@@ -283,13 +272,6 @@ export default function NativeInteractiveMapView({
     if (markerId) {
       const marker = markers.find((m) => m.id === markerId);
       if (marker) {
-        if (__DEV__) {
-          console.log('[MAP_PIN_TRACE] ✅ NATIVE_PRESS_SUCCESS', {
-            markerId,
-            title: marker.title,
-            timestamp: Date.now(),
-          });
-        }
         handleMarkerPress(marker);
       }
     }
