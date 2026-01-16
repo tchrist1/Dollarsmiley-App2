@@ -53,7 +53,7 @@ export default function MapFAB({
         styles.container,
         {
           bottom: bottomOffset + insets.bottom + spacing.md,
-          right: insets.right + spacing.md,
+          right: spacing.md,
         },
       ]}
     >
