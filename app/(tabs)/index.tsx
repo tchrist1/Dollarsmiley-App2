@@ -15,7 +15,7 @@ import FeaturedListingsSection from '@/components/FeaturedListingsSection';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
 import AdminBanner from '@/components/AdminBanner';
-import MapBottomSheet from '@/components/MapBottomSheet';
+import MapModeBar from '@/components/MapModeBar';
 import MapFAB from '@/components/MapFAB';
 import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
@@ -1671,6 +1671,11 @@ export default function HomeScreen() {
 
             {viewMode === 'map' && (
               <>
+                <MapModeBar
+                  mode={mapMode}
+                  onModeChange={handleMapModeChange}
+                />
+
                 <MapStatusHint
                   locationCount={getMapMarkers.length}
                   zoomLevel={mapZoomLevel}
@@ -1683,16 +1688,8 @@ export default function HomeScreen() {
                   onZoomOut={handleMapZoomOut}
                   onFullscreen={handleMapRecenter}
                   onLayersPress={handleMapLayers}
-                  bottomOffset={130}
+                  bottomOffset={80}
                 />
-
-                <MapBottomSheet
-                  mode={mapMode}
-                  onModeChange={handleMapModeChange}
-                  listingsCount={getMapMarkers.length}
-                >
-                  {/* Bottom sheet content - can show listing cards here */}
-                </MapBottomSheet>
               </>
             )}
           </View>
