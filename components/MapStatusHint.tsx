@@ -68,7 +68,7 @@ export default function MapStatusHint({
       style={[
         styles.container,
         {
-          top: insets.top + spacing.xxl + spacing.lg,
+          top: insets.top + spacing.lg,
           opacity: fadeAnim,
           transform: [{ translateY: translateYAnim }],
         },
@@ -85,8 +85,7 @@ export default function MapStatusHint({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: '50%',
-    transform: [{ translateX: -100 }],
+    alignSelf: 'center',
     backgroundColor: colors.white,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,

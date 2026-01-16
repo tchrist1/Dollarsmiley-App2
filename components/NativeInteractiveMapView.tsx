@@ -699,19 +699,6 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
           </TouchableOpacity>
         </View>
       )}
-
-      <View style={styles.statsBar} pointerEvents="none">
-        <View style={styles.statItem}>
-          <MapPin size={14} color={colors.white} />
-          <Text style={styles.statText}>{markers.length} locations</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <Text style={styles.statText}>
-            Zoom: {typeof zoomLevel === 'number' ? zoomLevel.toFixed(1) : '0.0'}
-          </Text>
-        </View>
-      </View>
     </View>
   );
 });
@@ -1030,36 +1017,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: colors.textLight,
     lineHeight: 24,
-  },
-  statsBar: {
-    position: 'absolute',
-    top: spacing.xxl + spacing.lg + 52,
-    left: '50%',
-    transform: [{ translateX: -100 }],
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    gap: spacing.sm,
-    ...shadows.lg,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.white,
-  },
-  statDivider: {
-    width: 1,
-    height: 12,
-    backgroundColor: colors.white,
-    opacity: 0.3,
   },
   providerRatingRow: {
     flexDirection: 'row',

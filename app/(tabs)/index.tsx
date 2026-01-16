@@ -1683,7 +1683,7 @@ export default function HomeScreen() {
                   onZoomOut={handleMapZoomOut}
                   onFullscreen={handleMapRecenter}
                   onLayersPress={handleMapLayers}
-                  bottomOffset={140}
+                  bottomOffset={130}
                 />
 
                 <MapBottomSheet
