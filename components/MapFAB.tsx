@@ -17,7 +17,6 @@ interface MapFABProps {
   onZoomOut: () => void;
   onFullscreen: () => void;
   onLayersPress: () => void;
-  bottomOffset?: number;
 }
 
 export default function MapFAB({
@@ -25,7 +24,6 @@ export default function MapFAB({
   onZoomOut,
   onFullscreen,
   onLayersPress,
-  bottomOffset = 0,
 }: MapFABProps) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
@@ -52,7 +50,7 @@ export default function MapFAB({
       style={[
         styles.container,
         {
-          bottom: bottomOffset + insets.bottom + spacing.md,
+          bottom: insets.bottom + spacing.md,
           right: spacing.md,
         },
       ]}

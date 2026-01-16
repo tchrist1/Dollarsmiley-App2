@@ -1688,7 +1688,6 @@ export default function HomeScreen() {
                   onZoomOut={handleMapZoomOut}
                   onFullscreen={handleMapRecenter}
                   onLayersPress={handleMapLayers}
-                  bottomOffset={80}
                 />
               </>
             )}
