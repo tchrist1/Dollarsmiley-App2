@@ -207,6 +207,11 @@ export default function HomeScreen() {
         ...prev,
         listingType: filterType,
       }));
+      // Explicitly trigger fetch when filter param changes from navigation
+      // (sandboxed architecture - URL params are external, not user filter interaction)
+      setPage(0);
+      setHasMore(true);
+      fetchListings(true);
     }
   }, [params.filter]);
 
@@ -267,9 +272,14 @@ export default function HomeScreen() {
   };
 
   // ============================================================================
-  // PHASE 2: Core listings & jobs fetch
-  // Triggered by filters or search changes with debounce
-  // Already optimally deferred with 300ms timeout
+  // PHASE 2: Core listings & jobs fetch - SEARCH QUERY ONLY
+  // ============================================================================
+  // ARCHITECTURE: Sandboxed Filters
+  // - Search query changes trigger auto-fetch with 300ms debounce
+  // - Filter changes do NOT trigger auto-fetch (sandboxed)
+  // - Filters apply ONLY when user taps "Apply Filters" button
+  // - This prevents expensive fetches during filter interaction
+  // - Improves slider, scroll, and overall filter UI responsiveness
   // ============================================================================
   useEffect(() => {
     if (searchTimeout.current) {
@@ -287,7 +297,7 @@ export default function HomeScreen() {
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [filters, searchQuery]);
+  }, [searchQuery]); // NOTE: filters removed - only searchQuery triggers auto-fetch
 
   // ============================================================================
   // PHASE 1: Lightweight background data - Trending searches
@@ -911,8 +921,19 @@ export default function HomeScreen() {
     }
   }, [loadingMore, hasMore, loading]);
 
+  // ============================================================================
+  // EXPLICIT FILTER APPLICATION (Sandboxed Architecture)
+  // ============================================================================
+  // Called when user taps "Apply Filters" button in FilterModal
+  // This is the ONLY way filters trigger a data fetch
+  // Prevents accidental fetches during filter interaction (slider drag, etc.)
+  // ============================================================================
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
     setFilters(newFilters);
+    // Explicitly trigger fetch after applying filters
+    setPage(0);
+    setHasMore(true);
+    fetchListings(true);
   }, []);
 
   const getMapMarkers = useMemo(() => {
@@ -1644,6 +1665,7 @@ export default function HomeScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => {
+                // Clear All: Reset filters and search, then explicitly fetch
                 setSearchQuery('');
                 setFilters({
                   categories: [],
@@ -1658,6 +1680,10 @@ export default function HomeScreen() {
                   instant_booking: false,
                   listingType: 'all',
                 });
+                // Explicitly trigger fetch (sandboxed architecture)
+                setPage(0);
+                setHasMore(true);
+                fetchListings(true);
               }}
             >
               <Text style={styles.clearFiltersText}>Clear all</Text>
@@ -1867,6 +1893,7 @@ export default function HomeScreen() {
           {(searchQuery || activeFilterCount > 0) && (
             <TouchableOpacity
               onPress={() => {
+                // Reset Search: Clear filters and search, then explicitly fetch
                 setSearchQuery('');
                 setFilters({
                   categories: [],
@@ -1881,6 +1908,10 @@ export default function HomeScreen() {
                   instant_booking: false,
                   listingType: 'all',
                 });
+                // Explicitly trigger fetch (sandboxed architecture)
+                setPage(0);
+                setHasMore(true);
+                fetchListings(true);
               }}
               style={styles.resetButton}
             >

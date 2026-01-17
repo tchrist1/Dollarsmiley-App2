@@ -99,6 +99,33 @@ interface FilterModalProps {
   currentFilters: FilterOptions;
 }
 
+// ============================================================================
+// SANDBOXED FILTERS ARCHITECTURE
+// ============================================================================
+// This component implements a fully sandboxed filter UI that:
+//
+// 1. OPERATES ON LOCAL STATE ONLY
+//    - All filter interactions update local component state
+//    - Parent state (Home screen) is NEVER updated during interaction
+//    - Enables smooth scrolling, slider dragging, and chip selection
+//
+// 2. APPLIES FILTERS EXPLICITLY
+//    - Changes propagate to parent ONLY when user taps "Apply Filters"
+//    - onApply callback is the ONLY way to update parent filters
+//    - Prevents expensive data fetches during filter interaction
+//
+// 3. PERFORMANCE OPTIMIZED
+//    - No data fetching while modal is open
+//    - No parent re-renders during slider drag or scroll
+//    - Responsive UI with zero lag on all filter controls
+//
+// 4. RESET BEHAVIOR
+//    - "Reset" button calls onApply(defaultFilters) and closes modal
+//    - Same explicit application pattern as "Apply Filters"
+//
+// DO NOT add side effects that update parent state during interaction
+// DO NOT trigger fetches or expensive operations inside this component
+// ============================================================================
 export function FilterModal({ visible, onClose, onApply, currentFilters }: FilterModalProps) {
   const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
