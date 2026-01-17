@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,11 @@ export function DistanceRadiusSelector({
   const [thumbPosition] = useState(new Animated.Value(0));
   const [showSlider, setShowSlider] = useState(false);
 
+  // Local draft state for visual feedback during drag
+  const [draftDistance, setDraftDistance] = useState(distance);
+
   const sliderWidthRef = useRef(0);
+  const isDraggingRef = useRef(false);
 
   const normalizeValue = (value: number): number => {
     return (value - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
@@ -45,25 +49,32 @@ export function DistanceRadiusSelector({
     return Math.round(value / 10) * 10;
   };
 
-  const updateDistance = (position: number) => {
+  // Update visual state only during drag
+  const updateDistanceVisual = useCallback((position: number) => {
     const normalized = Math.max(0, Math.min(position / sliderWidthRef.current, 1));
     const newDistance = denormalizeValue(normalized);
     thumbPosition.setValue(normalized);
-    onDistanceChange(newDistance);
-  };
+    setDraftDistance(newDistance);
+  }, []);
+
+  // Commit change when drag ends
+  const commitDistance = useCallback(() => {
+    onDistanceChange(draftDistance);
+  }, [draftDistance, onDistanceChange]);
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
 
     onPanResponderGrant: (_, gestureState) => {
+      isDraggingRef.current = true;
       if (sliderWidthRef.current > 0) {
         const newPosition = Math.max(
           0,
           Math.min(gestureState.moveX - gestureState.x0 + thumbPosition._value * sliderWidthRef.current,
           sliderWidthRef.current)
         );
-        updateDistance(newPosition);
+        updateDistanceVisual(newPosition);
       }
     },
 
@@ -74,8 +85,18 @@ export function DistanceRadiusSelector({
           thumbPosition._value * sliderWidthRef.current;
 
         const newPosition = Math.max(0, Math.min(touchX, sliderWidthRef.current));
-        updateDistance(newPosition);
+        updateDistanceVisual(newPosition);
       }
+    },
+
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      commitDistance();
+    },
+
+    onPanResponderTerminate: () => {
+      isDraggingRef.current = false;
+      commitDistance();
     },
   });
 
@@ -83,8 +104,13 @@ export function DistanceRadiusSelector({
     const { width } = event.nativeEvent.layout;
     setSliderWidth(width);
     sliderWidthRef.current = width;
-    const normalized = normalizeValue(distance);
-    thumbPosition.setValue(normalized);
+
+    // Initialize position if not dragging
+    if (!isDraggingRef.current) {
+      const normalized = normalizeValue(distance);
+      thumbPosition.setValue(normalized);
+      setDraftDistance(distance);
+    }
   };
 
   const thumbLeft = thumbPosition.interpolate({
@@ -116,9 +142,10 @@ export function DistanceRadiusSelector({
     return minScale + normalized * (maxScale - minScale);
   };
 
-  const innerCircleScale = calculateCircleScale(distance, 0.4, 2.0);
-  const middleCircleScale = calculateCircleScale(distance, 0.6, 3.0);
-  const outerCircleScale = calculateCircleScale(distance, 0.8, 4.0);
+  const displayDistance = isDraggingRef.current ? draftDistance : distance;
+  const innerCircleScale = calculateCircleScale(displayDistance, 0.4, 2.0);
+  const middleCircleScale = calculateCircleScale(displayDistance, 0.6, 3.0);
+  const outerCircleScale = calculateCircleScale(displayDistance, 0.8, 4.0);
 
   return (
     <View style={styles.container}>
@@ -148,12 +175,12 @@ export function DistanceRadiusSelector({
       {/* Distance Display */}
       <View style={styles.distanceDisplay}>
         <View style={styles.distanceValue}>
-          <Text style={[styles.distanceNumber, { color: getDistanceColor(distance) }]}>
-            {distance}
+          <Text style={[styles.distanceNumber, { color: getDistanceColor(displayDistance) }]}>
+            {displayDistance}
           </Text>
           <Text style={styles.distanceUnit}>miles</Text>
         </View>
-        <Text style={styles.distanceLabel}>{getDistanceLabel(distance)}</Text>
+        <Text style={styles.distanceLabel}>{getDistanceLabel(displayDistance)}</Text>
       </View>
 
       {/* Mode Toggle */}
@@ -221,7 +248,7 @@ export function DistanceRadiusSelector({
                 styles.activeTrack,
                 {
                   width: trackWidth,
-                  backgroundColor: getDistanceColor(distance),
+                  backgroundColor: getDistanceColor(displayDistance),
                 },
               ]}
             />
@@ -232,13 +259,13 @@ export function DistanceRadiusSelector({
                 styles.thumb,
                 {
                   left: thumbLeft,
-                  borderColor: getDistanceColor(distance),
+                  borderColor: getDistanceColor(displayDistance),
                 },
               ]}
               {...panResponder.panHandlers}
             >
               <View
-                style={[styles.thumbInner, { backgroundColor: getDistanceColor(distance) }]}
+                style={[styles.thumbInner, { backgroundColor: getDistanceColor(displayDistance) }]}
               />
             </Animated.View>
           </View>

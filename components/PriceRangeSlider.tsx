@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,8 +30,14 @@ export function PriceRangeSlider({
   const [sliderWidth, setSliderWidth] = useState(0);
   const [minThumbPosition] = useState(new Animated.Value(0));
   const [maxThumbPosition] = useState(new Animated.Value(1));
+
+  // Local draft state for visual feedback during drag
+  const [draftMinPrice, setDraftMinPrice] = useState(minPrice);
+  const [draftMaxPrice, setDraftMaxPrice] = useState(maxPrice);
+
   const minThumbRef = useRef(0);
   const maxThumbRef = useRef(1);
+  const isDraggingRef = useRef(false);
 
   const normalizeValue = (value: number): number => {
     return (value - minValue) / (maxValue - minValue);
@@ -42,8 +48,9 @@ export function PriceRangeSlider({
     return Math.round(value / step) * step;
   };
 
+  // Update positions when props change (but only if not dragging)
   useEffect(() => {
-    if (sliderWidth > 0) {
+    if (sliderWidth > 0 && !isDraggingRef.current) {
       const initialMinNormalized = normalizeValue(minPrice);
       const initialMaxNormalized = normalizeValue(maxPrice);
 
@@ -51,41 +58,64 @@ export function PriceRangeSlider({
       maxThumbPosition.setValue(initialMaxNormalized);
       minThumbRef.current = initialMinNormalized;
       maxThumbRef.current = initialMaxNormalized;
+      setDraftMinPrice(minPrice);
+      setDraftMaxPrice(maxPrice);
     }
   }, [minPrice, maxPrice, sliderWidth]);
 
-  const updateMinPrice = (normalized: number) => {
+  // Update visual state only during drag
+  const updateMinPriceVisual = useCallback((normalized: number) => {
     const clampedNormalized = Math.max(0, Math.min(normalized, maxThumbRef.current - 0.02));
     const newMin = denormalizeValue(clampedNormalized);
-    const currentMax = denormalizeValue(maxThumbRef.current);
 
     minThumbPosition.setValue(clampedNormalized);
     minThumbRef.current = clampedNormalized;
-    onValuesChange(newMin, currentMax);
-  };
+    setDraftMinPrice(newMin);
+  }, []);
 
-  const updateMaxPrice = (normalized: number) => {
+  const updateMaxPriceVisual = useCallback((normalized: number) => {
     const clampedNormalized = Math.max(minThumbRef.current + 0.02, Math.min(normalized, 1));
-    const currentMin = denormalizeValue(minThumbRef.current);
     const newMax = denormalizeValue(clampedNormalized);
 
     maxThumbPosition.setValue(clampedNormalized);
     maxThumbRef.current = clampedNormalized;
-    onValuesChange(currentMin, newMax);
-  };
+    setDraftMaxPrice(newMax);
+  }, []);
+
+  // Commit changes only when drag ends
+  const commitMinPrice = useCallback(() => {
+    const finalMin = denormalizeValue(minThumbRef.current);
+    const finalMax = denormalizeValue(maxThumbRef.current);
+    onValuesChange(finalMin, finalMax);
+  }, [onValuesChange]);
+
+  const commitMaxPrice = useCallback(() => {
+    const finalMin = denormalizeValue(minThumbRef.current);
+    const finalMax = denormalizeValue(maxThumbRef.current);
+    onValuesChange(finalMin, finalMax);
+  }, [onValuesChange]);
 
   const minPanResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: () => {
+      isDraggingRef.current = true;
       minThumbRef.current = minThumbPosition._value;
     },
     onPanResponderMove: (_, gestureState) => {
       if (sliderWidth > 0) {
         const delta = gestureState.dx / sliderWidth;
         const newNormalized = minThumbRef.current + delta;
-        updateMinPrice(newNormalized);
+        updateMinPriceVisual(newNormalized);
       }
+    },
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      commitMinPrice();
+    },
+    onPanResponderTerminate: () => {
+      isDraggingRef.current = false;
+      commitMinPrice();
     },
   });
 
@@ -93,14 +123,23 @@ export function PriceRangeSlider({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: () => {
+      isDraggingRef.current = true;
       maxThumbRef.current = maxThumbPosition._value;
     },
     onPanResponderMove: (_, gestureState) => {
       if (sliderWidth > 0) {
         const delta = gestureState.dx / sliderWidth;
         const newNormalized = maxThumbRef.current + delta;
-        updateMaxPrice(newNormalized);
+        updateMaxPriceVisual(newNormalized);
       }
+    },
+    onPanResponderRelease: () => {
+      isDraggingRef.current = false;
+      commitMaxPrice();
+    },
+    onPanResponderTerminate: () => {
+      isDraggingRef.current = false;
+      commitMaxPrice();
     },
   });
 
@@ -129,8 +168,8 @@ export function PriceRangeSlider({
   return (
     <View style={styles.container}>
       <View style={styles.labelsContainer}>
-        <Text style={styles.valueLabel}>{formatCurrency(minPrice)}</Text>
-        <Text style={styles.valueLabel}>{formatCurrency(maxPrice)}</Text>
+        <Text style={styles.valueLabel}>{formatCurrency(draftMinPrice)}</Text>
+        <Text style={styles.valueLabel}>{formatCurrency(draftMaxPrice)}</Text>
       </View>
 
       <View style={styles.sliderContainer} onLayout={handleLayout}>
