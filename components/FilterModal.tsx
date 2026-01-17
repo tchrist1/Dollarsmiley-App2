@@ -6,7 +6,6 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  FlatList,
   TextInput,
   Platform,
   Alert,
@@ -97,131 +96,10 @@ interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
   onApply: (filters: FilterOptions) => void;
-  onReset: () => void;
   currentFilters: FilterOptions;
 }
 
-// ============================================================================
-// MEMOIZED CHIP COMPONENTS FOR SCROLL PERFORMANCE
-// ============================================================================
-
-interface CategoryChipProps {
-  category: Category;
-  isSelected: boolean;
-  onPress: (id: string) => void;
-}
-
-const CategoryChip = React.memo<CategoryChipProps>(({ category, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-    onPress={() => onPress(category.id)}
-    activeOpacity={0.7}
-  >
-    <Text
-      style={[
-        styles.categoryChipText,
-        isSelected && styles.categoryChipTextSelected,
-      ]}
-    >
-      {category.name}
-    </Text>
-  </TouchableOpacity>
-));
-
-interface TagChipProps {
-  tag: string;
-  isSelected: boolean;
-  onPress: (tag: string) => void;
-}
-
-const TagChip = React.memo<TagChipProps>(({ tag, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[styles.tagChip, isSelected && styles.tagChipSelected]}
-    onPress={() => onPress(tag)}
-    activeOpacity={0.7}
-  >
-    <Text
-      style={[
-        styles.tagChipText,
-        isSelected && styles.tagChipTextSelected,
-      ]}
-    >
-      #{tag}
-    </Text>
-  </TouchableOpacity>
-));
-
-interface PresetChipProps {
-  preset: { label: string; min: number; max: number };
-  isSelected: boolean;
-  onPress: (label: string, min: number, max: number) => void;
-}
-
-const PresetChip = React.memo<PresetChipProps>(({ preset, isSelected, onPress }) => (
-  <TouchableOpacity
-    style={[
-      styles.presetChip,
-      isSelected && styles.presetChipSelected,
-    ]}
-    onPress={() => onPress(preset.label, preset.min, preset.max)}
-  >
-    <Text
-      style={[
-        styles.presetChipText,
-        isSelected && styles.presetChipTextSelected,
-      ]}
-    >
-      {preset.label}
-    </Text>
-  </TouchableOpacity>
-));
-
-// ============================================================================
-// ⚡ PERFORMANCE ARCHITECTURE: FILTER SANDBOX
-// ============================================================================
-//
-// DESIGN PRINCIPLE:
-// This component is a SANDBOXED UI with a single explicit commit boundary.
-// All filter interactions happen locally without triggering expensive operations.
-//
-// CRITICAL RULES (DO NOT VIOLATE):
-//
-// 1. SANDBOX ISOLATION
-//    ✓ All user interactions update LOCAL draft state only
-//    ✓ NO network requests during interaction
-//    ✓ NO pagination resets during interaction
-//    ✓ NO parent state updates during interaction
-//    ✗ NEVER call parent callbacks except Apply/Reset/Close
-//
-// 2. SINGLE COMMIT BOUNDARY
-//    ✓ Filters commit ONLY when "Apply Filters" is pressed
-//    ✓ Reset delegates to parent for explicit reset + fetch
-//    ✗ NEVER auto-apply filters during interaction
-//
-// 3. PERFORMANCE OPTIMIZATIONS
-//    ✓ FlatList used for categories, tags, price presets (not .map())
-//    ✓ Memoized chip components prevent re-renders
-//    ✓ Slider uses deferred commit (onSlidingComplete)
-//    ✓ Categories fetch lazily on first open only
-//    ✗ NEVER fetch on every modal open
-//
-// 4. SCROLL PERFORMANCE
-//    ✓ Single parent ScrollView
-//    ✓ FlatList with scrollEnabled={false} for grids
-//    ✓ GPU-accelerated rendering via removeClippedSubviews
-//    ✗ NEVER nest scrollable components
-//
-// VALIDATION CHECKLIST:
-// [ ] Opening filters is instant (no blocking operations)
-// [ ] Scrolling is smooth 60fps
-// [ ] Slider responds immediately to touch
-// [ ] Apply triggers exactly ONE fetch
-// [ ] Reset triggers exactly ONE fetch
-// [ ] Closing during interaction discards changes
-//
-// ============================================================================
-
-export function FilterModal({ visible, onClose, onApply, onReset, currentFilters }: FilterModalProps) {
+export function FilterModal({ visible, onClose, onApply, currentFilters }: FilterModalProps) {
   const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
@@ -252,10 +130,6 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
   const [hasVAS, setHasVAS] = useState(currentFilters.hasVAS || false);
   const [selectedTags, setSelectedTags] = useState<string[]>(currentFilters.tags || []);
 
-  // ============================================================================
-  // LAZY CATEGORY FETCH: Only fetch once when modal opens and cache is empty
-  // This prevents blocking the modal open with a network request
-  // ============================================================================
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase
       .from('categories')
@@ -269,11 +143,8 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
   }, []);
 
   useEffect(() => {
-    // Only fetch if modal is visible and categories are not loaded
-    if (visible && categories.length === 0) {
-      fetchCategories();
-    }
-  }, [visible, categories.length, fetchCategories]);
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     setSelectedCategories(currentFilters.categories);
@@ -352,17 +223,7 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
     shippingMode, hasVAS, selectedTags, onApply, onClose
   ]);
 
-  // ============================================================================
-  // SLIDER PERFORMANCE OPTIMIZATION
-  // ============================================================================
-  // Visual feedback during drag - update display values only
-  const handleSliderDrag = useCallback((min: number, max: number) => {
-    setSliderMinPrice(min);
-    setSliderMaxPrice(max);
-  }, []);
-
-  // Commit values when drag completes
-  const handleSlidingComplete = useCallback((min: number, max: number) => {
+  const handleSliderChange = useCallback((min: number, max: number) => {
     setSliderMinPrice(min);
     setSliderMaxPrice(max);
     setPriceMin(min.toString());
@@ -383,11 +244,7 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
     setSelectedPreset(null);
   }, []);
 
-  // ============================================================================
-  // RESET HANDLER: Delegates to parent for explicit reset + fetch
-  // ============================================================================
   const handleReset = useCallback(() => {
-    // Reset local UI state to defaults
     setSelectedCategories([]);
     setLocation('');
     setPriceMin('');
@@ -409,10 +266,9 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
     setUseCurrentLocation(false);
     setSelectedPreset(null);
 
-    // Delegate to parent for explicit reset and fetch
-    onReset();
+    onApply(defaultFilters);
     onClose();
-  }, [onReset, onClose]);
+  }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
     setSliderMinPrice(min);
@@ -552,25 +408,28 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Categories</Text>
-              <FlatList
-                data={parentCategories}
-                renderItem={({ item }) => (
-                  <CategoryChip
-                    category={item}
-                    isSelected={selectedCategories.includes(item.id)}
-                    onPress={toggleCategory}
-                  />
-                )}
-                keyExtractor={(item) => item.id}
-                numColumns={3}
-                scrollEnabled={false}
-                removeClippedSubviews={Platform.OS === 'android'}
-                initialNumToRender={12}
-                maxToRenderPerBatch={6}
-                windowSize={5}
-                updateCellsBatchingPeriod={50}
-                contentContainerStyle={styles.categoriesGrid}
-              />
+              <View style={styles.categoriesGrid}>
+                {parentCategories.map((category) => {
+                    const isSelected = selectedCategories.includes(category.id);
+                    return (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                        onPress={() => toggleCategory(category.id)}
+                        activeOpacity={0.7}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            isSelected && styles.categoryChipTextSelected,
+                          ]}
+                        >
+                          {category.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
             </View>
 
             <View style={styles.section}>
@@ -619,8 +478,7 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
                   maxValue={50000}
                   minPrice={sliderMinPrice}
                   maxPrice={sliderMaxPrice}
-                  onValuesChange={handleSliderDrag}
-                  onSlidingComplete={handleSlidingComplete}
+                  onValuesChange={handleSliderChange}
                   step={100}
                 />
               ) : (
@@ -651,25 +509,27 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
                 </View>
               )}
 
-              <FlatList
-                data={PRICE_PRESETS}
-                renderItem={({ item }) => (
-                  <PresetChip
-                    preset={item}
-                    isSelected={selectedPreset === item.label}
-                    onPress={handlePresetClick}
-                  />
-                )}
-                keyExtractor={(item) => item.label}
-                numColumns={2}
-                scrollEnabled={false}
-                removeClippedSubviews={Platform.OS === 'android'}
-                initialNumToRender={6}
-                maxToRenderPerBatch={4}
-                windowSize={3}
-                updateCellsBatchingPeriod={50}
-                contentContainerStyle={styles.pricePresets}
-              />
+              <View style={styles.pricePresets}>
+                {PRICE_PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset.label}
+                    style={[
+                      styles.presetChip,
+                      selectedPreset === preset.label && styles.presetChipSelected,
+                    ]}
+                    onPress={() => handlePresetClick(preset.label, preset.min, preset.max)}
+                  >
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        selectedPreset === preset.label && styles.presetChipTextSelected,
+                      ]}
+                    >
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <View style={styles.section}>
@@ -808,25 +668,28 @@ export function FilterModal({ visible, onClose, onApply, onReset, currentFilters
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Tags</Text>
-              <FlatList
-                data={AVAILABLE_TAGS}
-                renderItem={({ item }) => (
-                  <TagChip
-                    tag={item}
-                    isSelected={selectedTags.includes(item)}
-                    onPress={toggleTag}
-                  />
-                )}
-                keyExtractor={(item) => item}
-                numColumns={3}
-                scrollEnabled={false}
-                removeClippedSubviews={Platform.OS === 'android'}
-                initialNumToRender={12}
-                maxToRenderPerBatch={6}
-                windowSize={5}
-                updateCellsBatchingPeriod={50}
-                contentContainerStyle={styles.tagsGrid}
-              />
+              <View style={styles.tagsGrid}>
+                {AVAILABLE_TAGS.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+                      onPress={() => toggleTag(tag)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.tagChipText,
+                          isSelected && styles.tagChipTextSelected,
+                        ]}
+                      >
+                        #{tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             <View style={styles.lastSection}>

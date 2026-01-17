@@ -16,17 +16,8 @@ interface PriceRangeSliderProps {
   minPrice: number;
   maxPrice: number;
   onValuesChange: (min: number, max: number) => void;
-  onSlidingComplete?: (min: number, max: number) => void;
   step?: number;
 }
-
-// ============================================================================
-// PERFORMANCE OPTIMIZED: Slider with deferred commit
-// ============================================================================
-// - onValuesChange: Called during drag for visual feedback only
-// - onSlidingComplete: Called on drag end for committing values
-// This prevents expensive operations during smooth slider interaction
-// ============================================================================
 
 export function PriceRangeSlider({
   minValue = 0,
@@ -34,7 +25,6 @@ export function PriceRangeSlider({
   minPrice,
   maxPrice,
   onValuesChange,
-  onSlidingComplete,
   step = 100,
 }: PriceRangeSliderProps) {
   const [sliderWidth, setSliderWidth] = useState(0);
@@ -97,14 +87,6 @@ export function PriceRangeSlider({
         updateMinPrice(newNormalized);
       }
     },
-    onPanResponderRelease: () => {
-      // Commit final values on drag end
-      if (onSlidingComplete) {
-        const finalMin = denormalizeValue(minThumbRef.current);
-        const finalMax = denormalizeValue(maxThumbRef.current);
-        onSlidingComplete(finalMin, finalMax);
-      }
-    },
   });
 
   const maxPanResponder = PanResponder.create({
@@ -118,14 +100,6 @@ export function PriceRangeSlider({
         const delta = gestureState.dx / sliderWidth;
         const newNormalized = maxThumbRef.current + delta;
         updateMaxPrice(newNormalized);
-      }
-    },
-    onPanResponderRelease: () => {
-      // Commit final values on drag end
-      if (onSlidingComplete) {
-        const finalMin = denormalizeValue(minThumbRef.current);
-        const finalMax = denormalizeValue(maxThumbRef.current);
-        onSlidingComplete(finalMin, finalMax);
       }
     },
   });
