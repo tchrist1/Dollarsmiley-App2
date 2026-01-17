@@ -267,9 +267,23 @@ export default function HomeScreen() {
   };
 
   // ============================================================================
+  // ⚡ HOME SCREEN FILTER ARCHITECTURE
+  // ============================================================================
+  // CRITICAL PERFORMANCE RULE:
+  //
+  // Filters ONLY trigger data fetch via explicit user action:
+  // - "Apply Filters" button press → handleApplyFilters → fetchListings(true)
+  // - "Reset" button press → handleResetFilters → fetchListings(true)
+  //
+  // Auto-fetch triggers:
+  // - searchQuery changes (debounced 300ms)
+  //
+  // DO NOT add 'filters' to useEffect dependencies.
+  // This ensures FilterModal operates as a pure UI sandbox with zero side effects.
+  // ============================================================================
+
+  // ============================================================================
   // PHASE 2: Core listings & jobs fetch
-  // Triggered by filters or search changes with debounce
-  // Already optimally deferred with 300ms timeout
   // ============================================================================
   useEffect(() => {
     if (searchTimeout.current) {
@@ -287,7 +301,7 @@ export default function HomeScreen() {
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [filters, searchQuery]);
+  }, [searchQuery]); // Note: 'filters' removed - filters apply only on button press
 
   // ============================================================================
   // PHASE 1: Lightweight background data - Trending searches
@@ -810,6 +824,19 @@ export default function HomeScreen() {
     }
   };
 
+  // Helper function for filter count (must be defined before buildFeedData)
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.location.trim()) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++;
+    return count;
+  };
+
+  const activeFilterCount = getActiveFilterCount();
+
   const buildFeedData = useCallback(() => {
     if (searchQuery || activeFilterCount > 0) {
       const groupedListings: any[] = [];
@@ -889,18 +916,6 @@ export default function HomeScreen() {
     setFeedData(feed);
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.location.trim()) count++;
-    if (filters.priceMin || filters.priceMax) count++;
-    if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++; // Count if distance is set and not default
-    return count;
-  };
-
-  const activeFilterCount = getActiveFilterCount();
-
   useEffect(() => {
     buildFeedData();
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
@@ -911,8 +926,41 @@ export default function HomeScreen() {
     }
   }, [loadingMore, hasMore, loading]);
 
+  // ============================================================================
+  // FILTER SANDBOX BOUNDARY: Explicit commit point
+  // ============================================================================
+  // Filters are applied ONLY when user taps "Apply Filters".
+  // This is the single commit boundary that triggers data fetch.
+  // ============================================================================
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
     setFilters(newFilters);
+    // Explicit fetch on filter commit
+    setPage(0);
+    setHasMore(true);
+    setTimeout(() => fetchListings(true), 0);
+  }, []);
+
+  // ============================================================================
+  // RESET FILTERS: Explicit reset and fetch
+  // ============================================================================
+  const handleResetFilters = useCallback(() => {
+    const defaultFilters: FilterOptions = {
+      categories: [],
+      location: '',
+      priceMin: '',
+      priceMax: '',
+      minRating: 0,
+      distance: 25,
+      availability: 'any',
+      sortBy: 'relevance',
+      verified: false,
+      instant_booking: false,
+      listingType: 'all',
+    };
+    setFilters(defaultFilters);
+    setPage(0);
+    setHasMore(true);
+    setTimeout(() => fetchListings(true), 0);
   }, []);
 
   const getMapMarkers = useMemo(() => {
@@ -1894,6 +1942,7 @@ export default function HomeScreen() {
         visible={showFilters}
         onClose={() => setShowFilters(false)}
         onApply={handleApplyFilters}
+        onReset={handleResetFilters}
         currentFilters={filters}
       />
     </View>
