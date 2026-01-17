@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
@@ -87,10 +87,38 @@ export default function HomeScreen() {
 
   const PAGE_SIZE = 20;
 
+  // ============================================================================
+  // PROGRESSIVE HYDRATION ARCHITECTURE
+  // ============================================================================
+  // PHASE 0: UI Shell renders immediately (no blocking operations)
+  // PHASE 1: Lightweight background data (trending searches)
+  // PHASE 2: Core listings & jobs fetch
+  // PHASE 3: Enhancements (location permission, carousels)
+  // ============================================================================
+
   useEffect(() => {
-    fetchTrendingSearches();
-    requestLocationPermission();
-    fetchCarouselSections();
+    // PHASE 0: UI shell is already rendered by default state
+    // No blocking operations here
+
+    // PHASE 1: Lightweight background data after interactions complete
+    const phase1Task = InteractionManager.runAfterInteractions(() => {
+      fetchTrendingSearches();
+    });
+
+    // PHASE 2: Core listings fetch (immediate async - triggered by filters/searchQuery effect)
+    // This is handled by the existing useEffect on lines 159-175
+    // No change needed - it already defers with setTimeout
+
+    // PHASE 3: Non-critical enhancements with delay
+    const phase3Timer = setTimeout(() => {
+      requestLocationPermission();
+      fetchCarouselSections();
+    }, 500);
+
+    return () => {
+      phase1Task.cancel();
+      clearTimeout(phase3Timer);
+    };
   }, [profile]);
 
   // Handle filter parameter from navigation
@@ -126,6 +154,10 @@ export default function HomeScreen() {
     }
   }, [params.search]);
 
+  // ============================================================================
+  // PHASE 3: Non-critical enhancement - Location permission
+  // Deferred to avoid blocking initial UI render
+  // ============================================================================
   const requestLocationPermission = async () => {
     try {
       if (profile?.latitude && profile?.longitude) {
@@ -156,6 +188,11 @@ export default function HomeScreen() {
     }
   };
 
+  // ============================================================================
+  // PHASE 2: Core listings & jobs fetch
+  // Triggered by filters or search changes with debounce
+  // Already optimally deferred with 300ms timeout
+  // ============================================================================
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
@@ -174,6 +211,10 @@ export default function HomeScreen() {
     };
   }, [filters, searchQuery]);
 
+  // ============================================================================
+  // PHASE 1: Lightweight background data - Trending searches
+  // Runs after interaction completes to avoid blocking UI
+  // ============================================================================
   const fetchTrendingSearches = async () => {
     const { data } = await supabase
       .from('popular_searches')
@@ -248,6 +289,10 @@ export default function HomeScreen() {
     // Error handled silently
   };
 
+  // ============================================================================
+  // PHASE 3: Non-critical enhancement - Carousel sections
+  // Deferred to avoid blocking initial UI render and core data fetch
+  // ============================================================================
   const fetchCarouselSections = useCallback(async () => {
     setCarouselsLoading(true);
     try {
@@ -412,6 +457,11 @@ export default function HomeScreen() {
     };
   };
 
+  // ============================================================================
+  // PHASE 2: Core data fetch - Services & Jobs
+  // Main listing data fetch with filters, pagination, and sorting
+  // Triggered after UI render via debounced effect (300ms)
+  // ============================================================================
   const fetchListings = async (reset: boolean = false) => {
     if (reset) {
       setLoading(true);
