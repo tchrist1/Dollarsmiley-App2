@@ -1,12 +1,9 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
-  PanResponder,
-  LayoutChangeEvent,
 } from 'react-native';
 import { MapPin, Navigation } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -19,133 +16,37 @@ interface DistanceRadiusSelectorProps {
 }
 
 const DISTANCE_OPTIONS = [5, 10, 25, 50, 100];
-const MIN_DISTANCE = 1;
-const MAX_DISTANCE = 100;
 
-export function DistanceRadiusSelector({
+export const DistanceRadiusSelector = React.memo(function DistanceRadiusSelector({
   distance,
   onDistanceChange,
   useCurrentLocation = false,
   onUseLocationToggle,
 }: DistanceRadiusSelectorProps) {
-  const [sliderWidth, setSliderWidth] = useState(0);
-  const [thumbPosition] = useState(new Animated.Value(0));
-  const [showSlider, setShowSlider] = useState(false);
-
-  // Local draft state for visual feedback during drag
-  const [draftDistance, setDraftDistance] = useState(distance);
-
-  const sliderWidthRef = useRef(0);
-  const isDraggingRef = useRef(false);
-
-  const normalizeValue = (value: number): number => {
-    return (value - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
-  };
-
-  const denormalizeValue = (normalized: number): number => {
-    const value = normalized * (MAX_DISTANCE - MIN_DISTANCE) + MIN_DISTANCE;
-    if (value <= 10) return Math.round(value);
-    if (value <= 25) return Math.round(value / 5) * 5;
-    return Math.round(value / 10) * 10;
-  };
-
-  // Update visual state only during drag
-  const updateDistanceVisual = useCallback((position: number) => {
-    const normalized = Math.max(0, Math.min(position / sliderWidthRef.current, 1));
-    const newDistance = denormalizeValue(normalized);
-    thumbPosition.setValue(normalized);
-    setDraftDistance(newDistance);
-  }, []);
-
-  // Commit change when drag ends
-  const commitDistance = useCallback(() => {
-    onDistanceChange(draftDistance);
-  }, [draftDistance, onDistanceChange]);
-
-  const panResponder = PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-
-    onPanResponderGrant: (_, gestureState) => {
-      isDraggingRef.current = true;
-      if (sliderWidthRef.current > 0) {
-        const newPosition = Math.max(
-          0,
-          Math.min(gestureState.moveX - gestureState.x0 + thumbPosition._value * sliderWidthRef.current,
-          sliderWidthRef.current)
-        );
-        updateDistanceVisual(newPosition);
-      }
-    },
-
-    onPanResponderMove: (_, gestureState) => {
-      if (sliderWidthRef.current > 0) {
-        const touchX =
-          gestureState.moveX - gestureState.x0 +
-          thumbPosition._value * sliderWidthRef.current;
-
-        const newPosition = Math.max(0, Math.min(touchX, sliderWidthRef.current));
-        updateDistanceVisual(newPosition);
-      }
-    },
-
-    onPanResponderRelease: () => {
-      isDraggingRef.current = false;
-      commitDistance();
-    },
-
-    onPanResponderTerminate: () => {
-      isDraggingRef.current = false;
-      commitDistance();
-    },
-  });
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setSliderWidth(width);
-    sliderWidthRef.current = width;
-
-    // Initialize position if not dragging
-    if (!isDraggingRef.current) {
-      const normalized = normalizeValue(distance);
-      thumbPosition.setValue(normalized);
-      setDraftDistance(distance);
-    }
-  };
-
-  const thumbLeft = thumbPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, sliderWidth - 28],
-  });
-
-  const trackWidth = thumbPosition.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, sliderWidth],
-  });
-
-  const getDistanceColor = (dist: number): string => {
+  const getDistanceColor = useCallback((dist: number): string => {
     if (dist <= 10) return colors.success;
     if (dist <= 25) return colors.primary;
     if (dist <= 50) return colors.warning;
     return colors.error;
-  };
+  }, []);
 
-  const getDistanceLabel = (dist: number): string => {
+  const getDistanceLabel = useCallback((dist: number): string => {
     if (dist <= 10) return 'Nearby';
     if (dist <= 25) return 'Local Area';
     if (dist <= 50) return 'Wider Area';
     return 'Extended Range';
-  };
+  }, []);
 
-  const calculateCircleScale = (dist: number, minScale: number, maxScale: number): number => {
+  const calculateCircleScale = useCallback((dist: number, minScale: number, maxScale: number): number => {
+    const MIN_DISTANCE = 1;
+    const MAX_DISTANCE = 100;
     const normalized = (dist - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
     return minScale + normalized * (maxScale - minScale);
-  };
+  }, []);
 
-  const displayDistance = isDraggingRef.current ? draftDistance : distance;
-  const innerCircleScale = calculateCircleScale(displayDistance, 0.4, 2.0);
-  const middleCircleScale = calculateCircleScale(displayDistance, 0.6, 3.0);
-  const outerCircleScale = calculateCircleScale(displayDistance, 0.8, 4.0);
+  const innerCircleScale = calculateCircleScale(distance, 0.4, 2.0);
+  const middleCircleScale = calculateCircleScale(distance, 0.6, 3.0);
+  const outerCircleScale = calculateCircleScale(distance, 0.8, 4.0);
 
   return (
     <View style={styles.container}>
@@ -175,108 +76,45 @@ export function DistanceRadiusSelector({
       {/* Distance Display */}
       <View style={styles.distanceDisplay}>
         <View style={styles.distanceValue}>
-          <Text style={[styles.distanceNumber, { color: getDistanceColor(displayDistance) }]}>
-            {displayDistance}
+          <Text style={[styles.distanceNumber, { color: getDistanceColor(distance) }]}>
+            {distance}
           </Text>
           <Text style={styles.distanceUnit}>miles</Text>
         </View>
-        <Text style={styles.distanceLabel}>{getDistanceLabel(displayDistance)}</Text>
-      </View>
-
-      {/* Mode Toggle */}
-      <View style={styles.modeToggle}>
-        <TouchableOpacity
-          style={[styles.modeButton, !showSlider && styles.modeButtonActive]}
-          onPress={() => setShowSlider(false)}
-        >
-          <Text style={[styles.modeButtonText, !showSlider && styles.modeButtonTextActive]}>
-            Quick Select
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.modeButton, showSlider && styles.modeButtonActive]}
-          onPress={() => setShowSlider(true)}
-        >
-          <Text style={[styles.modeButtonText, showSlider && styles.modeButtonTextActive]}>
-            Custom
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.distanceLabel}>{getDistanceLabel(distance)}</Text>
       </View>
 
       {/* Quick Select Chips */}
-      {!showSlider ? (
-        <View style={styles.quickSelect}>
-          {DISTANCE_OPTIONS.map((dist) => {
-            const isSelected = distance === dist;
-            return (
-              <TouchableOpacity
-                key={dist}
-                style={[
-                  styles.distanceChip,
-                  isSelected && styles.distanceChipSelected,
-                  isSelected && { borderColor: getDistanceColor(dist) },
-                ]}
-                onPress={() => onDistanceChange(dist)}
-                activeOpacity={0.7}
-              >
-                <MapPin
-                  size={16}
-                  color={isSelected ? colors.white : getDistanceColor(dist)}
-                />
-                <Text
-                  style={[
-                    styles.distanceChipText,
-                    isSelected && styles.distanceChipTextSelected,
-                  ]}
-                >
-                  {dist} mi
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      ) : (
-        /* Custom Slider */
-        <View style={styles.sliderSection}>
-          <View style={styles.sliderContainer} onLayout={handleLayout}>
-            {/* Track */}
-            <View style={styles.track} />
-
-            {/* Active Track */}
-            <Animated.View
+      <View style={styles.quickSelect}>
+        {DISTANCE_OPTIONS.map((dist) => {
+          const isSelected = distance === dist;
+          return (
+            <TouchableOpacity
+              key={dist}
               style={[
-                styles.activeTrack,
-                {
-                  width: trackWidth,
-                  backgroundColor: getDistanceColor(displayDistance),
-                },
+                styles.distanceChip,
+                isSelected && styles.distanceChipSelected,
+                isSelected && { borderColor: getDistanceColor(dist) },
               ]}
-            />
-
-            {/* Thumb */}
-            <Animated.View
-              style={[
-                styles.thumb,
-                {
-                  left: thumbLeft,
-                  borderColor: getDistanceColor(displayDistance),
-                },
-              ]}
-              {...panResponder.panHandlers}
+              onPress={() => onDistanceChange(dist)}
+              activeOpacity={0.7}
             >
-              <View
-                style={[styles.thumbInner, { backgroundColor: getDistanceColor(displayDistance) }]}
+              <MapPin
+                size={16}
+                color={isSelected ? colors.white : getDistanceColor(dist)}
               />
-            </Animated.View>
-          </View>
-
-          {/* Range Labels */}
-          <View style={styles.rangeLabels}>
-            <Text style={styles.rangeLabel}>{MIN_DISTANCE} mi</Text>
-            <Text style={styles.rangeLabel}>{MAX_DISTANCE} mi</Text>
-          </View>
-        </View>
-      )}
+              <Text
+                style={[
+                  styles.distanceChipText,
+                  isSelected && styles.distanceChipTextSelected,
+                ]}
+              >
+                {dist} mi
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
       {/* Visual Radius Indicator */}
       <View style={styles.radiusVisual}>
@@ -307,7 +145,7 @@ export function DistanceRadiusSelector({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -361,35 +199,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xs,
   },
-  modeToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: 4,
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: borderRadius.sm,
-  },
-  modeButtonActive: {
-    backgroundColor: colors.white,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  modeButtonText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    fontWeight: fontWeight.medium,
-  },
-  modeButtonTextActive: {
-    color: colors.primary,
-    fontWeight: fontWeight.bold,
-  },
   quickSelect: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -418,53 +227,6 @@ const styles = StyleSheet.create({
   distanceChipTextSelected: {
     color: colors.white,
     fontWeight: fontWeight.bold,
-  },
-  sliderSection: {
-    gap: spacing.sm,
-  },
-  sliderContainer: {
-    height: 40,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  track: {
-    height: 6,
-    backgroundColor: colors.border,
-    borderRadius: 3,
-  },
-  activeTrack: {
-    position: 'absolute',
-    height: 6,
-    borderRadius: 3,
-  },
-  thumb: {
-    position: 'absolute',
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    top: 6,
-  },
-  thumbInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.primary,
-    borderWidth: 4,
-    borderColor: colors.white,
-    shadowColor: colors.text,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  rangeLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  rangeLabel: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
   },
   radiusVisual: {
     alignItems: 'center',

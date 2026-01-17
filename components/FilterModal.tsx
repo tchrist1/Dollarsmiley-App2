@@ -17,7 +17,6 @@ import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database';
 import { Button } from '@/components/Button';
-import { PriceRangeSlider } from '@/components/PriceRangeSlider';
 import { DistanceRadiusSelector } from '@/components/DistanceRadiusSelector';
 import { RatingFilter } from '@/components/RatingFilter';
 import { SortOptionsSelector, SortOption } from '@/components/SortOptionsSelector';
@@ -106,8 +105,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   // DRAFT FILTER STATE - Isolated from parent, only committed on Apply
   const [draftFilters, setDraftFilters] = useState<FilterOptions>(currentFilters);
 
-  // UI-only state for price input mode
-  const [useSlider, setUseSlider] = useState(true);
+  // UI-only state
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
@@ -173,30 +171,11 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
-    const finalFilters = {
-      ...draftFilters,
-      priceMin: useSlider
-        ? (draftFilters.priceMin || '0')
-        : draftFilters.priceMin,
-      priceMax: useSlider
-        ? (draftFilters.priceMax || '50000')
-        : draftFilters.priceMax,
-    };
-
-    onApply(finalFilters);
+    onApply(draftFilters);
     onClose();
-  }, [draftFilters, useSlider, onApply, onClose]);
+  }, [draftFilters, onApply, onClose]);
 
   // Price handlers update draft state only
-  const handleSliderChange = useCallback((min: number, max: number) => {
-    setDraftFilters(prev => ({
-      ...prev,
-      priceMin: min.toString(),
-      priceMax: max.toString(),
-    }));
-    setSelectedPreset(null);
-  }, []);
-
   const handleManualPriceChange = useCallback((type: 'min' | 'max', value: string) => {
     setDraftFilters(prev => ({
       ...prev,
@@ -207,7 +186,6 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
   const handleReset = useCallback(() => {
     setDraftFilters(defaultFilters);
-    setUseSlider(true);
     setUseCurrentLocation(false);
     setSelectedPreset(null);
     onApply(defaultFilters);
@@ -407,55 +385,33 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             </View>
 
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Price Range</Text>
-                <TouchableOpacity
-                  style={styles.toggleButton}
-                  onPress={() => setUseSlider(!useSlider)}
-                >
-                  <DollarSign size={16} color={colors.primary} />
-                  <Text style={styles.toggleButtonText}>
-                    {useSlider ? 'Manual Input' : 'Use Slider'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.sectionTitle}>Price Range</Text>
 
-              {useSlider ? (
-                <PriceRangeSlider
-                  minValue={0}
-                  maxValue={50000}
-                  minPrice={draftFilters.priceMin ? parseInt(draftFilters.priceMin) : 0}
-                  maxPrice={draftFilters.priceMax ? parseInt(draftFilters.priceMax) : 50000}
-                  onValuesChange={handleSliderChange}
-                  step={100}
-                />
-              ) : (
-                <View style={styles.priceRange}>
-                  <View style={styles.priceInput}>
-                    <Text style={styles.priceLabel}>Min</Text>
-                    <TextInput
-                      style={styles.priceField}
-                      placeholder="$0"
-                      placeholderTextColor={colors.textLight}
-                      value={draftFilters.priceMin}
-                      onChangeText={(value) => handleManualPriceChange('min', value)}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  <Text style={styles.priceSeparator}>-</Text>
-                  <View style={styles.priceInput}>
-                    <Text style={styles.priceLabel}>Max</Text>
-                    <TextInput
-                      style={styles.priceField}
-                      placeholder="Any"
-                      placeholderTextColor={colors.textLight}
-                      value={draftFilters.priceMax}
-                      onChangeText={(value) => handleManualPriceChange('max', value)}
-                      keyboardType="numeric"
-                    />
-                  </View>
+              <View style={styles.priceRange}>
+                <View style={styles.priceInput}>
+                  <Text style={styles.priceLabel}>Min</Text>
+                  <TextInput
+                    style={styles.priceField}
+                    placeholder="$0"
+                    placeholderTextColor={colors.textLight}
+                    value={draftFilters.priceMin}
+                    onChangeText={(value) => handleManualPriceChange('min', value)}
+                    keyboardType="numeric"
+                  />
                 </View>
-              )}
+                <Text style={styles.priceSeparator}>-</Text>
+                <View style={styles.priceInput}>
+                  <Text style={styles.priceLabel}>Max</Text>
+                  <TextInput
+                    style={styles.priceField}
+                    placeholder="Any"
+                    placeholderTextColor={colors.textLight}
+                    value={draftFilters.priceMax}
+                    onChangeText={(value) => handleManualPriceChange('max', value)}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
 
               <View style={styles.pricePresets}>
                 {PRICE_PRESETS.map((preset) => (
