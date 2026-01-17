@@ -22,6 +22,69 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
 
+// ============================================================================
+// LIGHTWEIGHT HOME CACHE (MODULE-LEVEL)
+// ============================================================================
+// Purpose: Instant load on warm navigation with background refresh
+// Scope: Home screen initial load only (fetchListings with reset=true)
+// Lifetime: 3 minutes
+// Invalidation: TTL expiry, logout, account switch
+// ============================================================================
+
+interface HomeCacheEntry {
+  listings: MarketplaceListing[];
+  timestamp: number;
+  userId: string | null;
+}
+
+let homeCache: HomeCacheEntry | null = null;
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+// Cache management utilities
+const getCachedListings = (userId: string | null): MarketplaceListing[] | null => {
+  if (!homeCache) {
+    if (__DEV__) console.log('[HOME_CACHE] Cache miss - no cache entry');
+    return null;
+  }
+
+  // Check user match (invalidate on account switch)
+  if (homeCache.userId !== userId) {
+    if (__DEV__) console.log('[HOME_CACHE] Cache invalidated - user mismatch');
+    homeCache = null;
+    return null;
+  }
+
+  // Check TTL
+  const now = Date.now();
+  const age = now - homeCache.timestamp;
+  if (age > CACHE_TTL_MS) {
+    if (__DEV__) console.log('[HOME_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
+    homeCache = null;
+    return null;
+  }
+
+  if (__DEV__) console.log('[HOME_CACHE] Cache hit - age:', Math.round(age / 1000), 's, entries:', homeCache.listings.length);
+  return homeCache.listings;
+};
+
+const setCachedListings = (listings: MarketplaceListing[], userId: string | null) => {
+  homeCache = {
+    listings,
+    timestamp: Date.now(),
+    userId,
+  };
+  if (__DEV__) console.log('[HOME_CACHE] Cache updated - entries:', listings.length);
+};
+
+const invalidateCache = () => {
+  if (homeCache) {
+    if (__DEV__) console.log('[HOME_CACHE] Cache invalidated manually');
+    homeCache = null;
+  }
+};
+
+// ============================================================================
+
 interface FilterOptions {
   categories: string[];
   location: string;
@@ -86,6 +149,21 @@ export default function HomeScreen() {
   });
 
   const PAGE_SIZE = 20;
+
+  // ============================================================================
+  // CACHE INVALIDATION: Clear cache on user change or logout
+  // ============================================================================
+  const userIdRef = useRef<string | null>(profile?.id || null);
+
+  useEffect(() => {
+    const currentUserId = profile?.id || null;
+
+    // Invalidate cache if user changed (logout or account switch)
+    if (userIdRef.current !== currentUserId) {
+      invalidateCache();
+      userIdRef.current = currentUserId;
+    }
+  }, [profile?.id]);
 
   // ============================================================================
   // PROGRESSIVE HYDRATION ARCHITECTURE
@@ -461,10 +539,37 @@ export default function HomeScreen() {
   // PHASE 2: Core data fetch - Services & Jobs
   // Main listing data fetch with filters, pagination, and sorting
   // Triggered after UI render via debounced effect (300ms)
+  // WITH READ-THROUGH CACHE for initial load (reset=true)
   // ============================================================================
   const fetchListings = async (reset: boolean = false) => {
+    // ============================================================================
+    // CACHE OPTIMIZATION: Check cache on initial load only
+    // ============================================================================
+    const isInitialLoad = reset && !searchQuery.trim() && filters.categories.length === 0 &&
+                          !filters.location.trim() && !filters.priceMin && !filters.priceMax;
+
+    if (isInitialLoad) {
+      const cachedData = getCachedListings(profile?.id || null);
+
+      if (cachedData) {
+        // Cache hit - populate state immediately for instant render
+        setLoading(false);
+        setListings(cachedData.slice(0, PAGE_SIZE));
+        setPage(1);
+        setHasMore(cachedData.length > PAGE_SIZE);
+
+        // Continue to background refresh (MANDATORY)
+        // Fresh data will silently replace cache
+        if (__DEV__) console.log('[HOME_CACHE] Starting background refresh...');
+      }
+    }
+    // ============================================================================
+
     if (reset) {
-      setLoading(true);
+      if (!isInitialLoad || !getCachedListings(profile?.id || null)) {
+        // Only show loading if cache miss or filtered load
+        setLoading(true);
+      }
       setListings([]);
       isLoadingMoreRef.current = false;
     } else {
@@ -681,6 +786,15 @@ export default function HomeScreen() {
         setListings(paginatedData);
         setPage(1);
         await recordSearch(searchQuery, allResults.length);
+
+        // ============================================================================
+        // CACHE UPDATE: Store fresh data for initial unfiltered loads
+        // ============================================================================
+        if (isInitialLoad) {
+          setCachedListings(allResults, profile?.id || null);
+          if (__DEV__) console.log('[HOME_CACHE] Background refresh complete');
+        }
+        // ============================================================================
       } else {
         setListings((prev) => [...prev, ...paginatedData]);
         setPage((prev) => prev + 1);
