@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
-import { FilterModal } from '@/components/FilterModal';
+import { FilterModal, FilterOptions, defaultFilters } from '@/components/FilterModal';
 import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
 import { RecommendationsCarousel } from '@/components/RecommendationsCarousel';
@@ -85,20 +85,6 @@ const invalidateCache = () => {
 
 // ============================================================================
 
-interface FilterOptions {
-  categories: string[];
-  location: string;
-  priceMin: string;
-  priceMax: string;
-  minRating: number;
-  distance?: number;
-  availability?: 'any' | 'today' | 'this_week' | 'this_month';
-  sortBy?: 'relevance' | 'price_low' | 'price_high' | 'rating' | 'popular' | 'recent' | 'distance';
-  verified?: boolean;
-  instant_booking?: boolean;
-  listingType?: 'all' | 'Job' | 'Service' | 'CustomService';
-}
-
 interface SearchSuggestion {
   suggestion: string;
   search_count: number;
@@ -135,16 +121,7 @@ export default function HomeScreen() {
   const [carouselsLoading, setCarouselsLoading] = useState(true);
   const [feedData, setFeedData] = useState<any[]>([]);
   const [filters, setFilters] = useState<FilterOptions>({
-    categories: [],
-    location: '',
-    priceMin: '',
-    priceMax: '',
-    minRating: 0,
-    distance: 25,
-    availability: 'any',
-    sortBy: 'relevance',
-    verified: false,
-    instant_booking: false,
+    ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
@@ -895,7 +872,16 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++; // Count if distance is set and not default
+    if (filters.distance && filters.distance !== 25) count++;
+    if (filters.availability && filters.availability !== 'any') count++;
+    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
+    if (filters.verified) count++;
+    if (filters.instant_booking) count++;
+    if (filters.listingType && filters.listingType !== 'all') count++;
+    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
+    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
+    if (filters.hasVAS) count++;
+    if (filters.tags && filters.tags.length > 0) count++;
     return count;
   };
 
@@ -1645,19 +1631,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                setFilters({
-                  categories: [],
-                  location: '',
-                  priceMin: '',
-                  priceMax: '',
-                  minRating: 0,
-                  distance: 25,
-                  availability: 'any',
-                  sortBy: 'relevance',
-                  verified: false,
-                  instant_booking: false,
-                  listingType: 'all',
-                });
+                setFilters(defaultFilters);
               }}
             >
               <Text style={styles.clearFiltersText}>Clear all</Text>
@@ -1868,19 +1842,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                setFilters({
-                  categories: [],
-                  location: '',
-                  priceMin: '',
-                  priceMax: '',
-                  minRating: 0,
-                  distance: 25,
-                  availability: 'any',
-                  sortBy: 'relevance',
-                  verified: false,
-                  instant_booking: false,
-                  listingType: 'all',
-                });
+                setFilters(defaultFilters);
               }}
               style={styles.resetButton}
             >
