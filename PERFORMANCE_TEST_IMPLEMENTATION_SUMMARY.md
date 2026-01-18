@@ -106,26 +106,51 @@ For each test, the following metrics are captured:
 
 ## Running the Tests
 
-### Quick Start
+### Recommended Method: Manual Testing
 
 ```bash
-# Make script executable (one-time setup)
-chmod +x scripts/run-performance-tests.sh
-
-# Run automated tests
-bash scripts/run-performance-tests.sh
-```
-
-### Alternative Methods
-
-```bash
-# Direct Jest execution
-npm test -- __tests__/performance/home-filters-performance.test.tsx --verbose
-
-# Manual testing with console logs
+# 1. Start the app in dev mode
 npm run dev
-# Then perform actions manually and check [PERF] logs in console
+
+# 2. Open console (browser dev tools or React Native debugger)
+
+# 3. Follow the manual testing guide
+# See: MANUAL_PERFORMANCE_TEST_GUIDE.md
+
+# 4. Look for [PERF] logs in console
+# Example: [PERF] FILTER_OPEN_TAP { timestamp: "1234.56" }
+
+# 5. Record results in the template
+# See: PERFORMANCE_TEST_RESULTS_TEMPLATE.md
 ```
+
+### Alternative Method: Programmatic Measurement
+
+```typescript
+// Import in your component or test file
+import { startTest, completeRun, finishTest, generateReport } from '@/scripts/measure-performance';
+
+// Run tests programmatically
+startTest('Open Filters');
+// Perform action
+completeRun();
+nextRun();
+// Perform action again
+completeRun();
+// ... repeat for 3 runs
+finishTest();
+
+// Generate report
+generateReport();
+```
+
+### Note on Automated Jest Tests
+
+Automated Jest tests (`__tests__/performance/`) have limitations with React Native component mocking. Manual testing provides:
+- More accurate real-world measurements
+- Actual device/browser performance
+- Visual verification of behavior
+- Easier debugging of issues
 
 ## Output Format
 

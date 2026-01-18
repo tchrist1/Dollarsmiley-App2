@@ -9,14 +9,17 @@ Automated, Repeatable, Measurement-Only
 QUICK START (3 STEPS)
 ================================================================================
 
-1. RUN TESTS
-   └─ bash scripts/run-performance-tests.sh
+1. RUN THE APP IN DEV MODE
+   └─ npm run dev
+   └─ Open browser console or React Native debugger
 
-2. VIEW RESULTS
-   └─ Check console output for performance table
-   └─ Review PERFORMANCE_TEST_REPORT.json for detailed metrics
+2. PERFORM TESTS MANUALLY
+   └─ Follow MANUAL_PERFORMANCE_TEST_GUIDE.md
+   └─ Look for [PERF] logs in console
+   └─ Record timings from log timestamps
 
 3. DOCUMENT FINDINGS
+   └─ Fill out PERFORMANCE_TEST_RESULTS_TEMPLATE.md
    └─ Note the Top 3 Bottlenecks
    └─ Record baseline metrics for future comparison
 
@@ -91,20 +94,22 @@ RE-RENDERS:
   High:        >7 renders (unnecessary re-renders)
 
 ================================================================================
-ALTERNATIVE RUN METHODS
+TESTING METHODS
 ================================================================================
 
-Method 1: Automated Script (Recommended)
-└─ bash scripts/run-performance-tests.sh
-
-Method 2: Direct Jest
-└─ npm test -- __tests__/performance/home-filters-performance.test.tsx
-
-Method 3: Manual Testing with Console Logs
+Method 1: Manual Testing with Console Logs (Recommended)
 └─ npm run dev
-└─ Open browser console
-└─ Perform actions manually
-└─ Look for [PERF] logs
+└─ Open browser console or React Native debugger
+└─ Perform actions manually following MANUAL_PERFORMANCE_TEST_GUIDE.md
+└─ Look for [PERF] logs and record timings
+
+Method 2: In-App Performance Helper (Advanced)
+└─ Import measure-performance.ts in your component
+└─ Use startTest(), completeRun(), finishTest() functions
+└─ Call generateReport() to see results
+
+Note: Automated Jest tests have limitations with React Native components
+└─ Manual testing provides more accurate real-world measurements
 
 ================================================================================
 FILES CREATED

@@ -29,6 +29,73 @@ import {
 } from '@/lib/performance-test-utils';
 
 // Mock dependencies
+jest.mock('@rnmapbox/maps', () => ({
+  __esModule: true,
+  default: {
+    Camera: () => null,
+    MapView: () => null,
+    ShapeSource: () => null,
+    SymbolLayer: () => null,
+    LineLayer: () => null,
+    Images: () => null,
+  },
+}));
+
+jest.mock('@/components/MapViewPlatform', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/InteractiveMapViewPlatform', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/NativeInteractiveMapView', () => ({
+  __esModule: true,
+  default: () => null,
+  NativeInteractiveMapViewRef: {},
+}));
+
+jest.mock('@/components/RecommendationsCarousel', () => ({
+  RecommendationsCarousel: () => null,
+}));
+
+jest.mock('@/components/FeaturedListingsSection', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/VoiceSearchButton', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/ImageSearchButton', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/AdminBanner', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/MapModeBar', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/MapFAB', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
+jest.mock('@/components/MapStatusHint', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     profile: {
@@ -74,6 +141,15 @@ jest.mock('@/lib/supabase', () => ({
     })),
     rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
   },
+}));
+
+jest.mock('@/lib/geolocation', () => ({
+  calculateDistance: jest.fn(() => 10),
+  geocodeAddress: jest.fn().mockResolvedValue({ latitude: 40.7128, longitude: -74.006 }),
+}));
+
+jest.mock('@/lib/currency-utils', () => ({
+  formatCurrency: jest.fn((amount) => `$${amount}`),
 }));
 
 describe('Home Screen & Filters Performance Test', () => {

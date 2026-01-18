@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-01-18T01:30:46.313Z",
+  "results": [],
+  "bottlenecks": [],
+  "summary": {
+    "avgOpenFilters": 0,
+    "avgCloseFilters": 0,
+    "avgApplyJob": 0,
+    "avgApplyService": 0,
+    "avgFirstLoad": 0
+  }
+}
