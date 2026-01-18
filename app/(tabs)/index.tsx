@@ -286,10 +286,10 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
               {item.location || 'Remote'}
             </Text>
           </View>
-          <Text style={styles.gridPrice}>
-            {priceText}
-            {priceSuffix && <Text style={styles.gridPriceSuffix}>{priceSuffix}</Text>}
-          </Text>
+          <View style={styles.gridPrice}>
+            <Text style={styles.gridPriceAmount}>{priceText}</Text>
+            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
+          </View>
         </View>
       </View>
     </TouchableOpacity>
