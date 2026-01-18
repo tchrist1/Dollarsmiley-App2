@@ -1,12 +1,150 @@
 {
-  "timestamp": "2026-01-18T01:30:46.313Z",
-  "results": [],
-  "bottlenecks": [],
+  "timestamp": "2026-01-18T02:24:14.487Z",
+  "testType": "Simulated Performance Test",
+  "platform": "React Native / Web",
+  "results": [
+    {
+      "action": "Open Filters",
+      "avgMs": 250.68160939567053,
+      "p95Ms": 260.70373330310304,
+      "jsBlocks": 1,
+      "framesDropped": 2,
+      "networkCalls": 1,
+      "rerenderCount": 3,
+      "notes": "",
+      "rawTimings": [
+        243.51436243957355,
+        247.826732444335,
+        260.70373330310304
+      ]
+    },
+    {
+      "action": "Close Filters",
+      "avgMs": 66.41232191063995,
+      "p95Ms": 71.75626117637262,
+      "jsBlocks": 0,
+      "framesDropped": 1,
+      "networkCalls": 0,
+      "rerenderCount": 2,
+      "notes": "",
+      "rawTimings": [
+        63.09577393924772,
+        64.38493061629951,
+        71.75626117637262
+      ]
+    },
+    {
+      "action": "Apply Job Filter",
+      "avgMs": 539.4693968798407,
+      "p95Ms": 552.9845894519524,
+      "jsBlocks": 3,
+      "framesDropped": 4,
+      "networkCalls": 2,
+      "rerenderCount": 5,
+      "notes": "",
+      "rawTimings": [
+        545.6524589669411,
+        519.7711422206283,
+        552.9845894519524
+      ]
+    },
+    {
+      "action": "Clear All (Job)",
+      "avgMs": 100.2081497164714,
+      "p95Ms": 101.73038642943081,
+      "jsBlocks": 1,
+      "framesDropped": 1,
+      "networkCalls": 2,
+      "rerenderCount": 4,
+      "notes": "",
+      "rawTimings": [
+        101.10316146582123,
+        97.79090125416216,
+        101.73038642943081
+      ]
+    },
+    {
+      "action": "Apply Service Filter",
+      "avgMs": 491.58907992929113,
+      "p95Ms": 528.324732794979,
+      "jsBlocks": 2,
+      "framesDropped": 4,
+      "networkCalls": 2,
+      "rerenderCount": 5,
+      "notes": "",
+      "rawTimings": [
+        489.9915648704832,
+        528.324732794979,
+        456.4509421224112
+      ]
+    },
+    {
+      "action": "Clear All (Service)",
+      "avgMs": 88.47928200155395,
+      "p95Ms": 93.79655142702748,
+      "jsBlocks": 1,
+      "framesDropped": 1,
+      "networkCalls": 2,
+      "rerenderCount": 4,
+      "notes": "",
+      "rawTimings": [
+        87.77093842007658,
+        83.87035615755784,
+        93.79655142702748
+      ]
+    },
+    {
+      "action": "First Home Screen Load",
+      "avgMs": 1234.6550900296072,
+      "p95Ms": 1341.0429767242044,
+      "jsBlocks": 5,
+      "framesDropped": 8,
+      "networkCalls": 5,
+      "rerenderCount": 12,
+      "notes": "",
+      "rawTimings": [
+        1251.5367410881167,
+        1111.3855522765004,
+        1341.0429767242044
+      ]
+    }
+  ],
+  "bottlenecks": [
+    "1. First Home Screen Load (P95: 1341ms) - High network activity (5 calls)",
+    "2. Apply Job Filter (P95: 553ms) - General slow execution",
+    "3. Apply Service Filter (P95: 528ms) - General slow execution"
+  ],
   "summary": {
-    "avgOpenFilters": 0,
-    "avgCloseFilters": 0,
-    "avgApplyJob": 0,
-    "avgApplyService": 0,
-    "avgFirstLoad": 0
+    "avgOpenFilters": 250.68160939567053,
+    "avgCloseFilters": 66.41232191063995,
+    "avgApplyJob": 539.4693968798407,
+    "avgApplyService": 491.58907992929113,
+    "avgClearJob": 100.2081497164714,
+    "avgClearService": 88.47928200155395,
+    "avgFirstLoad": 1234.6550900296072
+  },
+  "analysis": {
+    "fastOperations": [
+      "Close Filters",
+      "Clear All (Job)",
+      "Clear All (Service)"
+    ],
+    "acceptableOperations": [
+      "Open Filters",
+      "Apply Service Filter"
+    ],
+    "slowOperations": [
+      "Apply Job Filter",
+      "First Home Screen Load"
+    ],
+    "heavyJsBlocking": [
+      "First Home Screen Load"
+    ],
+    "significantFrameDrops": [
+      "First Home Screen Load"
+    ],
+    "highNetworkActivity": [
+      "First Home Screen Load"
+    ]
   }
 }
