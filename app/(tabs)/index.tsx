@@ -21,8 +21,6 @@ import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
-import { perfMonitor } from '@/lib/performance-monitor';
-import PerformanceDebugPanel from '@/components/PerformanceDebugPanel';
 
 // ============================================================================
 // LIGHTWEIGHT HOME CACHE (MODULE-LEVEL)
@@ -154,10 +152,6 @@ export default function HomeScreen() {
   // ============================================================================
 
   useEffect(() => {
-    // [PERF] Track first-time Home screen load
-    perfMonitor.start('HOME_FIRST_LOAD');
-    perfMonitor.mark('HOME_COMPONENT_MOUNTED');
-
     // PHASE 0: UI shell is already rendered by default state
     // No blocking operations here
 
@@ -537,7 +531,6 @@ export default function HomeScreen() {
       if (cachedData) {
         // Cache hit - populate state immediately for instant render
         setLoading(false);
-        perfMonitor.mark('HOME_FIRST_CONTENT_VISIBLE_CACHED');
         setListings(cachedData.slice(0, PAGE_SIZE));
         setPage(1);
         setHasMore(cachedData.length > PAGE_SIZE);
@@ -788,36 +781,11 @@ export default function HomeScreen() {
     } catch (error) {
       // Error fetching listings handled silently
     } finally {
-      if (!loadingMore) {
-        perfMonitor.mark('HOME_FIRST_CONTENT_VISIBLE');
-        perfMonitor.end('HOME_FIRST_LOAD');
-      }
       setLoading(false);
       setLoadingMore(false);
       isLoadingMoreRef.current = false;
     }
   };
-
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.location.trim()) count++;
-    if (filters.priceMin || filters.priceMax) count++;
-    if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++;
-    if (filters.availability && filters.availability !== 'any') count++;
-    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
-    if (filters.verified) count++;
-    if (filters.instant_booking) count++;
-    if (filters.listingType && filters.listingType !== 'all') count++;
-    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
-    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
-    if (filters.hasVAS) count++;
-    if (filters.tags && filters.tags.length > 0) count++;
-    return count;
-  };
-
-  const activeFilterCount = getActiveFilterCount();
 
   const buildFeedData = useCallback(() => {
     if (searchQuery || activeFilterCount > 0) {
@@ -898,6 +866,27 @@ export default function HomeScreen() {
     setFeedData(feed);
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.location.trim()) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++;
+    if (filters.availability && filters.availability !== 'any') count++;
+    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
+    if (filters.verified) count++;
+    if (filters.instant_booking) count++;
+    if (filters.listingType && filters.listingType !== 'all') count++;
+    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
+    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
+    if (filters.hasVAS) count++;
+    if (filters.tags && filters.tags.length > 0) count++;
+    return count;
+  };
+
+  const activeFilterCount = getActiveFilterCount();
+
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
     const counts = {
@@ -946,39 +935,8 @@ export default function HomeScreen() {
     return `${filterText} · ${parts.join(' · ')}`;
   };
 
-  // [PERF] Track filter modal visibility
-  useEffect(() => {
-    if (showFilters) {
-      // Modal opening animation completed
-      requestAnimationFrame(() => {
-        perfMonitor.end('FILTER_MODAL_OPEN');
-      });
-    } else {
-      // Modal closed
-      perfMonitor.mark('FILTER_MODAL_CLOSED');
-    }
-  }, [showFilters]);
-
   useEffect(() => {
     buildFeedData();
-
-    // [PERF] Track when filtered results are rendered
-    if (activeFilterCount > 0) {
-      perfMonitor.end('APPLY_FILTERS', {
-        resultCount: listings.length,
-        jobs: resultTypeCounts.jobs,
-        services: resultTypeCounts.services,
-        customServices: resultTypeCounts.customServices,
-      });
-    }
-
-    // [PERF] Track when Clear All completes
-    if (activeFilterCount === 0) {
-      perfMonitor.end('CLEAR_ALL_FILTERS', {
-        resultCount: listings.length,
-        carouselsVisible: true,
-      });
-    }
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   const handleLoadMore = useCallback(() => {
@@ -988,13 +946,7 @@ export default function HomeScreen() {
   }, [loadingMore, hasMore, loading]);
 
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
-    perfMonitor.start('APPLY_FILTERS', {
-      listingType: newFilters.listingType,
-      categories: newFilters.categories.length,
-      hasLocation: !!newFilters.location,
-    });
     setFilters(newFilters);
-    setShowFilters(false);
   }, []);
 
   const getMapMarkers = useMemo(() => {
@@ -1705,10 +1657,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => {
-              perfMonitor.start('FILTER_MODAL_OPEN');
-              setShowFilters(true);
-            }}
+            onPress={() => setShowFilters(true)}
             activeOpacity={0.7}
           >
             <SlidersHorizontal size={20} color={colors.primary} />
@@ -1729,7 +1678,6 @@ export default function HomeScreen() {
             </Text>
             <TouchableOpacity
               onPress={() => {
-                perfMonitor.start('CLEAR_ALL_FILTERS');
                 setSearchQuery('');
                 setFilters(defaultFilters);
               }}
@@ -1958,9 +1906,6 @@ export default function HomeScreen() {
         onApply={handleApplyFilters}
         currentFilters={filters}
       />
-
-      {/* Dev-only Performance Debug Panel */}
-      <PerformanceDebugPanel />
     </View>
   );
 }
