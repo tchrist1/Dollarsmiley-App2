@@ -21,6 +21,7 @@ import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
+import { logPerfEvent, logRender, logNetworkCall } from '@/lib/performance-test-utils';
 
 // ============================================================================
 // LIGHTWEIGHT HOME CACHE (MODULE-LEVEL)
@@ -126,6 +127,30 @@ export default function HomeScreen() {
   });
 
   const PAGE_SIZE = 20;
+
+  // ============================================================================
+  // DEV-ONLY PERFORMANCE INSTRUMENTATION
+  // ============================================================================
+  const firstRenderRef = useRef(true);
+
+  useEffect(() => {
+    if (__DEV__) {
+      logRender('HomeScreen');
+
+      if (firstRenderRef.current) {
+        logPerfEvent('HOME_FIRST_RENDER');
+        firstRenderRef.current = false;
+      }
+    }
+  });
+
+  useEffect(() => {
+    if (__DEV__ && !loading && listings.length > 0) {
+      logPerfEvent('HOME_INTERACTIVE_READY', {
+        listingsCount: listings.length,
+      });
+    }
+  }, [loading, listings.length]);
 
   // ============================================================================
   // CACHE INVALIDATION: Clear cache on user change or logout
@@ -603,11 +628,23 @@ export default function HomeScreen() {
 
         serviceQuery = serviceQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE * 2);
 
-        const { data: serviceData, error: serviceError } = await serviceQuery;
+        if (__DEV__) {
+          const networkStart = performance.now();
+          const { data: serviceData, error: serviceError } = await serviceQuery;
+          const networkDuration = performance.now() - networkStart;
+          logNetworkCall('service_listings', networkDuration);
 
-        if (!serviceError && serviceData) {
-          const normalizedServices = serviceData.map(normalizeServiceListing);
-          allResults = [...allResults, ...normalizedServices];
+          if (!serviceError && serviceData) {
+            const normalizedServices = serviceData.map(normalizeServiceListing);
+            allResults = [...allResults, ...normalizedServices];
+          }
+        } else {
+          const { data: serviceData, error: serviceError } = await serviceQuery;
+
+          if (!serviceError && serviceData) {
+            const normalizedServices = serviceData.map(normalizeServiceListing);
+            allResults = [...allResults, ...normalizedServices];
+          }
         }
       }
 
@@ -654,11 +691,23 @@ export default function HomeScreen() {
 
         jobQuery = jobQuery.order('created_at', { ascending: false }).limit(PAGE_SIZE * 2);
 
-        const { data: jobData, error: jobError } = await jobQuery;
+        if (__DEV__) {
+          const networkStart = performance.now();
+          const { data: jobData, error: jobError } = await jobQuery;
+          const networkDuration = performance.now() - networkStart;
+          logNetworkCall('jobs', networkDuration);
 
-        if (!jobError && jobData) {
-          const normalizedJobs = jobData.map(normalizeJob);
-          allResults = [...allResults, ...normalizedJobs];
+          if (!jobError && jobData) {
+            const normalizedJobs = jobData.map(normalizeJob);
+            allResults = [...allResults, ...normalizedJobs];
+          }
+        } else {
+          const { data: jobData, error: jobError } = await jobQuery;
+
+          if (!jobError && jobData) {
+            const normalizedJobs = jobData.map(normalizeJob);
+            allResults = [...allResults, ...normalizedJobs];
+          }
         }
       }
 
@@ -946,6 +995,12 @@ export default function HomeScreen() {
   }, [loadingMore, hasMore, loading]);
 
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
+    if (__DEV__) {
+      logPerfEvent('FILTER_RESULTS_RENDERED', {
+        listingType: newFilters.listingType,
+        categoriesCount: newFilters.categories.length,
+      });
+    }
     setFilters(newFilters);
   }, []);
 
@@ -1657,7 +1712,12 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => setShowFilters(true)}
+            onPress={() => {
+              if (__DEV__) {
+                logPerfEvent('FILTER_OPEN_TAP');
+              }
+              setShowFilters(true);
+            }}
             activeOpacity={0.7}
           >
             <SlidersHorizontal size={20} color={colors.primary} />

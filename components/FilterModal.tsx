@@ -22,6 +22,7 @@ import { RatingFilter } from '@/components/RatingFilter';
 import { SortOptionsSelector, SortOption } from '@/components/SortOptionsSelector';
 import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
+import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
 
 const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
 const AVAILABILITY_OPTIONS = [
@@ -110,6 +111,15 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
+  // ============================================================================
+  // DEV-ONLY PERFORMANCE INSTRUMENTATION
+  // ============================================================================
+  useEffect(() => {
+    if (__DEV__) {
+      logRender('FilterModal');
+    }
+  });
+
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase
       .from('categories')
@@ -131,9 +141,16 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   // Reset draft filters when modal opens with current filters
   useEffect(() => {
     if (visible) {
+      if (__DEV__) {
+        logPerfEvent('FILTER_MODAL_OPENING', { filtersCount: Object.keys(currentFilters).length });
+      }
       setDraftFilters(currentFilters);
       setSelectedPreset(null);
       setUseCurrentLocation(false);
+    } else {
+      if (__DEV__) {
+        logPerfEvent('FILTER_MODAL_CLOSED');
+      }
     }
   }, [visible, currentFilters]);
 
@@ -171,8 +188,19 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
+    if (__DEV__) {
+      logPerfEvent('APPLY_FILTERS_TAP', {
+        listingType: draftFilters.listingType,
+        categoriesCount: draftFilters.categories.length,
+        hasLocation: !!draftFilters.location,
+        hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
+      });
+    }
     onApply(draftFilters);
     onClose();
+    if (__DEV__) {
+      logPerfEvent('FILTER_APPLY_COMPLETE');
+    }
   }, [draftFilters, onApply, onClose]);
 
   // Price handlers update draft state only
@@ -185,11 +213,17 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   }, []);
 
   const handleReset = useCallback(() => {
+    if (__DEV__) {
+      logPerfEvent('CLEAR_ALL_TAP');
+    }
     setDraftFilters(defaultFilters);
     setUseCurrentLocation(false);
     setSelectedPreset(null);
     onApply(defaultFilters);
     onClose();
+    if (__DEV__) {
+      logPerfEvent('CLEAR_ALL_COMPLETE');
+    }
   }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
@@ -271,7 +305,17 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   }, [useCurrentLocation]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      onShow={() => {
+        if (__DEV__) {
+          logPerfEvent('FILTER_OPEN_VISIBLE');
+        }
+      }}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoidView}
@@ -279,7 +323,15 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
-          onPress={onClose}
+          onPress={() => {
+            if (__DEV__) {
+              logPerfEvent('FILTER_CLOSE_TAP');
+            }
+            onClose();
+            if (__DEV__) {
+              logPerfEvent('FILTER_CLOSE_COMPLETE');
+            }
+          }}
         >
           <TouchableOpacity
             activeOpacity={1}

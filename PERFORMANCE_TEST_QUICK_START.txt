@@ -1,0 +1,182 @@
+================================================================================
+PERFORMANCE TEST QUICK START GUIDE
+================================================================================
+
+Home Screen & Filters Performance Testing
+Automated, Repeatable, Measurement-Only
+
+================================================================================
+QUICK START (3 STEPS)
+================================================================================
+
+1. RUN TESTS
+   └─ bash scripts/run-performance-tests.sh
+
+2. VIEW RESULTS
+   └─ Check console output for performance table
+   └─ Review PERFORMANCE_TEST_REPORT.json for detailed metrics
+
+3. DOCUMENT FINDINGS
+   └─ Note the Top 3 Bottlenecks
+   └─ Record baseline metrics for future comparison
+
+================================================================================
+WHAT GETS MEASURED
+================================================================================
+
+✓ Open Filters - Modal opening performance
+✓ Close Filters - Modal closing performance
+✓ Apply Job Filter - Filter application with data fetch
+✓ Clear All (Job) - Filter clearing and reset
+✓ Apply Service Filter - Filter application with data fetch
+✓ Clear All (Service) - Filter clearing and reset
+✓ First Home Screen Load - Initial page load performance
+
+Each test runs 3 times → Averages + P95 calculated
+
+================================================================================
+METRICS COLLECTED
+================================================================================
+
+• Average Time (ms) - Mean execution time
+• P95 Time (ms) - 95th percentile (worst-case)
+• JS Blocks - Main thread blocking tasks (>50ms)
+• Frames Dropped - Animation frame drops
+• Network Calls - API/Database requests triggered
+• Re-renders - React component re-renders
+
+================================================================================
+SAMPLE OUTPUT
+================================================================================
+
+| Action                    | Avg (ms) | P95 (ms) | JS Blocks | Frames Dropped |
+|---------------------------|----------|----------|-----------|----------------|
+| Open Filters              |      250 |      290 |         1 |              2 |
+| Close Filters             |       50 |       65 |         0 |              0 |
+| Apply Job Filter          |      450 |      520 |         3 |              5 |
+| Apply Service Filter      |      420 |      500 |         2 |              4 |
+| First Home Screen Load    |     1200 |     1450 |         5 |             12 |
+
+TOP 3 BOTTLENECKS:
+1. First Home Screen Load (P95: 1450ms) - High network activity
+2. Apply Job Filter (P95: 520ms) - JS thread blocking
+3. Apply Service Filter (P95: 500ms) - Excessive re-renders
+
+================================================================================
+INTERPRETING RESULTS
+================================================================================
+
+TIMING (ms):
+  Good:        <200ms UI interactions, <500ms data fetching
+  Acceptable:  200-500ms UI, 500-1000ms data fetching
+  Needs Work:  >500ms UI, >1000ms data fetching
+
+JS BLOCKS:
+  Good:        0-1 blocks
+  Needs Work:  2-3 blocks
+  Critical:    >3 blocks (UI feels laggy)
+
+FRAMES DROPPED:
+  Good:        0-2 frames
+  Acceptable:  3-5 frames
+  Poor:        >5 frames (animations stutter)
+
+NETWORK CALLS:
+  Good:        0-2 calls for filters, 0-5 for initial load
+  High:        >5 calls (may indicate redundant fetching)
+
+RE-RENDERS:
+  Good:        1-3 renders
+  Acceptable:  4-7 renders
+  High:        >7 renders (unnecessary re-renders)
+
+================================================================================
+ALTERNATIVE RUN METHODS
+================================================================================
+
+Method 1: Automated Script (Recommended)
+└─ bash scripts/run-performance-tests.sh
+
+Method 2: Direct Jest
+└─ npm test -- __tests__/performance/home-filters-performance.test.tsx
+
+Method 3: Manual Testing with Console Logs
+└─ npm run dev
+└─ Open browser console
+└─ Perform actions manually
+└─ Look for [PERF] logs
+
+================================================================================
+FILES CREATED
+================================================================================
+
+• lib/performance-test-utils.ts - Measurement utilities
+• __tests__/performance/home-filters-performance.test.tsx - Test suite
+• scripts/run-performance-tests.sh - Execution script
+• PERFORMANCE_TEST_GUIDE.md - Detailed documentation
+• PERFORMANCE_TEST_IMPLEMENTATION_SUMMARY.md - Technical summary
+• PERFORMANCE_TEST_QUICK_START.txt - This file
+
+================================================================================
+FILES MODIFIED (DEV-ONLY INSTRUMENTATION)
+================================================================================
+
+• components/FilterModal.tsx - Added performance logging
+• app/(tabs)/index.tsx - Added performance logging
+
+⚠️ NO BUSINESS LOGIC CHANGED - All instrumentation behind __DEV__ guards
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+✓ This is MEASUREMENT ONLY - no optimizations included
+✓ All instrumentation is DEV-only (zero production impact)
+✓ No business logic was modified
+✓ No caching or performance changes were made
+✓ Tests are repeatable and consistent
+
+❌ DO NOT optimize based on results without approval
+❌ DO NOT remove instrumentation (it's DEV-only, harmless)
+❌ DO NOT modify test code without understanding impact
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Run the tests: bash scripts/run-performance-tests.sh
+2. Review the performance report
+3. Document baseline metrics
+4. Identify top bottlenecks
+5. Create separate optimization plan (if needed)
+6. Get approval before implementing optimizations
+7. Re-run tests after optimizations to measure impact
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+No logs appearing?
+└─ Verify __DEV__ is true (running in dev mode)
+└─ Check console for [PERF] prefix
+
+Tests fail?
+└─ Ensure all files exist: ls -la lib/performance-test-utils.ts
+└─ Run: npm install (in case of missing dependencies)
+
+Inconsistent results?
+└─ Close background apps
+└─ Use consistent network conditions
+└─ Run tests multiple times
+
+================================================================================
+FOR MORE DETAILS
+================================================================================
+
+• Full guide: PERFORMANCE_TEST_GUIDE.md
+• Technical summary: PERFORMANCE_TEST_IMPLEMENTATION_SUMMARY.md
+• Console logs: Look for [PERF] events during manual testing
+
+================================================================================
+END OF QUICK START GUIDE
+================================================================================
