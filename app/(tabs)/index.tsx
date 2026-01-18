@@ -887,6 +887,54 @@ export default function HomeScreen() {
 
   const activeFilterCount = getActiveFilterCount();
 
+  // Count listings by type from filtered results
+  const resultTypeCounts = useMemo(() => {
+    const counts = {
+      jobs: 0,
+      services: 0,
+      customServices: 0,
+    };
+
+    listings.forEach((listing) => {
+      if (listing.marketplace_type === 'Job') {
+        counts.jobs++;
+      } else if (listing.listing_type === 'CustomService') {
+        counts.customServices++;
+      } else {
+        counts.services++;
+      }
+    });
+
+    return counts;
+  }, [listings]);
+
+  // Format filter indicator text with result counts
+  const getFilterIndicatorText = () => {
+    const filterText = `${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''}`;
+
+    if (listings.length === 0) {
+      return `${filterText} · No results`;
+    }
+
+    const parts: string[] = [];
+
+    if (resultTypeCounts.jobs > 0) {
+      parts.push(`${resultTypeCounts.jobs} Job${resultTypeCounts.jobs > 1 ? 's' : ''}`);
+    }
+    if (resultTypeCounts.services > 0) {
+      parts.push(`${resultTypeCounts.services} Service${resultTypeCounts.services > 1 ? 's' : ''}`);
+    }
+    if (resultTypeCounts.customServices > 0) {
+      parts.push(`${resultTypeCounts.customServices} Custom Service${resultTypeCounts.customServices > 1 ? 's' : ''}`);
+    }
+
+    if (parts.length === 0) {
+      return `${filterText} active`;
+    }
+
+    return `${filterText} · ${parts.join(' · ')}`;
+  };
+
   useEffect(() => {
     buildFeedData();
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
@@ -1626,7 +1674,7 @@ export default function HomeScreen() {
         {activeFilterCount > 0 && (
           <View style={styles.activeFiltersRow}>
             <Text style={styles.activeFiltersText}>
-              {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} active
+              {getFilterIndicatorText()}
             </Text>
             <TouchableOpacity
               onPress={() => {
