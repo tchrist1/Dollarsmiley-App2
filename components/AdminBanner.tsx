@@ -143,11 +143,18 @@ export default function AdminBanner({ autoRotate = true, interval = 4500 }: Admi
 
     const AnimatedIcon = Animated.createAnimatedComponent(View);
 
+    let IconComponent = null;
+    if (currentSlide.icon === 'shield') {
+      IconComponent = <Shield {...iconProps} />;
+    } else if (currentSlide.icon === 'pin') {
+      IconComponent = <MapPin {...iconProps} />;
+    } else if (currentSlide.icon === 'sparkles') {
+      IconComponent = <Sparkles {...iconProps} />;
+    }
+
     return (
       <AnimatedIcon style={{ transform: [{ scale: iconScaleAnim }] }}>
-        {currentSlide.icon === 'shield' && <Shield {...iconProps} />}
-        {currentSlide.icon === 'pin' && <MapPin {...iconProps} />}
-        {currentSlide.icon === 'sparkles' && <Sparkles {...iconProps} />}
+        {IconComponent}
       </AnimatedIcon>
     );
   };
