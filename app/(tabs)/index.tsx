@@ -303,6 +303,20 @@ interface SearchSuggestion {
   search_count: number;
 }
 
+// ============================================================================
+// BENCHMARKING MODE - HARD-DISABLE NON-ESSENTIAL FEATURES
+// ============================================================================
+// When true: Disables ALL rendering and execution of:
+// - Admin banner
+// - All carousel sections (trending, recommended, popular, featured)
+// - AI recommendation logic
+// - Carousel data fetching and caching
+// Purpose: Establish clean performance baseline for core discovery features
+// Re-enablement: Manual only - set to false to restore features
+// ============================================================================
+const HOME_BENCHMARK_MODE = true;
+// ============================================================================
+
 export default function HomeScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams();
@@ -408,7 +422,10 @@ export default function HomeScreen() {
     // PHASE 3: Non-critical enhancements with delay
     const phase3Timer = setTimeout(() => {
       requestLocationPermission();
-      fetchCarouselSections();
+      // BENCHMARK MODE: Skip carousel fetching
+      if (!HOME_BENCHMARK_MODE) {
+        fetchCarouselSections();
+      }
     }, 500);
 
     return () => {
@@ -615,6 +632,12 @@ export default function HomeScreen() {
   // Deferred to avoid blocking initial UI render and core data fetch
   // ============================================================================
   const fetchCarouselSections = useCallback(async () => {
+    // BENCHMARK MODE: Disable carousel fetching
+    if (HOME_BENCHMARK_MODE) {
+      setCarouselsLoading(false);
+      return;
+    }
+
     // PHASE 4: Check cache first
     const cached = getCachedCarouselData(profile?.id || null);
     if (cached) {
@@ -1277,6 +1300,19 @@ export default function HomeScreen() {
   // Before: dependencies change → useEffect → buildFeedData() → setFeedData() → re-render (2 renders)
   // After: dependencies change → useMemo recalculates → re-render (1 render)
   const feedData = useMemo(() => {
+    // BENCHMARK MODE: Simple grouped layout only (no banner, no carousels)
+    if (HOME_BENCHMARK_MODE) {
+      const groupedListings: any[] = [];
+      for (let i = 0; i < listings.length; i += 2) {
+        groupedListings.push({
+          type: 'row',
+          id: `row-${i}`,
+          items: [listings[i], listings[i + 1]].filter(Boolean)
+        });
+      }
+      return groupedListings;
+    }
+
     // When searching or filtering, show simple grouped layout
     if (searchQuery || activeFilterCount > 0) {
       const groupedListings: any[] = [];
@@ -1759,6 +1795,9 @@ export default function HomeScreen() {
 
   // Shared carousel renderer for feed items - no viewMode dependency
   const renderFeedCarousel = useCallback((item: any) => {
+    // BENCHMARK MODE: Disable carousel rendering
+    if (HOME_BENCHMARK_MODE) return null;
+
     const IconComponent = item.icon === 'trending' ? TrendingUp : item.icon === 'star' ? Star : Sparkles;
     return (
       <View style={styles.embeddedCarouselSection}>
@@ -1871,6 +1910,8 @@ export default function HomeScreen() {
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
     if (item.type === 'banner') {
+      // BENCHMARK MODE: Disable admin banner
+      if (HOME_BENCHMARK_MODE) return null;
       return <AdminBanner autoRotate={true} interval={4500} />;
     }
 
@@ -1896,6 +1937,8 @@ export default function HomeScreen() {
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
     if (item.type === 'banner') {
+      // BENCHMARK MODE: Disable admin banner
+      if (HOME_BENCHMARK_MODE) return null;
       return <AdminBanner autoRotate={true} interval={4500} />;
     }
 
@@ -2070,28 +2113,35 @@ export default function HomeScreen() {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
-        <View style={styles.recommendationsSection}>
-          <FeaturedListingsSection
-            variant="hero"
-            title="Featured Services"
-            showViewAll={true}
-            limit={3}
-          />
-          {profile?.id && (
-            <RecommendationsCarousel
-              userId={profile.id}
-              type="personalized"
-              userLocation={
-                profile.latitude && profile.longitude
-                  ? { latitude: profile.latitude, longitude: profile.longitude }
-                  : undefined
-              }
-              limit={10}
+        // BENCHMARK MODE: Show simple empty state without carousels
+        HOME_BENCHMARK_MODE ? (
+          <View style={styles.centerContent}>
+            <Text style={styles.emptyText}>No services found</Text>
+          </View>
+        ) : (
+          <View style={styles.recommendationsSection}>
+            <FeaturedListingsSection
+              variant="hero"
+              title="Featured Services"
+              showViewAll={true}
+              limit={3}
             />
-          )}
-          <RecommendationsCarousel type="trending" limit={8} />
-          <RecommendationsCarousel type="popular" limit={8} />
-        </View>
+            {profile?.id && (
+              <RecommendationsCarousel
+                userId={profile.id}
+                type="personalized"
+                userLocation={
+                  profile.latitude && profile.longitude
+                    ? { latitude: profile.latitude, longitude: profile.longitude }
+                    : undefined
+                }
+                limit={10}
+              />
+            )}
+            <RecommendationsCarousel type="trending" limit={8} />
+            <RecommendationsCarousel type="popular" limit={8} />
+          </View>
+        )
       ) : listings.length > 0 ? (
         <View style={{ flex: 1 }}>
           {/* List View - kept mounted, visibility toggled */}
