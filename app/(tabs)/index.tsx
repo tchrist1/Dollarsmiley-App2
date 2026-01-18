@@ -1414,6 +1414,10 @@ export default function HomeScreen() {
     mapRef.current?.toggleLayers();
   }, []);
 
+  // PRIORITY 4: Memoized keyExtractor functions to prevent re-creation on every render
+  const feedKeyExtractor = useCallback((item: any) => item.id, []);
+  const carouselKeyExtractor = useCallback((item: any) => item.id, []);
+
   const renderCarouselSection = useCallback((title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
     if (data.length === 0) return null;
 
@@ -1490,13 +1494,13 @@ export default function HomeScreen() {
               </TouchableOpacity>
             );
           }}
-          keyExtractor={(item) => item.id}
+          keyExtractor={carouselKeyExtractor}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carouselList}
         />
       </View>
     );
-  }, [handleSeeAll, getListingTypeLabel]);
+  }, [handleSeeAll, getListingTypeLabel, carouselKeyExtractor]);
 
   const renderCarouselsHeader = () => {
     if (searchQuery || activeFilterCount > 0) return null;
@@ -1823,13 +1827,13 @@ export default function HomeScreen() {
               </TouchableOpacity>
             );
           }}
-          keyExtractor={(carouselItem) => carouselItem.id}
+          keyExtractor={carouselKeyExtractor}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.embeddedCarouselList}
         />
       </View>
     );
-  }, [handleSeeAll, getListingTypeLabel]);
+  }, [handleSeeAll, getListingTypeLabel, carouselKeyExtractor]);
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
@@ -2068,7 +2072,7 @@ export default function HomeScreen() {
             <FlatList
               data={feedData}
               renderItem={renderFeedItemList}
-              keyExtractor={(item) => item.id}
+              keyExtractor={feedKeyExtractor}
               contentContainerStyle={styles.listingsContainer}
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
@@ -2104,7 +2108,7 @@ export default function HomeScreen() {
             <FlatList
               data={feedData}
               renderItem={renderFeedItemGrid}
-              keyExtractor={(item) => item.id}
+              keyExtractor={feedKeyExtractor}
               contentContainerStyle={styles.gridContainer}
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
