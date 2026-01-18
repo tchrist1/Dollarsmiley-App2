@@ -360,16 +360,11 @@ export async function getTrendingItems(
   hoursAgo: number = 24
 ): Promise<any[]> {
   try {
-    const cutoffTime = new Date();
-    cutoffTime.setHours(cutoffTime.getHours() - hoursAgo);
-
-    const { data, error } = await supabase
-      .from('user_item_interactions')
-      .select('item_id, COUNT(*) as interaction_count, SUM(interaction_weight) as total_weight')
-      .eq('item_type', itemType)
-      .gte('timestamp', cutoffTime.toISOString())
-      .order('total_weight', { ascending: false })
-      .limit(limit);
+    const { data, error } = await supabase.rpc('get_trending_items', {
+      p_item_type: itemType,
+      p_hours_ago: hoursAgo,
+      p_limit: limit,
+    });
 
     if (error) throw error;
     return data || [];
