@@ -23,6 +23,7 @@ import { SortOptionsSelector, SortOption } from '@/components/SortOptionsSelecto
 import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
+import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
 
 const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
 const AVAILABILITY_OPTIONS = [
@@ -123,7 +124,16 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   });
 
   // PHASE 3: Optimize category fetch - only fetch once, not on every modal open
+  // PHASE 4: WITH SESSION CACHE (1-hour TTL, cross-component sharing)
   const fetchCategories = useCallback(async () => {
+    // PHASE 4: Check global session cache first
+    const cached = getCachedCategories(null); // Filter modal is user-agnostic
+    if (cached) {
+      setCategories(cached);
+      return; // Cache hit - no network request
+    }
+
+    // Cache miss - fetch from network
     const { data } = await supabase
       .from('categories')
       .select('*')
@@ -132,6 +142,8 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
     if (data) {
       setCategories(data);
+      // PHASE 4: Cache for all users (categories are global)
+      setCachedCategories(data, null);
     }
   }, []);
 

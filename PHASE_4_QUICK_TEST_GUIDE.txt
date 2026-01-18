@@ -1,0 +1,415 @@
+================================================================================
+PHASE 4 OPTIMIZATION - QUICK TESTING GUIDE
+================================================================================
+
+GOAL: Verify session caching reduces network requests without data staleness
+
+================================================================================
+PREPARATION
+================================================================================
+
+Terminal:
+  npm run dev
+
+Browser: Press F12 → Console tab
+Filter: Type "[CACHE]" to see cache logs
+
+================================================================================
+TEST 1: Cache Miss on First Visit
+================================================================================
+
+STEPS:
+  1. Refresh app (clear all caches)
+  2. Login as any user
+  3. Navigate to Home screen
+  4. Open browser console
+
+EXPECTED LOGS:
+  [TRENDING_CACHE] Cache miss - no entry
+  [CAROUSEL_CACHE] Cache miss - no entry
+
+NETWORK TAB:
+  ✓ Request to popular_searches
+  ✓ Request to service_listings (carousel)
+  ✓ Request to jobs (carousel)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: First visit MUST fetch from network
+_____________________________________________
+
+================================================================================
+TEST 2: Cache Hit on Subsequent Visit
+================================================================================
+
+STEPS:
+  1. From Home screen, navigate to Categories tab
+  2. Navigate back to Home screen
+  3. Check browser console
+
+EXPECTED LOGS:
+  [TRENDING_CACHE] Cache hit - age: Xs
+  [CAROUSEL_CACHE] Cache hit - age: Xs
+
+NETWORK TAB:
+  ✓ NO request to popular_searches
+  ✓ NO request to service_listings
+  ✓ NO request to jobs
+
+TIME SAVED:
+  Before Phase 4: ~230ms of network requests
+  After Phase 4: 0ms (instant from cache)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Subsequent visits should use cached data
+_____________________________________________
+
+================================================================================
+TEST 3: Categories Cache Hit
+================================================================================
+
+STEPS:
+  1. From Home screen, tap "Filters" button
+  2. Observe modal opens
+  3. Check browser console
+
+EXPECTED LOGS (first open):
+  [CATEGORIES_CACHE] Cache miss - no entry
+
+STEPS (continued):
+  4. Close filter modal
+  5. Open filter modal again
+  6. Check browser console
+
+EXPECTED LOGS (second open):
+  [CATEGORIES_CACHE] Cache hit - age: Xs, entries: XX
+
+NETWORK TAB:
+  ✓ First open: Request to categories
+  ✓ Second open: NO request to categories
+
+TIME SAVED:
+  Filter modal open time: ~30ms faster (after first)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Categories shared across all filter modal opens
+_____________________________________________
+
+================================================================================
+TEST 4: Cache Invalidation on User Change
+================================================================================
+
+STEPS:
+  1. Login as User A
+  2. Navigate to Home (populate caches)
+  3. Check console for cache hits
+  4. Logout
+  5. Check browser console immediately
+
+EXPECTED LOGS:
+  [PHASE_4] User changed - invalidating all caches
+  [SESSION_CACHE] Invalidating all caches
+  [TRENDING_CACHE] Cache invalidated
+  [CAROUSEL_CACHE] Cache invalidated
+  [GEOCODE_CACHE] Cache cleared - entries: X
+  [CATEGORIES_CACHE] Cache invalidated
+
+STEPS (continued):
+  6. Login as User B
+  7. Navigate to Home
+  8. Check console
+
+EXPECTED LOGS:
+  [TRENDING_CACHE] Cache miss - no entry
+  [CAROUSEL_CACHE] Cache miss - no entry
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: All caches MUST clear on user change
+_____________________________________________
+
+================================================================================
+TEST 5: TTL Expiry Test (Trending Searches)
+================================================================================
+
+SETUP:
+  Trending searches TTL = 5 minutes
+
+STEPS:
+  1. Navigate to Home (populate trending cache)
+  2. Note the timestamp
+  3. Wait 5.5 minutes (or modify TTL to 30 seconds for faster testing)
+  4. Navigate away and back to Home
+  5. Check console
+
+EXPECTED LOGS:
+  [TRENDING_CACHE] Cache expired - age: XXXs
+
+NETWORK TAB:
+  ✓ Fresh request to popular_searches
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Cache MUST expire after TTL
+_____________________________________________
+
+================================================================================
+TEST 6: Data Freshness Verification
+================================================================================
+
+GOAL: Ensure cached data matches fresh data
+
+STEPS:
+  1. Navigate to Home (populate carousel cache)
+  2. Note the listings displayed (count, titles, images)
+  3. Navigate away and back (cache hit)
+  4. Verify listings are IDENTICAL
+
+CHECK:
+  ✓ Same number of listings
+  ✓ Same listing titles
+  ✓ Same listing images
+  ✓ Same ordering
+
+STEPS (continued):
+  5. Wait for TTL expiry (10 minutes for carousel)
+  6. Navigate to Home again (cache miss, fresh fetch)
+  7. Verify new data is fetched and displayed
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Cached data MUST be identical to fresh data
+_____________________________________________
+
+================================================================================
+TEST 7: Multiple Visits Performance Test
+================================================================================
+
+GOAL: Measure cumulative network savings
+
+STEPS:
+  1. Clear all caches (refresh app)
+  2. Open browser Network tab
+  3. Navigate to Home (Visit 1)
+  4. Count requests: popular_searches, service_listings, jobs
+  5. Navigate away and back (Visit 2)
+  6. Count requests: Should be 0 for cached endpoints
+  7. Navigate away and back (Visit 3)
+  8. Count requests: Should be 0 for cached endpoints
+
+RECORD RESULTS:
+  Visit 1 requests: _____ (expected: ~3)
+  Visit 2 requests: _____ (expected: 0)
+  Visit 3 requests: _____ (expected: 0)
+
+  Total requests: _____ (expected: 3)
+
+BEFORE PHASE 4:
+  Total requests: 9 (3 per visit)
+
+IMPROVEMENT:
+  Requests saved: _____ (expected: 6, or 67%)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Should see 67% reduction in network requests
+_____________________________________________
+
+================================================================================
+TEST 8: Cache Statistics (DEV Mode Only)
+================================================================================
+
+STEPS:
+  1. Open browser console
+  2. Navigate to Home (populate all caches)
+  3. Type in console:
+
+```javascript
+import { getCacheStats } from '@/lib/session-cache';
+console.log(getCacheStats());
+```
+
+EXPECTED OUTPUT:
+```javascript
+{
+  trendingSearches: { entries: 5, age: XXX },
+  carousel: { trending: 10, popular: 10, recommended: 10, age: XXX },
+  geocoding: { entries: X },
+  categories: { entries: XX, age: XXX }
+}
+```
+
+VERIFY:
+  ✓ trendingSearches has entries
+  ✓ carousel has 3 arrays with data
+  ✓ categories has entries
+  ✓ Age values are reasonable (< TTL)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Stats API provides cache visibility
+_____________________________________________
+
+================================================================================
+TEST 9: No Stale Data After Manual Refresh
+================================================================================
+
+SCENARIO: Admin updates categories while user has cached version
+
+STEPS:
+  1. User navigates to Home (categories cached)
+  2. Admin updates categories in database
+  3. User continues browsing (uses cached categories)
+  4. Wait for TTL expiry (1 hour) OR user logs out/in
+  5. User navigates to Home again
+  6. Check console
+
+EXPECTED:
+  ✓ After TTL or logout: Fresh categories fetched
+  ✓ User sees updated categories
+
+ACCEPTABLE:
+  - Categories remain cached for session (until TTL)
+  - This is SAFE (categories rarely change)
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: TTL ensures eventual consistency
+_____________________________________________
+
+================================================================================
+TEST 10: Memory Overhead Check
+================================================================================
+
+GOAL: Verify caching doesn't cause memory issues
+
+STEPS:
+  1. Open browser Dev Tools → Performance/Memory tab
+  2. Take heap snapshot (Baseline)
+  3. Navigate to Home multiple times (populate caches)
+  4. Take heap snapshot (After caching)
+  5. Calculate difference
+
+EXPECTED:
+  Memory increase: <100KB (conservative estimate: ~41KB)
+
+VERIFY:
+  ✓ No memory leaks
+  ✓ Cache size is reasonable
+  ✓ App remains responsive
+
+RESULT: [ ] PASS [ ] FAIL
+
+Notes: Cache overhead should be negligible
+_____________________________________________
+
+================================================================================
+REGRESSION CHECKS
+================================================================================
+
+Verify no regressions from Phase 4:
+
+1. PHASE 1 (Draft State Isolation):
+   [ ] Filters modal interactions still smooth
+   [ ] Apply Filters still commits draft state
+
+2. PHASE 2 (Apply Filters Optimization):
+   [ ] Filter application still instant (~300ms saved)
+   [ ] No debounce delay on Apply
+
+3. PHASE 3 (Modal Smoothness):
+   [ ] Filter modal scrolling still smooth (60fps)
+   [ ] Modal open time still fast (<50ms)
+
+4. PHASE 4 (Session Caching):
+   [ ] Trending searches cached
+   [ ] Carousel data cached
+   [ ] Categories cached
+   [ ] Cache invalidates on user change
+   [ ] Cache expires after TTL
+
+5. FUNCTIONAL CORRECTNESS:
+   [ ] Filter results identical
+   [ ] Carousel data matches fresh data
+   [ ] Categories list correct
+   [ ] No visual differences
+
+================================================================================
+SUCCESS CRITERIA
+================================================================================
+
+PASS CONDITIONS:
+  ✓ Cache miss on first visit
+  ✓ Cache hit on subsequent visits
+  ✓ Categories cache shared across components
+  ✓ Cache invalidates on user change
+  ✓ Cache expires after TTL
+  ✓ Data freshness maintained
+  ✓ 67% reduction in network requests (after first visit)
+  ✓ No memory leaks
+  ✓ No regressions in previous phases
+  ✓ No visual or functional differences
+
+FAIL CONDITIONS:
+  ✗ Cache not working (all requests go to network)
+  ✗ Stale data displayed
+  ✗ Cache not invalidating on user change
+  ✗ Cache not expiring after TTL
+  ✗ Memory leaks or crashes
+  ✗ Regressions in filter behavior
+  ✗ Visual differences
+
+================================================================================
+REPORT TEMPLATE
+================================================================================
+
+PHASE 4 SESSION CACHE TEST RESULTS
+Date: __________
+Tester: __________
+Device/Browser: __________
+
+TEST RESULTS:
+  [ ] Test 1: Cache Miss on First Visit
+  [ ] Test 2: Cache Hit on Subsequent Visit
+  [ ] Test 3: Categories Cache Hit
+  [ ] Test 4: Cache Invalidation on User Change
+  [ ] Test 5: TTL Expiry Test
+  [ ] Test 6: Data Freshness Verification
+  [ ] Test 7: Multiple Visits Performance Test
+  [ ] Test 8: Cache Statistics
+  [ ] Test 9: No Stale Data After Manual Refresh
+  [ ] Test 10: Memory Overhead Check
+
+REGRESSION CHECKS:
+  [ ] Phase 1 working
+  [ ] Phase 2 working
+  [ ] Phase 3 working
+  [ ] Phase 4 working
+  [ ] Functional correctness
+
+NETWORK SAVINGS:
+  Visit 1 requests: _____ (expected: ~3)
+  Subsequent requests: _____ (expected: 0)
+  Total reduction: _____% (expected: ~67%)
+
+PERFORMANCE METRICS:
+  Trending searches: _____ ms saved per visit
+  Carousel data: _____ ms saved per visit
+  Categories: _____ ms saved per modal open
+  Total: _____ ms saved per visit
+
+MEMORY OVERHEAD:
+  Baseline heap: _____ MB
+  After caching: _____ MB
+  Increase: _____ KB (expected: <100KB)
+
+OVERALL STATUS: [ ] PASS [ ] NEEDS WORK
+
+NOTES:
+_____________________________________________
+_____________________________________________
+_____________________________________________
+
+================================================================================

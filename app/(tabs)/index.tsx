@@ -22,6 +22,13 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
 import { logPerfEvent, logRender, logNetworkCall } from '@/lib/performance-test-utils';
+import {
+  getCachedTrendingSearches,
+  setCachedTrendingSearches,
+  getCachedCarouselData,
+  setCachedCarouselData,
+  invalidateAllCaches,
+} from '@/lib/session-cache';
 
 // ============================================================================
 // LIGHTWEIGHT HOME CACHE (MODULE-LEVEL)
@@ -154,7 +161,7 @@ export default function HomeScreen() {
   }, [loading, listings.length]);
 
   // ============================================================================
-  // CACHE INVALIDATION: Clear cache on user change or logout
+  // PHASE 4: CACHE INVALIDATION - Clear all caches on user change or logout
   // ============================================================================
   const userIdRef = useRef<string | null>(profile?.id || null);
 
@@ -163,7 +170,9 @@ export default function HomeScreen() {
 
     // Invalidate cache if user changed (logout or account switch)
     if (userIdRef.current !== currentUserId) {
-      invalidateCache();
+      if (__DEV__) console.log('[PHASE_4] User changed - invalidating all caches');
+      invalidateCache(); // Home listings cache
+      invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
       userIdRef.current = currentUserId;
     }
   }, [profile?.id]);
@@ -307,9 +316,18 @@ export default function HomeScreen() {
 
   // ============================================================================
   // PHASE 1: Lightweight background data - Trending searches
+  // PHASE 4: WITH SESSION CACHE (5-minute TTL)
   // Runs after interaction completes to avoid blocking UI
   // ============================================================================
   const fetchTrendingSearches = async () => {
+    // PHASE 4: Check cache first
+    const cached = getCachedTrendingSearches(profile?.id || null);
+    if (cached) {
+      setTrendingSearches(cached);
+      return; // Cache hit - no network request
+    }
+
+    // Cache miss - fetch from network
     const { data } = await supabase
       .from('popular_searches')
       .select('search_term, search_count')
@@ -317,7 +335,9 @@ export default function HomeScreen() {
       .limit(5);
 
     if (data) {
-      setTrendingSearches(data.map(d => ({ suggestion: d.search_term, search_count: d.search_count })));
+      const searches = data.map(d => ({ suggestion: d.search_term, search_count: d.search_count }));
+      setTrendingSearches(searches);
+      setCachedTrendingSearches(searches, profile?.id || null);
     }
   };
 
@@ -385,9 +405,21 @@ export default function HomeScreen() {
 
   // ============================================================================
   // PHASE 3: Non-critical enhancement - Carousel sections
+  // PHASE 4: WITH SESSION CACHE (10-minute TTL)
   // Deferred to avoid blocking initial UI render and core data fetch
   // ============================================================================
   const fetchCarouselSections = useCallback(async () => {
+    // PHASE 4: Check cache first
+    const cached = getCachedCarouselData(profile?.id || null);
+    if (cached) {
+      setTrendingListings(cached.trending);
+      setPopularListings(cached.popular);
+      setRecommendedListings(cached.recommended);
+      setCarouselsLoading(false);
+      return; // Cache hit - no network request
+    }
+
+    // Cache miss - fetch from network
     setCarouselsLoading(true);
     try {
       const { data: serviceData } = await supabase
@@ -440,13 +472,20 @@ export default function HomeScreen() {
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 10);
         setRecommendedListings(recommended);
+
+        // PHASE 4: Cache the results
+        setCachedCarouselData({
+          trending,
+          popular,
+          recommended,
+        }, profile?.id || null);
       }
     } catch (error) {
       // Error handled silently
     } finally {
       setCarouselsLoading(false);
     }
-  }, []);
+  }, [profile?.id]);
 
   const recordSearch = async (query: string, resultsCount: number) => {
     if (!query.trim()) return;
