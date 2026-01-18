@@ -112,14 +112,17 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   const [fetchingLocation, setFetchingLocation] = useState(false);
 
   // ============================================================================
-  // DEV-ONLY PERFORMANCE INSTRUMENTATION
+  // PHASE 3: PERFORMANCE INSTRUMENTATION - Modal responsiveness
   // ============================================================================
+  const scrollStartTimeRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (__DEV__) {
       logRender('FilterModal');
     }
   });
 
+  // PHASE 3: Optimize category fetch - only fetch once, not on every modal open
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase
       .from('categories')
@@ -133,16 +136,24 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   }, []);
 
   useEffect(() => {
-    if (visible) {
+    // Only fetch categories if we don't have them yet
+    if (visible && categories.length === 0) {
       fetchCategories();
     }
-  }, [visible, fetchCategories]);
+  }, [visible, categories.length, fetchCategories]);
 
   // Reset draft filters when modal opens with current filters
   useEffect(() => {
     if (visible) {
       if (__DEV__) {
+        const startTime = performance.now();
         logPerfEvent('FILTER_MODAL_OPENING', { filtersCount: Object.keys(currentFilters).length });
+
+        // Log when modal is fully mounted
+        requestAnimationFrame(() => {
+          const mountTime = performance.now() - startTime;
+          logPerfEvent('FILTER_MODAL_MOUNTED', { mountTime: `${mountTime.toFixed(2)}ms` });
+        });
       }
       setDraftFilters(currentFilters);
       setSelectedPreset(null);
@@ -265,7 +276,6 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 10000,
-        maximumAge: 30000,
       });
 
       const { latitude, longitude } = currentLocation.coords;
@@ -303,6 +313,211 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
       setFetchingLocation(false);
     }
   }, [useCurrentLocation]);
+
+  // ============================================================================
+  // PHASE 3: MEMOIZED SECTIONS - Prevent unnecessary re-renders
+  // Place after callbacks to avoid "used before declared" errors
+  // ============================================================================
+
+  // Memoize category chips to prevent re-render when other filters change
+  const categoryChips = useMemo(() => {
+    return parentCategories.map((category) => {
+      const isSelected = draftFilters.categories.includes(category.id);
+      return (
+        <TouchableOpacity
+          key={category.id}
+          style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+          onPress={() => toggleCategory(category.id)}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.categoryChipText,
+              isSelected && styles.categoryChipTextSelected,
+            ]}
+          >
+            {category.name}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  }, [parentCategories, draftFilters.categories, toggleCategory]);
+
+  // Memoize tag chips to prevent re-render when other filters change
+  const tagChips = useMemo(() => {
+    return AVAILABLE_TAGS.map((tag) => {
+      const isSelected = draftFilters.tags?.includes(tag);
+      return (
+        <TouchableOpacity
+          key={tag}
+          style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+          onPress={() => toggleTag(tag)}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[
+              styles.tagChipText,
+              isSelected && styles.tagChipTextSelected,
+            ]}
+          >
+            #{tag}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  }, [draftFilters.tags, toggleTag]);
+
+  // Memoize price preset chips
+  const pricePresetChips = useMemo(() => {
+    return PRICE_PRESETS.map((preset) => (
+      <TouchableOpacity
+        key={preset.label}
+        style={[
+          styles.presetChip,
+          selectedPreset === preset.label && styles.presetChipSelected,
+        ]}
+        onPress={() => handlePresetClick(preset.label, preset.min, preset.max)}
+      >
+        <Text
+          style={[
+            styles.presetChipText,
+            selectedPreset === preset.label && styles.presetChipTextSelected,
+          ]}
+        >
+          {preset.label}
+        </Text>
+      </TouchableOpacity>
+    ));
+  }, [selectedPreset, handlePresetClick]);
+
+  // Memoize fulfillment options
+  const fulfillmentChips = useMemo(() => {
+    return FULFILLMENT_OPTIONS.map((type) => (
+      <TouchableOpacity
+        key={type}
+        style={[
+          styles.fulfillmentChip,
+          draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipSelected,
+        ]}
+        onPress={() => toggleFulfillmentType(type)}
+      >
+        <Text
+          style={[
+            styles.fulfillmentChipText,
+            draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipTextSelected,
+          ]}
+        >
+          {type}
+        </Text>
+      </TouchableOpacity>
+    ));
+  }, [draftFilters.fulfillmentTypes, toggleFulfillmentType]);
+
+  // Memoize listing type chips (first section)
+  const listingTypeChips = useMemo(() => {
+    return LISTING_TYPES.map((type) => (
+      <TouchableOpacity
+        key={type}
+        style={[
+          styles.optionChip,
+          draftFilters.listingType === type && styles.optionChipSelected,
+        ]}
+        onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type as any }))}
+      >
+        <Text
+          style={[
+            styles.optionText,
+            draftFilters.listingType === type && styles.optionTextSelected,
+          ]}
+        >
+          {type === 'all' ? 'All' : type === 'CustomService' ? 'Custom Service' : type}
+        </Text>
+      </TouchableOpacity>
+    ));
+  }, [draftFilters.listingType]);
+
+  // Memoize availability chips
+  const availabilityChips = useMemo(() => {
+    return AVAILABILITY_OPTIONS.map((avail) => {
+      const isSelected = draftFilters.availability === avail.value;
+      return (
+        <TouchableOpacity
+          key={avail.value}
+          style={[
+            styles.availabilityChip,
+            isSelected && styles.availabilityChipSelected,
+          ]}
+          onPress={() => setDraftFilters(prev => ({ ...prev, availability: avail.value as any }))}
+          activeOpacity={0.7}
+        >
+          <Clock
+            size={16}
+            color={isSelected ? colors.white : colors.textSecondary}
+          />
+          <Text
+            style={[
+              styles.availabilityChipText,
+              isSelected && styles.availabilityChipTextSelected,
+            ]}
+          >
+            {avail.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  }, [draftFilters.availability]);
+
+  // Memoize service type chips
+  const serviceTypeChips = useMemo(() => {
+    return LISTING_TYPE_OPTIONS.map((type) => {
+      const isSelected = draftFilters.listingType === type.value;
+      return (
+        <TouchableOpacity
+          key={type.value}
+          style={[
+            styles.availabilityChip,
+            isSelected && styles.availabilityChipSelected,
+          ]}
+          onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type.value as any }))}
+        >
+          <Text
+            style={[
+              styles.availabilityChipText,
+              isSelected && styles.availabilityChipTextSelected,
+            ]}
+          >
+            {type.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  }, [draftFilters.listingType]);
+
+  // Memoize shipping mode chips
+  const shippingModeChips = useMemo(() => {
+    return SHIPPING_MODE_OPTIONS.map((mode) => {
+      const isSelected = draftFilters.shippingMode === mode.value;
+      return (
+        <TouchableOpacity
+          key={mode.value}
+          style={[
+            styles.availabilityChip,
+            isSelected && styles.availabilityChipSelected,
+          ]}
+          onPress={() => setDraftFilters(prev => ({ ...prev, shippingMode: mode.value as any }))}
+        >
+          <Text
+            style={[
+              styles.availabilityChipText,
+              isSelected && styles.availabilityChipTextSelected,
+            ]}
+          >
+            {mode.label}
+          </Text>
+        </TouchableOpacity>
+      );
+    });
+  }, [draftFilters.shippingMode]);
 
   return (
     <Modal
@@ -354,56 +569,34 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                 keyboardDismissMode="on-drag"
                 removeClippedSubviews={Platform.OS === 'android'}
                 scrollEventThrottle={16}
+                onScrollBeginDrag={() => {
+                  if (__DEV__ && !scrollStartTimeRef.current) {
+                    scrollStartTimeRef.current = performance.now();
+                    logPerfEvent('FILTER_MODAL_SCROLL_START');
+                  }
+                }}
+                onScrollEndDrag={() => {
+                  if (__DEV__ && scrollStartTimeRef.current) {
+                    const scrollDuration = performance.now() - scrollStartTimeRef.current;
+                    logPerfEvent('FILTER_MODAL_SCROLL_END', {
+                      duration: `${scrollDuration.toFixed(2)}ms`
+                    });
+                    scrollStartTimeRef.current = null;
+                  }
+                }}
               >
             {/* Listing Type - First */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Listing Type</Text>
               <View style={styles.optionsRow}>
-                {LISTING_TYPES.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.optionChip,
-                      draftFilters.listingType === type && styles.optionChipSelected,
-                    ]}
-                    onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type as any }))}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        draftFilters.listingType === type && styles.optionTextSelected,
-                      ]}
-                    >
-                      {type === 'all' ? 'All' : type === 'CustomService' ? 'Custom Service' : type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {listingTypeChips}
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Categories</Text>
               <View style={styles.categoriesGrid}>
-                {parentCategories.map((category) => {
-                    const isSelected = draftFilters.categories.includes(category.id);
-                    return (
-                      <TouchableOpacity
-                        key={category.id}
-                        style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                        onPress={() => toggleCategory(category.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.categoryChipText,
-                            isSelected && styles.categoryChipTextSelected,
-                          ]}
-                        >
-                          {category.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                {categoryChips}
               </View>
             </View>
 
@@ -466,25 +659,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               </View>
 
               <View style={styles.pricePresets}>
-                {PRICE_PRESETS.map((preset) => (
-                  <TouchableOpacity
-                    key={preset.label}
-                    style={[
-                      styles.presetChip,
-                      selectedPreset === preset.label && styles.presetChipSelected,
-                    ]}
-                    onPress={() => handlePresetClick(preset.label, preset.min, preset.max)}
-                  >
-                    <Text
-                      style={[
-                        styles.presetChipText,
-                        selectedPreset === preset.label && styles.presetChipTextSelected,
-                      ]}
-                    >
-                      {preset.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {pricePresetChips}
               </View>
             </View>
 
@@ -501,7 +676,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <Text style={styles.sectionTitle}>Sort By</Text>
               <SortOptionsSelector
                 sortBy={(draftFilters.sortBy || 'relevance') as SortOption}
-                onSortChange={(newSort) => setDraftFilters(prev => ({ ...prev, sortBy: newSort }))}
+                onSortChange={(newSort) => setDraftFilters(prev => ({ ...prev, sortBy: newSort as any }))}
                 showDistance={true}
               />
             </View>
@@ -509,86 +684,21 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Availability</Text>
               <View style={styles.availabilityContainer}>
-                {AVAILABILITY_OPTIONS.map((avail) => {
-                  const isSelected = draftFilters.availability === avail.value;
-                  return (
-                    <TouchableOpacity
-                      key={avail.value}
-                      style={[
-                        styles.availabilityChip,
-                        isSelected && styles.availabilityChipSelected,
-                      ]}
-                      onPress={() => setDraftFilters(prev => ({ ...prev, availability: avail.value as any }))}
-                      activeOpacity={0.7}
-                    >
-                      <Clock
-                        size={16}
-                        color={isSelected ? colors.white : colors.textSecondary}
-                      />
-                      <Text
-                        style={[
-                          styles.availabilityChipText,
-                          isSelected && styles.availabilityChipTextSelected,
-                        ]}
-                      >
-                        {avail.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {availabilityChips}
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Listing Type</Text>
               <View style={styles.availabilityContainer}>
-                {LISTING_TYPE_OPTIONS.map((type) => {
-                  const isSelected = draftFilters.listingType === type.value;
-                  return (
-                    <TouchableOpacity
-                      key={type.value}
-                      style={[
-                        styles.availabilityChip,
-                        isSelected && styles.availabilityChipSelected,
-                      ]}
-                      onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type.value as any }))}
-                    >
-                      <Text
-                        style={[
-                          styles.availabilityChipText,
-                          isSelected && styles.availabilityChipTextSelected,
-                        ]}
-                      >
-                        {type.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {serviceTypeChips}
               </View>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Fulfillment Options</Text>
               <View style={styles.fulfillmentContainer}>
-                {FULFILLMENT_OPTIONS.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      styles.fulfillmentChip,
-                      draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipSelected,
-                    ]}
-                    onPress={() => toggleFulfillmentType(type)}
-                  >
-                    <Text
-                      style={[
-                        styles.fulfillmentChipText,
-                        draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipTextSelected,
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {fulfillmentChips}
               </View>
             </View>
 
@@ -596,28 +706,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Shipping Mode</Text>
                 <View style={styles.availabilityContainer}>
-                  {SHIPPING_MODE_OPTIONS.map((mode) => {
-                    const isSelected = draftFilters.shippingMode === mode.value;
-                    return (
-                      <TouchableOpacity
-                        key={mode.value}
-                        style={[
-                          styles.availabilityChip,
-                          isSelected && styles.availabilityChipSelected,
-                        ]}
-                        onPress={() => setDraftFilters(prev => ({ ...prev, shippingMode: mode.value as any }))}
-                      >
-                        <Text
-                          style={[
-                            styles.availabilityChipText,
-                            isSelected && styles.availabilityChipTextSelected,
-                          ]}
-                        >
-                          {mode.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                  {shippingModeChips}
                 </View>
               </View>
             )}
@@ -625,26 +714,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Tags</Text>
               <View style={styles.tagsGrid}>
-                {AVAILABLE_TAGS.map((tag) => {
-                  const isSelected = draftFilters.tags?.includes(tag);
-                  return (
-                    <TouchableOpacity
-                      key={tag}
-                      style={[styles.tagChip, isSelected && styles.tagChipSelected]}
-                      onPress={() => toggleTag(tag)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.tagChipText,
-                          isSelected && styles.tagChipTextSelected,
-                        ]}
-                      >
-                        #{tag}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                {tagChips}
               </View>
             </View>
 
