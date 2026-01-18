@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React, { memo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Star, MapPin } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -52,7 +52,7 @@ const getServiceEmoji = (title: string, description?: string, listingType?: stri
   return listingType === 'Job' ? '💼' : '🛠️';
 };
 
-export function CompactListingCard({
+export const CompactListingCard = memo(function CompactListingCard({
   id,
   title,
   price,
@@ -66,6 +66,17 @@ export function CompactListingCard({
   description,
 }: CompactListingCardProps) {
   const cardWidth = customWidth || CARD_WIDTH;
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageOpacity] = useState(new Animated.Value(0));
+
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+    Animated.timing(imageOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
 
   return (
     <TouchableOpacity
@@ -74,11 +85,23 @@ export function CompactListingCard({
       activeOpacity={0.7}
     >
       {image_url && typeof image_url === 'string' ? (
-        <Image
-          source={{ uri: image_url }}
-          style={styles.image}
-          resizeMode="cover"
-        />
+        <View style={styles.imageContainer}>
+          {!imageLoaded && (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.placeholderEmoji}>
+                {getServiceEmoji(title, description, listing_type)}
+              </Text>
+            </View>
+          )}
+          <Animated.Image
+            source={{ uri: image_url }}
+            style={[styles.image, { opacity: imageOpacity }]}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+            progressiveRenderingEnabled={true}
+            fadeDuration={0}
+          />
+        </View>
       ) : (
         <View style={styles.imagePlaceholder}>
           <Text style={styles.placeholderEmoji}>
@@ -140,7 +163,7 @@ export function CompactListingCard({
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -156,10 +179,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  imageContainer: {
+    width: '100%',
+    height: 160,
+    position: 'relative',
+  },
   image: {
     width: '100%',
     height: 160,
     backgroundColor: colors.surface,
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   imagePlaceholder: {
     width: '100%',

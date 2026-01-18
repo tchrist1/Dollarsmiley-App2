@@ -1431,6 +1431,10 @@ export default function HomeScreen() {
         <FlatList
           horizontal
           data={data}
+          initialNumToRender={5}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews={true}
           renderItem={({ item }) => {
             const isJob = item.marketplace_type === 'Job';
             const profile = isJob ? item.customer : item.provider;
@@ -1733,6 +1737,10 @@ export default function HomeScreen() {
         <FlatList
           horizontal
           data={item.data}
+          initialNumToRender={5}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews={true}
           renderItem={({ item: carouselItem }) => {
             const carouselListing = carouselItem as any;
 
@@ -2065,6 +2073,11 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
+              initialNumToRender={10}
+              maxToRenderPerBatch={5}
+              updateCellsBatchingPeriod={50}
+              windowSize={7}
+              removeClippedSubviews={true}
               ListFooterComponent={
                 loadingMore ? (
                   <View style={styles.loadingMoreContainer}>
@@ -2096,6 +2109,11 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
+              initialNumToRender={10}
+              maxToRenderPerBatch={5}
+              updateCellsBatchingPeriod={50}
+              windowSize={7}
+              removeClippedSubviews={true}
               ListFooterComponent={
                 loadingMore ? (
                   <View style={styles.loadingMoreContainer}>
