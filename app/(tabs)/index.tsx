@@ -110,6 +110,7 @@ export default function HomeScreen() {
   const [searchLocation, setSearchLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isLoadingMoreRef = useRef(false);
+  const skipDebounceRef = useRef(false); // PHASE 2 OPTIMIZATION: Flag for immediate filter application
   const [mapZoomLevel, setMapZoomLevel] = useState(12);
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -271,13 +272,26 @@ export default function HomeScreen() {
   // ============================================================================
   // PHASE 2: Core listings & jobs fetch
   // Triggered by filters or search changes with debounce
-  // Already optimally deferred with 300ms timeout
+  // PHASE 2 OPTIMIZATION: Skip debounce for discrete "Apply Filters" action
   // ============================================================================
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
 
+    // PHASE 2 OPTIMIZATION: Immediate execution for Apply Filters
+    if (skipDebounceRef.current) {
+      skipDebounceRef.current = false; // Reset flag
+      setPage(0);
+      setHasMore(true);
+      fetchListings(true);
+      if (__DEV__) {
+        logPerfEvent('FILTER_FETCH_IMMEDIATE', { skipDebounce: true });
+      }
+      return;
+    }
+
+    // Standard debounced execution for search query typing
     searchTimeout.current = setTimeout(() => {
       setPage(0);
       setHasMore(true);
@@ -544,6 +558,14 @@ export default function HomeScreen() {
   // WITH READ-THROUGH CACHE for initial load (reset=true)
   // ============================================================================
   const fetchListings = async (reset: boolean = false) => {
+    // PHASE 2 OPTIMIZATION: Track filter fetch start
+    if (__DEV__ && reset && (activeFilterCount > 0 || searchQuery.trim())) {
+      logPerfEvent('FILTER_FETCH_START', {
+        filterCount: activeFilterCount,
+        hasSearch: !!searchQuery.trim(),
+      });
+    }
+
     // ============================================================================
     // CACHE OPTIMIZATION: Check cache on initial load only
     // ============================================================================
@@ -968,6 +990,14 @@ export default function HomeScreen() {
       }
 
       setHasMore(paginatedData.length === PAGE_SIZE && allResults.length > offset + PAGE_SIZE);
+
+      // PHASE 2 OPTIMIZATION: Track filter fetch completion
+      if (__DEV__ && reset && (activeFilterCount > 0 || searchQuery.trim())) {
+        logPerfEvent('FILTER_FETCH_COMPLETE', {
+          resultsCount: paginatedData.length,
+          filterCount: activeFilterCount,
+        });
+      }
     } catch (error) {
       // Error fetching listings handled silently
     } finally {
@@ -976,6 +1006,26 @@ export default function HomeScreen() {
       isLoadingMoreRef.current = false;
     }
   };
+
+  // PHASE 2 OPTIMIZATION: Memoize activeFilterCount to prevent recalculation on every render
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.location.trim()) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++;
+    if (filters.availability && filters.availability !== 'any') count++;
+    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
+    if (filters.verified) count++;
+    if (filters.instant_booking) count++;
+    if (filters.listingType && filters.listingType !== 'all') count++;
+    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
+    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
+    if (filters.hasVAS) count++;
+    if (filters.tags && filters.tags.length > 0) count++;
+    return count;
+  }, [filters]);
 
   const buildFeedData = useCallback(() => {
     if (searchQuery || activeFilterCount > 0) {
@@ -1056,27 +1106,6 @@ export default function HomeScreen() {
     setFeedData(feed);
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
-  const getActiveFilterCount = () => {
-    let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.location.trim()) count++;
-    if (filters.priceMin || filters.priceMax) count++;
-    if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++;
-    if (filters.availability && filters.availability !== 'any') count++;
-    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
-    if (filters.verified) count++;
-    if (filters.instant_booking) count++;
-    if (filters.listingType && filters.listingType !== 'all') count++;
-    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
-    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
-    if (filters.hasVAS) count++;
-    if (filters.tags && filters.tags.length > 0) count++;
-    return count;
-  };
-
-  const activeFilterCount = getActiveFilterCount();
-
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
     const counts = {
@@ -1098,8 +1127,8 @@ export default function HomeScreen() {
     return counts;
   }, [listings]);
 
-  // Format filter indicator text with result counts
-  const getFilterIndicatorText = () => {
+  // PHASE 2 OPTIMIZATION: Memoize filter indicator text to prevent recalculation
+  const filterIndicatorText = useMemo(() => {
     const filterText = `${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''}`;
 
     if (listings.length === 0) {
@@ -1123,7 +1152,7 @@ export default function HomeScreen() {
     }
 
     return `${filterText} · ${parts.join(' · ')}`;
-  };
+  }, [activeFilterCount, resultTypeCounts, listings.length]);
 
   useEffect(() => {
     buildFeedData();
@@ -1137,12 +1166,20 @@ export default function HomeScreen() {
 
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
     if (__DEV__) {
-      logPerfEvent('FILTER_RESULTS_RENDERED', {
+      logPerfEvent('FILTER_APPLY_START', {
         listingType: newFilters.listingType,
         categoriesCount: newFilters.categories.length,
       });
     }
+
+    // PHASE 2 OPTIMIZATION: Signal immediate execution (skip debounce)
+    skipDebounceRef.current = true;
+
     setFilters(newFilters);
+
+    if (__DEV__) {
+      logPerfEvent('FILTER_STATE_UPDATED');
+    }
   }, []);
 
   const getMapMarkers = useMemo(() => {
@@ -1875,7 +1912,7 @@ export default function HomeScreen() {
         {activeFilterCount > 0 && (
           <View style={styles.activeFiltersRow}>
             <Text style={styles.activeFiltersText}>
-              {getFilterIndicatorText()}
+              {filterIndicatorText}
             </Text>
             <TouchableOpacity
               onPress={() => {
