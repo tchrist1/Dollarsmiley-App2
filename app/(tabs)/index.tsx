@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
@@ -92,6 +92,211 @@ const invalidateCache = () => {
 };
 
 // ============================================================================
+// PRIORITY 5 FIX: Memoized card components to prevent re-renders
+// Before: Parent re-renders → renderListingCard recreates all card elements → all cards re-render
+// After: Parent re-renders → Memoized cards check if props changed → only changed cards re-render
+// ============================================================================
+
+interface ListingCardProps {
+  item: MarketplaceListing;
+  onPress: (id: string, isJob: boolean) => void;
+}
+
+const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
+  const isJob = item.marketplace_type === 'Job';
+  const profile = isJob ? item.customer : item.provider;
+  const listing = item as any;
+
+  // Type label logic
+  let typeLabel = { text: 'SERVICE', color: colors.success };
+  if (isJob) {
+    typeLabel = { text: 'JOB', color: colors.primary };
+  } else if (listing.listing_type === 'CustomService') {
+    typeLabel = { text: 'CUSTOM', color: colors.accent };
+  }
+
+  // Price calculation
+  let priceText = '';
+  if (isJob) {
+    if (listing.fixed_price) {
+      priceText = formatCurrency(listing.fixed_price);
+    } else if (listing.budget_min && listing.budget_max) {
+      priceText = `${formatCurrency(listing.budget_min)} - ${formatCurrency(listing.budget_max)}`;
+    } else if (listing.budget_min) {
+      priceText = `From ${formatCurrency(listing.budget_min)}`;
+    } else {
+      priceText = 'Budget TBD';
+    }
+  } else {
+    const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
+    priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.listingCard}
+      activeOpacity={0.7}
+      onPress={() => onPress(item.id, isJob)}
+    >
+      <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+      </View>
+      <View style={styles.listingContent}>
+        <Text style={styles.listingTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.listingDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+        <View style={styles.listingMeta}>
+          <View style={styles.listingLocation}>
+            <MapPin size={14} color={colors.textLight} />
+            <Text style={styles.listingLocationText} numberOfLines={1}>
+              {item.location || 'Remote'}
+            </Text>
+          </View>
+          {profile?.rating_average && profile.rating_average > 0 && (
+            <View style={styles.listingRating}>
+              <Star size={14} color={colors.warning} fill={colors.warning} />
+              <Text style={styles.listingRatingText}>
+                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.listingFooter}>
+          <View style={styles.listingProvider}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.providerAvatar} />
+            ) : (
+              <View style={[styles.providerAvatar, styles.providerAvatarPlaceholder]}>
+                <User size={16} color={colors.textLight} />
+              </View>
+            )}
+            <Text style={styles.providerName} numberOfLines={1}>
+              {profile?.full_name || 'Anonymous'}
+            </Text>
+          </View>
+          <Text style={styles.listingPrice}>{priceText}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const GridCard = memo(({ item, onPress }: ListingCardProps) => {
+  const isJob = item.marketplace_type === 'Job';
+  const profile = isJob ? item.customer : item.provider;
+  const listing = item as any;
+
+  // Type label logic
+  let typeLabel = { text: 'SERVICE', color: colors.success };
+  if (isJob) {
+    typeLabel = { text: 'JOB', color: colors.primary };
+  } else if (listing.listing_type === 'CustomService') {
+    typeLabel = { text: 'CUSTOM', color: colors.accent };
+  }
+
+  const mainImage = listing.featured_image_url || null;
+
+  // Price calculation
+  let priceText = '';
+  let priceSuffix = '';
+  if (isJob) {
+    if (listing.fixed_price) {
+      priceText = formatCurrency(listing.fixed_price);
+      priceSuffix = '';
+    } else if (listing.budget_min && listing.budget_max) {
+      priceText = `${formatCurrency(listing.budget_min)}-${formatCurrency(listing.budget_max)}`;
+      priceSuffix = '';
+    } else if (listing.budget_min) {
+      priceText = formatCurrency(listing.budget_min);
+      priceSuffix = '+';
+    } else {
+      priceText = 'Budget TBD';
+      priceSuffix = '';
+    }
+  } else {
+    const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
+    priceText = formatCurrency(listing.base_price || 0);
+    priceSuffix = `/${priceType}`;
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.gridCard}
+      activeOpacity={0.7}
+      onPress={() => onPress(item.id, isJob)}
+    >
+      {mainImage ? (
+        <Image source={{ uri: mainImage }} style={styles.gridCardImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
+          <Text style={styles.gridCardImagePlaceholderText}>
+            {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+          </Text>
+        </View>
+      )}
+      <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+      </View>
+      <View style={styles.gridCardContent}>
+        <View style={styles.gridHeader}>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.gridAvatar} />
+          ) : (
+            <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
+              <Text style={styles.gridAvatarText}>
+                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
+              </Text>
+            </View>
+          )}
+          {profile && (
+            <Text style={styles.gridAccountName} numberOfLines={1}>
+              {profile.full_name}
+            </Text>
+          )}
+          {profile && profile.rating_average > 0 && (
+            <View style={styles.gridRating}>
+              <Star size={10} color={colors.warning} fill={colors.warning} />
+              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.gridTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.gridDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+        {listing.distance_miles !== undefined && (
+          <View style={styles.gridDistanceBadge}>
+            <Navigation size={10} color={colors.white} />
+            <Text style={styles.gridDistanceBadgeText}>
+              {listing.distance_miles < 1
+                ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
+                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
+            </Text>
+          </View>
+        )}
+        <View style={styles.gridFooter}>
+          <View style={styles.gridLocation}>
+            <MapPin size={12} color={colors.textLight} />
+            <Text style={styles.gridLocationText} numberOfLines={1}>
+              {item.location || 'Remote'}
+            </Text>
+          </View>
+          <Text style={styles.gridPrice}>
+            {priceText}
+            {priceSuffix && <Text style={styles.gridPriceSuffix}>{priceSuffix}</Text>}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+// ============================================================================
 
 interface SearchSuggestion {
   suggestion: string;
@@ -128,7 +333,8 @@ export default function HomeScreen() {
   const [trendingListings, setTrendingListings] = useState<MarketplaceListing[]>([]);
   const [popularListings, setPopularListings] = useState<MarketplaceListing[]>([]);
   const [carouselsLoading, setCarouselsLoading] = useState(true);
-  const [feedData, setFeedData] = useState<any[]>([]);
+  // PRIORITY 5 FIX: feedData is now computed via useMemo instead of useState + useEffect
+  // This eliminates one unnecessary re-render cycle
   const [filters, setFilters] = useState<FilterOptions>({
     ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
@@ -1066,7 +1272,12 @@ export default function HomeScreen() {
     return count;
   }, [filters]);
 
-  const buildFeedData = useCallback(() => {
+  // PRIORITY 5 FIX: Convert buildFeedData from useCallback + useState to useMemo
+  // This eliminates the extra re-render caused by setFeedData()
+  // Before: dependencies change → useEffect → buildFeedData() → setFeedData() → re-render (2 renders)
+  // After: dependencies change → useMemo recalculates → re-render (1 render)
+  const feedData = useMemo(() => {
+    // When searching or filtering, show simple grouped layout
     if (searchQuery || activeFilterCount > 0) {
       const groupedListings: any[] = [];
       for (let i = 0; i < listings.length; i += 2) {
@@ -1076,10 +1287,10 @@ export default function HomeScreen() {
           items: [listings[i], listings[i + 1]].filter(Boolean)
         });
       }
-      setFeedData(groupedListings);
-      return;
+      return groupedListings;
     }
 
+    // Default feed with carousels
     const feed: any[] = [];
     const ITEMS_PER_BLOCK = 6;
 
@@ -1142,7 +1353,7 @@ export default function HomeScreen() {
       });
     }
 
-    setFeedData(feed);
+    return feed;
   }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
 
   // Count listings by type from filtered results
@@ -1193,9 +1404,8 @@ export default function HomeScreen() {
     return `${filterText} · ${parts.join(' · ')}`;
   }, [activeFilterCount, resultTypeCounts, listings.length]);
 
-  useEffect(() => {
-    buildFeedData();
-  }, [listings, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
+  // PRIORITY 5 FIX: Removed useEffect that called buildFeedData()
+  // feedData is now computed directly via useMemo above, eliminating this extra re-render trigger
 
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !loading && !isLoadingMoreRef.current) {
@@ -1418,6 +1628,12 @@ export default function HomeScreen() {
   const feedKeyExtractor = useCallback((item: any) => item.id, []);
   const carouselKeyExtractor = useCallback((item: any) => item.id, []);
 
+  // PRIORITY 5 FIX: Stable onPress handler for memoized card components
+  // This prevents cards from re-rendering when the parent re-renders
+  const handleCardPress = useCallback((id: string, isJob: boolean) => {
+    router.push(isJob ? `/jobs/${id}` : `/listing/${id}`);
+  }, []);
+
   const renderCarouselSection = useCallback((title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
     if (data.length === 0) return null;
 
@@ -1529,200 +1745,17 @@ export default function HomeScreen() {
     );
   };
 
+  // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
+  // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    const isJob = item.marketplace_type === 'Job';
-    const profile = isJob ? item.customer : item.provider;
-    const listing = item as any;
-    const typeLabel = getListingTypeLabel(item);
+    return <ListingCard item={item} onPress={handleCardPress} />;
+  }, [handleCardPress]);
 
-    let priceText = '';
-    if (isJob) {
-      if (listing.fixed_price) {
-        priceText = formatCurrency(listing.fixed_price);
-      } else if (listing.budget_min && listing.budget_max) {
-        priceText = `${formatCurrency(listing.budget_min)} - ${formatCurrency(listing.budget_max)}`;
-      } else if (listing.budget_min) {
-        priceText = `From ${formatCurrency(listing.budget_min)}`;
-      } else {
-        priceText = 'Budget TBD';
-      }
-    } else {
-      const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-      priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
-    }
-
-    return (
-      <TouchableOpacity
-        style={styles.listingCard}
-        activeOpacity={0.7}
-        onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
-      >
-        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
-        </View>
-        <View style={styles.listingContent}>
-          <Text style={styles.listingTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.listingDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-          <View style={styles.listingMeta}>
-            <View style={styles.metaItem}>
-              <MapPin size={14} color={colors.textSecondary} />
-              <Text style={styles.metaText}>{item.location || 'Remote'}</Text>
-            </View>
-            {listing.distance_miles !== undefined && (
-              <View style={styles.metaItem}>
-                <Navigation size={14} color={colors.primary} />
-                <Text style={styles.distanceText}>
-                  {listing.distance_miles && listing.distance_miles < 1
-                    ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                    : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
-                </Text>
-              </View>
-            )}
-            <View style={styles.metaItem}>
-              <DollarSign size={14} color={colors.primary} />
-              <Text style={styles.priceText}>{priceText}</Text>
-            </View>
-          </View>
-          {profile && (
-            <View style={styles.providerInfo}>
-              {profile.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {profile.full_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.providerDetails}>
-                <Text style={styles.providerName}>{profile.full_name}</Text>
-                {profile.rating_average > 0 && (
-                  <View style={styles.rating}>
-                    <Star size={14} color={colors.warning} fill={colors.warning} />
-                    <Text style={styles.ratingText}>
-                      {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  }, [getListingTypeLabel]);
-
+  // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
+  // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    const isJob = item.marketplace_type === 'Job';
-    const profile = isJob ? item.customer : item.provider;
-    const listing = item as any;
-    const typeLabel = getListingTypeLabel(item);
-
-    const mainImage = listing.featured_image_url || null;
-
-    let priceText = '';
-    let priceSuffix = '';
-    if (isJob) {
-      if (listing.fixed_price) {
-        priceText = formatCurrency(listing.fixed_price);
-        priceSuffix = '';
-      } else if (listing.budget_min && listing.budget_max) {
-        priceText = `${formatCurrency(listing.budget_min)}-${formatCurrency(listing.budget_max)}`;
-        priceSuffix = '';
-      } else if (listing.budget_min) {
-        priceText = formatCurrency(listing.budget_min);
-        priceSuffix = '+';
-      } else {
-        priceText = 'Budget TBD';
-        priceSuffix = '';
-      }
-    } else {
-      const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-      priceText = formatCurrency(listing.base_price || 0);
-      priceSuffix = `/${priceType}`;
-    }
-
-    return (
-      <TouchableOpacity
-        style={styles.gridCard}
-        activeOpacity={0.7}
-        onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
-      >
-        {mainImage ? (
-          <Image
-            source={{ uri: mainImage }}
-            style={styles.gridCardImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
-            <Text style={styles.gridCardImagePlaceholderText}>
-              {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
-            </Text>
-          </View>
-        )}
-        <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-          <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
-        </View>
-        <View style={styles.gridCardContent}>
-          <View style={styles.gridHeader}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.gridAvatar} />
-            ) : (
-              <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
-                <Text style={styles.gridAvatarText}>
-                  {profile?.full_name.charAt(0).toUpperCase() || 'S'}
-                </Text>
-              </View>
-            )}
-            {profile && (
-              <Text style={styles.gridAccountName} numberOfLines={1}>
-                {profile.full_name}
-              </Text>
-            )}
-            {profile && profile.rating_average > 0 && (
-              <View style={styles.gridRating}>
-                <Star size={10} color={colors.warning} fill={colors.warning} />
-                <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
-              </View>
-            )}
-          </View>
-          <Text style={styles.gridTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.gridDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-          {listing.distance_miles !== undefined && (
-            <View style={styles.gridDistanceBadge}>
-              <Navigation size={10} color={colors.white} />
-              <Text style={styles.gridDistanceBadgeText}>
-                {listing.distance_miles < 1
-                  ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                  : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
-              </Text>
-            </View>
-          )}
-          <View style={styles.gridFooter}>
-            <View style={styles.gridLocation}>
-              <MapPin size={12} color={colors.textLight} />
-              <Text style={styles.gridLocationText} numberOfLines={1}>
-                {item.location || 'Remote'}
-              </Text>
-            </View>
-            <View style={styles.gridPrice}>
-              <Text style={styles.gridPriceAmount}>{priceText}</Text>
-              <Text style={styles.gridPriceType}>{priceSuffix}</Text>
-            </View>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  }, [getListingTypeLabel]);
+    return <GridCard item={item} onPress={handleCardPress} />;
+  }, [handleCardPress]);
 
   // Shared carousel renderer for feed items - no viewMode dependency
   const renderFeedCarousel = useCallback((item: any) => {
