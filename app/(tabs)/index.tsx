@@ -1221,6 +1221,18 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // PRIORITY 1 FIX: Memoize filter open handler to prevent function recreation
+  const handleOpenFilters = useCallback(() => {
+    if (__DEV__) {
+      logPerfEvent('FILTER_OPEN_TAP');
+    }
+    setShowFilters(true);
+  }, []);
+
+  const handleCloseFilters = useCallback(() => {
+    setShowFilters(false);
+  }, []);
+
   const getMapMarkers = useMemo(() => {
     if (mapMode === 'providers') {
       const providersMap = new Map();
@@ -1929,12 +1941,7 @@ export default function HomeScreen() {
           </View>
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => {
-              if (__DEV__) {
-                logPerfEvent('FILTER_OPEN_TAP');
-              }
-              setShowFilters(true);
-            }}
+            onPress={handleOpenFilters}
             activeOpacity={0.7}
           >
             <SlidersHorizontal size={20} color={colors.primary} />
@@ -2179,7 +2186,7 @@ export default function HomeScreen() {
 
       <FilterModal
         visible={showFilters}
-        onClose={() => setShowFilters(false)}
+        onClose={handleCloseFilters}
         onApply={handleApplyFilters}
         currentFilters={filters}
       />

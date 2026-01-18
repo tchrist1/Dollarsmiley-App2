@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  FlatList,
+  InteractionManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Star, MapPin, TrendingUp, Clock, Award, DollarSign } from 'lucide-react-native';
@@ -24,6 +26,46 @@ import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
+
+// ============================================================================
+// PERFORMANCE OPTIMIZATION: Memoized chip components to prevent re-renders
+// ============================================================================
+
+interface CategoryChipProps {
+  category: Category;
+  isSelected: boolean;
+  onPress: (id: string) => void;
+}
+
+const CategoryChip = memo(({ category, isSelected, onPress }: CategoryChipProps) => (
+  <TouchableOpacity
+    style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+    onPress={() => onPress(category.id)}
+    activeOpacity={0.7}
+  >
+    <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}>
+      {category.name}
+    </Text>
+  </TouchableOpacity>
+));
+
+interface TagChipProps {
+  tag: string;
+  isSelected: boolean;
+  onPress: (tag: string) => void;
+}
+
+const TagChip = memo(({ tag, isSelected, onPress }: TagChipProps) => (
+  <TouchableOpacity
+    style={[styles.tagChip, isSelected && styles.tagChipSelected]}
+    onPress={() => onPress(tag)}
+    activeOpacity={0.7}
+  >
+    <Text style={[styles.tagChipText, isSelected && styles.tagChipTextSelected]}>
+      #{tag}
+    </Text>
+  </TouchableOpacity>
+));
 
 const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
 const AVAILABILITY_OPTIONS = [
@@ -100,7 +142,7 @@ interface FilterModalProps {
   currentFilters: FilterOptions;
 }
 
-export function FilterModal({ visible, onClose, onApply, currentFilters }: FilterModalProps) {
+export const FilterModal = memo(function FilterModal({ visible, onClose, onApply, currentFilters }: FilterModalProps) {
   const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
 
@@ -111,6 +153,13 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [fetchingLocation, setFetchingLocation] = useState(false);
+
+  // ============================================================================
+  // PRIORITY 1 FIX: Lazy rendering to prevent 38-second blocking
+  // ============================================================================
+  const [sectionsReady, setSectionsReady] = useState(false);
+  const [categoriesReady, setCategoriesReady] = useState(false);
+  const mountInteractionRef = useRef<any>(null);
 
   // ============================================================================
   // PHASE 3: PERFORMANCE INSTRUMENTATION - Modal responsiveness
@@ -167,15 +216,48 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
           logPerfEvent('FILTER_MODAL_MOUNTED', { mountTime: `${mountTime.toFixed(2)}ms` });
         });
       }
+
+      // Reset lazy loading states
+      setSectionsReady(false);
+      setCategoriesReady(false);
+
+      // Set initial state immediately (synchronous for responsiveness)
       setDraftFilters(currentFilters);
       setSelectedPreset(null);
       setUseCurrentLocation(false);
+
+      // PRIORITY 1 FIX: Defer heavy rendering until after modal animation
+      // This prevents the 38-second blocking issue
+      mountInteractionRef.current = InteractionManager.runAfterInteractions(() => {
+        // First, show the essential sections (listing type, location, price)
+        setSectionsReady(true);
+
+        // Then, after another frame, show categories (the heavy section)
+        requestAnimationFrame(() => {
+          setCategoriesReady(true);
+        });
+      });
     } else {
       if (__DEV__) {
         logPerfEvent('FILTER_MODAL_CLOSED');
       }
+      // Cancel any pending lazy loads
+      if (mountInteractionRef.current) {
+        mountInteractionRef.current.cancel();
+      }
+      setSectionsReady(false);
+      setCategoriesReady(false);
     }
   }, [visible, currentFilters]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (mountInteractionRef.current) {
+        mountInteractionRef.current.cancel();
+      }
+    };
+  }, []);
 
   const parentCategories = useMemo(() => {
     return categories.filter((cat) => !cat.parent_id);
@@ -328,56 +410,35 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
 
   // ============================================================================
   // PHASE 3: MEMOIZED SECTIONS - Prevent unnecessary re-renders
-  // Place after callbacks to avoid "used before declared" errors
+  // PRIORITY 1 FIX: Use FlatList for virtualization instead of rendering all chips
   // ============================================================================
 
-  // Memoize category chips to prevent re-render when other filters change
-  const categoryChips = useMemo(() => {
-    return parentCategories.map((category) => {
-      const isSelected = draftFilters.categories.includes(category.id);
-      return (
-        <TouchableOpacity
-          key={category.id}
-          style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-          onPress={() => toggleCategory(category.id)}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.categoryChipText,
-              isSelected && styles.categoryChipTextSelected,
-            ]}
-          >
-            {category.name}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
-  }, [parentCategories, draftFilters.categories, toggleCategory]);
+  // Render functions for FlatList (virtualized for performance)
+  const renderCategoryItem = useCallback(({ item }: { item: Category }) => {
+    const isSelected = draftFilters.categories.includes(item.id);
+    return (
+      <CategoryChip
+        category={item}
+        isSelected={isSelected}
+        onPress={toggleCategory}
+      />
+    );
+  }, [draftFilters.categories, toggleCategory]);
 
-  // Memoize tag chips to prevent re-render when other filters change
-  const tagChips = useMemo(() => {
-    return AVAILABLE_TAGS.map((tag) => {
-      const isSelected = draftFilters.tags?.includes(tag);
-      return (
-        <TouchableOpacity
-          key={tag}
-          style={[styles.tagChip, isSelected && styles.tagChipSelected]}
-          onPress={() => toggleTag(tag)}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.tagChipText,
-              isSelected && styles.tagChipTextSelected,
-            ]}
-          >
-            #{tag}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
+  const renderTagItem = useCallback(({ item }: { item: string }) => {
+    const isSelected = draftFilters.tags?.includes(item) || false;
+    return (
+      <TagChip
+        tag={item}
+        isSelected={isSelected}
+        onPress={toggleTag}
+      />
+    );
   }, [draftFilters.tags, toggleTag]);
+
+  // Key extractors for FlatList
+  const categoryKeyExtractor = useCallback((item: Category) => item.id, []);
+  const tagKeyExtractor = useCallback((item: string) => item, []);
 
   // Memoize price preset chips
   const pricePresetChips = useMemo(() => {
@@ -597,7 +658,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
                   }
                 }}
               >
-            {/* Listing Type - First */}
+            {/* Listing Type - First - Always show immediately */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Listing Type</Text>
               <View style={styles.optionsRow}>
@@ -605,173 +666,216 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
               </View>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              <View style={styles.categoriesGrid}>
-                {categoryChips}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Location</Text>
-              <MapboxAutocompleteInput
-                value={draftFilters.location}
-                onChangeText={(text) => setDraftFilters(prev => ({ ...prev, location: text }))}
-                placeholder="Enter city, neighborhood, or zip"
-                searchTypes={['place', 'locality', 'postcode', 'neighborhood']}
-                onPlaceSelect={(place) => {
-                  setDraftFilters(prev => ({
-                    ...prev,
-                    location: place.name || place.place_formatted
-                  }));
-                }}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Distance Radius</Text>
-              <DistanceRadiusSelector
-                distance={draftFilters.distance || 25}
-                onDistanceChange={(distance) => setDraftFilters(prev => ({ ...prev, distance }))}
-                useCurrentLocation={useCurrentLocation}
-                onUseLocationToggle={handleUseLocationToggle}
-              />
-              {fetchingLocation && (
-                <Text style={styles.locationFetchingText}>Getting your location...</Text>
-              )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Price Range</Text>
-
-              <View style={styles.priceRange}>
-                <View style={styles.priceInput}>
-                  <Text style={styles.priceLabel}>Min</Text>
-                  <TextInput
-                    style={styles.priceField}
-                    placeholder="$0"
-                    placeholderTextColor={colors.textLight}
-                    value={draftFilters.priceMin}
-                    onChangeText={(value) => handleManualPriceChange('min', value)}
-                    keyboardType="numeric"
-                  />
-                </View>
-                <Text style={styles.priceSeparator}>-</Text>
-                <View style={styles.priceInput}>
-                  <Text style={styles.priceLabel}>Max</Text>
-                  <TextInput
-                    style={styles.priceField}
-                    placeholder="Any"
-                    placeholderTextColor={colors.textLight}
-                    value={draftFilters.priceMax}
-                    onChangeText={(value) => handleManualPriceChange('max', value)}
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.pricePresets}>
-                {pricePresetChips}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Minimum Rating</Text>
-              <RatingFilter
-                minRating={draftFilters.minRating}
-                onRatingChange={(rating) => setDraftFilters(prev => ({ ...prev, minRating: rating }))}
-                showStats={false}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Sort By</Text>
-              <SortOptionsSelector
-                sortBy={(draftFilters.sortBy || 'relevance') as SortOption}
-                onSortChange={(newSort) => setDraftFilters(prev => ({ ...prev, sortBy: newSort as any }))}
-                showDistance={true}
-              />
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Availability</Text>
-              <View style={styles.availabilityContainer}>
-                {availabilityChips}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Listing Type</Text>
-              <View style={styles.availabilityContainer}>
-                {serviceTypeChips}
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Fulfillment Options</Text>
-              <View style={styles.fulfillmentContainer}>
-                {fulfillmentChips}
-              </View>
-            </View>
-
-            {draftFilters.fulfillmentTypes?.includes('Shipping') && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Shipping Mode</Text>
-                <View style={styles.availabilityContainer}>
-                  {shippingModeChips}
-                </View>
+            {/* Loading indicator while sections load */}
+            {!sectionsReady && (
+              <View style={styles.loadingSection}>
+                <Text style={styles.loadingText}>Loading filters...</Text>
               </View>
             )}
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Tags</Text>
-              <View style={styles.tagsGrid}>
-                {tagChips}
+            {/* Categories - Lazy loaded with virtualization to prevent blocking */}
+            {categoriesReady && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Categories</Text>
+                <FlatList
+                  data={parentCategories}
+                  renderItem={renderCategoryItem}
+                  keyExtractor={categoryKeyExtractor}
+                  numColumns={3}
+                  scrollEnabled={false}
+                  columnWrapperStyle={styles.categoriesGrid}
+                  initialNumToRender={12}
+                  maxToRenderPerBatch={6}
+                  updateCellsBatchingPeriod={50}
+                  removeClippedSubviews={true}
+                  windowSize={5}
+                  getItemLayout={(data, index) => ({
+                    length: 40,
+                    offset: 40 * Math.floor(index / 3),
+                    index,
+                  })}
+                />
               </View>
-            </View>
+            )}
 
-            <View style={styles.lastSection}>
-              <Text style={styles.sectionTitle}>Additional Filters</Text>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setDraftFilters(prev => ({ ...prev, verified: !prev.verified }))}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, draftFilters.verified && styles.checkboxSelected]}>
-                  {draftFilters.verified && <Award size={16} color={colors.white} />}
+            {/* Essential sections - Show after interaction */}
+            {sectionsReady && (
+              <>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Location</Text>
+                  <MapboxAutocompleteInput
+                    value={draftFilters.location}
+                    onChangeText={(text) => setDraftFilters(prev => ({ ...prev, location: text }))}
+                    placeholder="Enter city, neighborhood, or zip"
+                    searchTypes={['place', 'locality', 'postcode', 'neighborhood']}
+                    onPlaceSelect={(place) => {
+                      setDraftFilters(prev => ({
+                        ...prev,
+                        location: place.name || place.place_formatted
+                      }));
+                    }}
+                  />
                 </View>
-                <View style={styles.checkboxContent}>
-                  <Text style={styles.checkboxLabel}>Verified Providers Only</Text>
-                  <Text style={styles.checkboxSubtext}>Background checked and verified</Text>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Distance Radius</Text>
+                  <DistanceRadiusSelector
+                    distance={draftFilters.distance || 25}
+                    onDistanceChange={(distance) => setDraftFilters(prev => ({ ...prev, distance }))}
+                    useCurrentLocation={useCurrentLocation}
+                    onUseLocationToggle={handleUseLocationToggle}
+                  />
+                  {fetchingLocation && (
+                    <Text style={styles.locationFetchingText}>Getting your location...</Text>
+                  )}
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setDraftFilters(prev => ({ ...prev, instant_booking: !prev.instant_booking }))}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, draftFilters.instant_booking && styles.checkboxSelected]}>
-                  {draftFilters.instant_booking && <Clock size={16} color={colors.white} />}
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Price Range</Text>
+
+                  <View style={styles.priceRange}>
+                    <View style={styles.priceInput}>
+                      <Text style={styles.priceLabel}>Min</Text>
+                      <TextInput
+                        style={styles.priceField}
+                        placeholder="$0"
+                        placeholderTextColor={colors.textLight}
+                        value={draftFilters.priceMin}
+                        onChangeText={(value) => handleManualPriceChange('min', value)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <Text style={styles.priceSeparator}>-</Text>
+                    <View style={styles.priceInput}>
+                      <Text style={styles.priceLabel}>Max</Text>
+                      <TextInput
+                        style={styles.priceField}
+                        placeholder="Any"
+                        placeholderTextColor={colors.textLight}
+                        value={draftFilters.priceMax}
+                        onChangeText={(value) => handleManualPriceChange('max', value)}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.pricePresets}>
+                    {pricePresetChips}
+                  </View>
                 </View>
-                <View style={styles.checkboxContent}>
-                  <Text style={styles.checkboxLabel}>Instant Booking Available</Text>
-                  <Text style={styles.checkboxSubtext}>Book immediately without approval</Text>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Minimum Rating</Text>
+                  <RatingFilter
+                    minRating={draftFilters.minRating}
+                    onRatingChange={(rating) => setDraftFilters(prev => ({ ...prev, minRating: rating }))}
+                    showStats={false}
+                  />
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setDraftFilters(prev => ({ ...prev, hasVAS: !prev.hasVAS }))}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, draftFilters.hasVAS && styles.checkboxSelected]}>
-                  {draftFilters.hasVAS && <Star size={16} color={colors.white} />}
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Sort By</Text>
+                  <SortOptionsSelector
+                    sortBy={(draftFilters.sortBy || 'relevance') as SortOption}
+                    onSortChange={(newSort) => setDraftFilters(prev => ({ ...prev, sortBy: newSort as any }))}
+                    showDistance={true}
+                  />
                 </View>
-                <View style={styles.checkboxContent}>
-                  <Text style={styles.checkboxLabel}>Value-Added Services Available</Text>
-                  <Text style={styles.checkboxSubtext}>Extra options and add-ons</Text>
+              </>
+            )}
+
+            {sectionsReady && (
+              <>
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Availability</Text>
+                  <View style={styles.availabilityContainer}>
+                    {availabilityChips}
+                  </View>
                 </View>
-              </TouchableOpacity>
-            </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Listing Type</Text>
+                  <View style={styles.availabilityContainer}>
+                    {serviceTypeChips}
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Fulfillment Options</Text>
+                  <View style={styles.fulfillmentContainer}>
+                    {fulfillmentChips}
+                  </View>
+                </View>
+
+                {draftFilters.fulfillmentTypes?.includes('Shipping') && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Shipping Mode</Text>
+                    <View style={styles.availabilityContainer}>
+                      {shippingModeChips}
+                    </View>
+                  </View>
+                )}
+
+                {/* Tags - Virtualized for performance */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Tags</Text>
+                  <FlatList
+                    data={Array.from(AVAILABLE_TAGS)}
+                    renderItem={renderTagItem}
+                    keyExtractor={tagKeyExtractor}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    columnWrapperStyle={styles.tagsGrid}
+                    initialNumToRender={9}
+                    maxToRenderPerBatch={6}
+                    removeClippedSubviews={true}
+                  />
+                </View>
+
+                <View style={styles.lastSection}>
+                  <Text style={styles.sectionTitle}>Additional Filters</Text>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setDraftFilters(prev => ({ ...prev, verified: !prev.verified }))}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, draftFilters.verified && styles.checkboxSelected]}>
+                      {draftFilters.verified && <Award size={16} color={colors.white} />}
+                    </View>
+                    <View style={styles.checkboxContent}>
+                      <Text style={styles.checkboxLabel}>Verified Providers Only</Text>
+                      <Text style={styles.checkboxSubtext}>Background checked and verified</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setDraftFilters(prev => ({ ...prev, instant_booking: !prev.instant_booking }))}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, draftFilters.instant_booking && styles.checkboxSelected]}>
+                      {draftFilters.instant_booking && <Clock size={16} color={colors.white} />}
+                    </View>
+                    <View style={styles.checkboxContent}>
+                      <Text style={styles.checkboxLabel}>Instant Booking Available</Text>
+                      <Text style={styles.checkboxSubtext}>Book immediately without approval</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setDraftFilters(prev => ({ ...prev, hasVAS: !prev.hasVAS }))}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.checkbox, draftFilters.hasVAS && styles.checkboxSelected]}>
+                      {draftFilters.hasVAS && <Star size={16} color={colors.white} />}
+                    </View>
+                    <View style={styles.checkboxContent}>
+                      <Text style={styles.checkboxLabel}>Value-Added Services Available</Text>
+                      <Text style={styles.checkboxSubtext}>Extra options and add-ons</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
               </ScrollView>
 
               <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
@@ -789,7 +893,7 @@ export function FilterModal({ visible, onClose, onApply, currentFilters }: Filte
       </KeyboardAvoidingView>
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   overlay: {
@@ -1182,6 +1286,16 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textAlign: 'center',
     marginTop: spacing.sm,
+    fontWeight: fontWeight.medium,
+  },
+  loadingSection: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
   },
 });
