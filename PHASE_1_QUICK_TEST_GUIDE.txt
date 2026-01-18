@@ -1,0 +1,194 @@
+================================================================================
+PHASE 1 OPTIMIZATION - QUICK TESTING GUIDE
+================================================================================
+
+GOAL: Verify Home screen initial load reduced from ~1235ms to <800ms
+
+================================================================================
+STEP 1: Start Development Server
+================================================================================
+
+Terminal:
+  npm run dev
+
+Wait for: "Metro waiting on..." message
+
+================================================================================
+STEP 2: Open Browser Console
+================================================================================
+
+Browser: Press F12 → Console tab
+Filter: Type "[PERF]" to see only performance logs
+
+================================================================================
+STEP 3: Test Initial Home Load (3 times)
+================================================================================
+
+FOR EACH RUN:
+  1. Force quit app or hard refresh browser
+  2. Login if needed
+  3. Navigate to Home screen
+  4. Wait for listings to appear
+  5. Record the following from console:
+
+EXPECTED LOG OUTPUT:
+  [PERF] HOME_FIRST_RENDER { timestamp: "XXXX.XX" }
+  [PERF] PARALLEL_FETCH_COMPLETE { duration: "XXX.XXms", fetchCount: 2 }
+  [PERF] NETWORK_CALL { count: 1, endpoint: "service_listings", duration: "XXX.XX" }
+  [PERF] NETWORK_CALL { count: 2, endpoint: "jobs", duration: "XXX.XX" }
+  [PERF] HOME_INTERACTIVE_READY { listingsCount: XX, timestamp: "YYYY.YY" }
+
+CALCULATE:
+  Total Time = YYYY.YY - XXXX.XX
+
+RECORD:
+  Run 1: _________ ms
+  Run 2: _________ ms
+  Run 3: _________ ms
+
+================================================================================
+STEP 4: Verify Parallelization
+================================================================================
+
+CHECK: PARALLEL_FETCH_COMPLETE duration should be LESS THAN the sum of
+       individual network call durations
+
+EXAMPLE (Success):
+  service_listings: 234ms
+  jobs:            198ms
+  PARALLEL_FETCH:  234ms  ← Max of both, NOT sum (432ms)
+
+EXAMPLE (Failure - shouldn't happen):
+  service_listings: 234ms
+  jobs:            198ms
+  PARALLEL_FETCH:  432ms  ← This means sequential, not parallel
+
+================================================================================
+STEP 5: Calculate Results
+================================================================================
+
+AVERAGE = (Run1 + Run2 + Run3) / 3
+P95     = 2nd highest value
+
+BASELINE (Before):
+  Average: 1235ms
+  P95:     1341ms
+
+TARGET (After):
+  Average: <800ms
+  P95:     <900ms
+
+SUCCESS CRITERIA:
+  ✓ Average < 800ms
+  ✓ P95 < 900ms
+  ✓ PARALLEL_FETCH_COMPLETE appears in logs
+  ✓ Listings display correctly
+  ✓ No console errors
+
+================================================================================
+STEP 6: Functional Verification
+================================================================================
+
+TEST THESE FLOWS:
+  ✓ Home screen loads with listings
+  ✓ Filters modal opens
+  ✓ Apply "Job" filter → Results update correctly
+  ✓ Clear filters → All listings return
+  ✓ Search works
+  ✓ Pagination works (scroll to bottom)
+  ✓ Cache behavior unchanged (2nd load should be instant)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+PROBLEM: No [PERF] logs appearing
+SOLUTION:
+  - Verify running in dev mode (npm run dev)
+  - Check console filters
+  - Refresh app
+
+PROBLEM: PARALLEL_FETCH_COMPLETE not showing
+SOLUTION:
+  - Check you're in __DEV__ mode
+  - Verify code changes saved
+  - Restart dev server
+
+PROBLEM: Times still >800ms
+SOLUTION:
+  - Check network conditions
+  - Close background apps
+  - Run additional iterations
+  - Check if cache is hitting (2nd load should be instant)
+
+PROBLEM: Listings not displaying
+SOLUTION:
+  - Check console for errors
+  - Verify database connection
+  - Check Supabase service status
+
+================================================================================
+EXPECTED IMPROVEMENT
+================================================================================
+
+BEFORE OPTIMIZATION:
+  First Load: ~1235ms average
+  Components:
+    - Service fetch: ~234ms (sequential)
+    - Job fetch:     ~198ms (waits for service)
+    - Processing:    ~803ms
+    Total:           ~1235ms
+
+AFTER OPTIMIZATION:
+  First Load: ~800-850ms average
+  Components:
+    - Service fetch: ~234ms }
+    - Job fetch:     ~198ms } Parallel (max = 234ms)
+    - Processing:    ~566ms
+    Total:           ~800ms
+
+IMPROVEMENT: ~35-40% reduction (435ms saved)
+
+================================================================================
+REPORT TEMPLATE
+================================================================================
+
+Copy and fill this out:
+
+PHASE 1 OPTIMIZATION TEST RESULTS
+Date: __________
+Tester: __________
+Device: __________
+
+Initial Load Test:
+  Run 1: _____ ms
+  Run 2: _____ ms
+  Run 3: _____ ms
+  Average: _____ ms
+  P95: _____ ms
+
+Parallel Fetch Verification:
+  Service duration: _____ ms
+  Job duration: _____ ms
+  Parallel duration: _____ ms
+  ✓ Parallel? [ ] YES [ ] NO
+
+Functional Tests:
+  ✓ Home loads: [ ] PASS [ ] FAIL
+  ✓ Filters work: [ ] PASS [ ] FAIL
+  ✓ Search works: [ ] PASS [ ] FAIL
+  ✓ Cache works: [ ] PASS [ ] FAIL
+
+Improvement:
+  Baseline: 1235ms
+  New: _____ ms
+  Reduction: _____ ms (_____ %)
+
+Status: [ ] SUCCESS (<800ms) [ ] NEEDS WORK (>800ms)
+
+Notes:
+_____________________________________________
+_____________________________________________
+_____________________________________________
+
+================================================================================
