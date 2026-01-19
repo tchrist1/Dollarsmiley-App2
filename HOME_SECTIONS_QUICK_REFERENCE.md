@@ -13,10 +13,13 @@
 | **Header Sections** | 5 | Title, Search, Filters Bar, Toggle, Summary |
 | **Search Features** | 3 | Text, Voice, Image search |
 | **View Modes** | 3 | List, Grid, Map |
-| **Carousels** | 4 | Admin, Trending, Popular, Recommended |
+| **Main Content** | 5 | Feed Structure, Cards, Rendering, Pagination |
+| **Map View** | 4 | Component, Markers, Overlays, Interactions |
 | **Filter Sections** | 8 | Type, Categories, Location, Distance, Price, Rating, Sort, Verified |
-| **Empty States** | 5 | Loading, No Results, First Visit, Loading More, End |
-| **Total** | **29** | All major sections |
+| **Empty States** | 4 | Loading, No Results, First Visit, Loading More |
+| **Data Flow** | 3 | Hooks, State, Cache |
+| **Performance** | 6 | Optimizations across 3 weeks |
+| **Total** | **45** | All detailed sections |
 
 ---
 
@@ -136,37 +139,6 @@ useMapData()           // Location & permissions
 | **No Results** | Search/filters active, no matches | "Reset Search" button |
 | **Loading More** | Pagination in progress | Show footer spinner |
 | **End Reached** | No more results | "You've reached the end" |
-
----
-
-## 🎠 Carousels
-
-### Trigger Conditions
-- No active search query
-- No active filters
-- 2+ seconds after mount (lazy load)
-
-### Carousel Order
-1. **Admin Banner** - Top
-2. **Recommended** - After banner
-3. **6 Listings** - First block
-4. **Trending** - After first block
-5. **6 Listings** - Second block
-6. **Popular** - After second block
-7. **Remaining Listings** - Rest
-
-### Card Format
-```
-┌──────────────┐
-│ [👤] Name    │
-│ Title        │
-│ 📍 Location  │
-│ $50  ⭐ 4.9  │
-└──────────────┘
-```
-- **Width:** 160px
-- **Scroll:** Horizontal
-- **Items:** 5-10 per carousel
 
 ---
 

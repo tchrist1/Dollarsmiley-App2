@@ -11,13 +11,12 @@
 1. [Header Section](#1-header-section)
 2. [Search & Discovery](#2-search--discovery)
 3. [View Modes](#3-view-modes)
-4. [Carousels & Recommendations](#4-carousels--recommendations)
-5. [Main Content Listings](#5-main-content-listings)
-6. [Map View](#6-map-view)
-7. [Empty States](#7-empty-states)
-8. [Filter Modal](#8-filter-modal)
-9. [Data Flow](#9-data-flow)
-10. [Performance Optimizations](#10-performance-optimizations)
+4. [Main Content Listings](#4-main-content-listings)
+5. [Map View](#5-map-view)
+6. [Empty States](#6-empty-states)
+7. [Filter Modal](#7-filter-modal)
+8. [Data Flow](#8-data-flow)
+9. [Performance Optimizations](#9-performance-optimizations)
 
 ---
 
@@ -540,246 +539,9 @@ Shows provider locations with aggregated data
 
 ---
 
-## 4. Carousels & Recommendations
+## 4. Main Content Listings
 
-### 4.1 Carousel Architecture
-**Purpose:** Showcase curated content in horizontal scrollable sections
-
-**Lazy Loading Strategy (Phase 1):**
-```typescript
-// Enable carousels 2 seconds after mount
-useEffect(() => {
-  const carouselTimer = setTimeout(() => {
-    setShowCarousels(true);
-  }, 2000);
-  return () => clearTimeout(carouselTimer);
-}, []);
-```
-
-**Performance Impact:**
-- Initial load: ~500ms faster
-- Prevents blocking main listings
-- Non-critical content loads later
-
-**Display Logic:**
-```typescript
-// Only show carousels when:
-// 1. No active search query
-// 2. No active filters
-// 3. Carousels loaded (after 2s)
-if (!searchQuery && activeFilterCount === 0 && showCarousels) {
-  // Show carousels
-}
-```
-
----
-
-### 4.2 Admin Banner
-**Location:** Lines 1214-1216, 1239-1242
-**Component:** `AdminBanner`
-
-**Purpose:** Display admin announcements and promotions
-
-```typescript
-{item.type === 'banner' && (
-  showCarousels ? <AdminBanner autoRotate={true} interval={4500} /> : null
-)}
-```
-
-**Features:**
-- Auto-rotates every 4.5 seconds
-- Controlled by Admin panel
-- Can be dismissed
-- Tracks view metrics
-
-**Visibility:**
-- Only in feed (not during search/filter)
-- Positioned after trending carousel
-
----
-
-### 4.3 Trending This Week
-**Location:** Lines 571-578, 1072-1077
-**Data Source:** `useCarousels` hook → `trendingListings`
-
-**Purpose:** Show listings with high recent engagement
-
-```typescript
-{trendingListings.length > 0 && renderCarouselSection(
-  'Trending This Week',
-  <TrendingUp size={20} color={colors.primary} />,
-  trendingListings,
-  'trending'
-)}
-```
-
-**Trending Algorithm:**
-- Recent views (weight: 30%)
-- Recent bookings (weight: 40%)
-- Recent favorites (weight: 20%)
-- Growth rate (weight: 10%)
-
-**Data Source:** `supabase.rpc('get_trending_items')`
-
-**Card Details:**
-- Horizontal scroll
-- 160px wide cards
-- Shows: avatar, name, title, location, price, rating
-- Max 10 items
-
----
-
-### 4.4 Popular Services
-**Location:** Lines 590-598, 1078-1083
-**Data Source:** `useCarousels` hook → `popularListings`
-
-**Purpose:** Show all-time popular services
-
-```typescript
-{popularListings.length > 0 && renderCarouselSection(
-  'Popular Services',
-  <Star size={20} color={colors.primary} />,
-  popularListings,
-  'popular'
-)}
-```
-
-**Popularity Metrics:**
-- Total bookings (weight: 40%)
-- Average rating (weight: 30%)
-- Total reviews (weight: 20%)
-- Completion rate (weight: 10%)
-
-**Data Source:** `supabase.rpc('get_popular_items')`
-
-**Card Details:**
-- Same as Trending carousel
-- Different icon (Star)
-- Different title
-
----
-
-### 4.5 Recommended for You
-**Location:** Lines 609-617, 1066-1071
-**Data Source:** `useCarousels` hook → `recommendedListings`
-
-**Purpose:** Personalized recommendations based on user behavior
-
-```typescript
-{recommendedListings.length > 0 && renderCarouselSection(
-  'Recommended for You',
-  <Sparkles size={20} color={colors.primary} />,
-  recommendedListings,
-  'recommended'
-)}
-```
-
-**Recommendation Engine:**
-Based on:
-1. User's viewed listings
-2. User's bookings
-3. User's saved searches
-4. User's location
-5. User's interaction history
-
-**Data Source:** `lib/recommendation-engine.ts`
-
-**Personalization:**
-- Only shown when user logged in
-- Requires sufficient user history
-- Updates based on recent behavior
-
-**Card Details:**
-- Same format as other carousels
-- Sparkles icon for visual distinction
-- Highest position in feed
-
----
-
-### 4.6 Featured Listings
-**Location:** Lines 1423-1429
-**Component:** `FeaturedListingsSection`
-
-**Purpose:** Showcase premium/sponsored listings
-
-```typescript
-<FeaturedListingsSection
-  variant="hero"
-  title="Featured Services"
-  showViewAll={true}
-  limit={3}
-/>
-```
-
-**Display Conditions:**
-- Only when no listings from search/filter
-- Before recommendations
-- Hero variant (large cards)
-
-**Features:**
-- Paid placement (providers pay to feature)
-- Larger card format
-- "Featured" badge
-- Limited to 3 items in hero mode
-
-**Data Source:** `components/FeaturedListingsSection.tsx`
-
----
-
-### 4.7 Carousel Card Format
-**Rendering:** Lines 977-1059
-**Function:** `renderCarouselSection()`
-
-**Standard Card Structure:**
-```
-┌──────────────────────┐
-│ [Avatar] Name [BADGE]│
-│                      │
-│ Service Title        │
-│ (2 lines max)        │
-│                      │
-│ 📍 Location          │
-│                      │
-│ $50/hr        ⭐ 4.9 │
-└──────────────────────┘
-```
-
-**Card Elements:**
-1. **Provider Info:** Avatar + Name + Type Badge
-2. **Title:** Service/Job title (2 lines)
-3. **Location:** City or "Remote"
-4. **Footer:** Price on left, Rating on right
-
-**Type Badges:**
-- 🟢 "SERVICE" - Standard services
-- 🔵 "JOB" - Posted jobs
-- 🟣 "CUSTOM" - Custom services
-
-**Performance:**
-```typescript
-<FlatList
-  horizontal
-  data={data}
-  initialNumToRender={5}
-  maxToRenderPerBatch={3}
-  windowSize={5}
-  removeClippedSubviews={true}
-  keyExtractor={carouselKeyExtractor}
-  showsHorizontalScrollIndicator={false}
-/>
-```
-
-**Optimizations:**
-- Virtual scrolling
-- Windowed rendering
-- Memoized key extractor
-- Remove clipped subviews
-
----
-
-## 5. Main Content Listings
-
-### 5.1 Feed Data Structure
+### 4.1 Feed Data Structure
 **Location:** Lines 550-641
 **Memoization:** `feedData` computed via `useMemo`
 
@@ -837,7 +599,7 @@ return [
 
 ---
 
-### 5.2 ListingCard Component
+### 4.2 ListingCard Component
 **Location:** Lines 49-129
 **Type:** Memoized functional component
 
@@ -905,7 +667,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
 
 ---
 
-### 5.3 GridCard Component
+### 4.3 GridCard Component
 **Location:** Lines 131-241
 **Type:** Memoized functional component
 
@@ -970,7 +732,7 @@ gridItemWrapper: {
 
 ---
 
-### 5.4 Feed Rendering
+### 4.4 Feed Rendering
 **Location:** Lines 1212-1261
 **Functions:** `renderFeedItemList`, `renderFeedItemGrid`
 
@@ -1012,7 +774,7 @@ const renderFeedItemList = ({ item }) => {
 
 ---
 
-### 5.5 Pagination
+### 4.5 Pagination
 **Location:** Lines 698-702
 **Handler:** `handleLoadMore()`
 
@@ -1054,9 +816,9 @@ ListFooterComponent={
 
 ---
 
-## 6. Map View
+## 5. Map View
 
-### 6.1 Map Component
+### 5.1 Map Component
 **Location:** Lines 1525-1576
 **Component:** `InteractiveMapViewPlatform`
 
@@ -1078,7 +840,7 @@ mapRef.current?.toggleLayers();
 
 ---
 
-### 6.2 Map Markers
+### 5.2 Map Markers
 **Location:** Lines 791-873
 **Memoization:** `getMapMarkers` computed via `useMemo`
 
@@ -1142,7 +904,7 @@ listings.forEach((listing) => {
 
 ---
 
-### 6.3 Map Overlays
+### 5.3 Map Overlays
 **Location:** Lines 1553-1574
 
 **Components:**
@@ -1196,7 +958,7 @@ listings.forEach((listing) => {
 
 ---
 
-### 6.4 Map Interactions
+### 5.4 Map Interactions
 
 **Marker Press:**
 ```typescript
@@ -1230,9 +992,9 @@ const handleMapZoomChange = useCallback((zoom: number) => {
 
 ---
 
-## 7. Empty States
+## 6. Empty States
 
-### 7.1 Initial Loading
+### 6.1 Initial Loading
 **Location:** Lines 1415-1419
 
 ```typescript
@@ -1250,7 +1012,7 @@ const handleMapZoomChange = useCallback((zoom: number) => {
 
 ---
 
-### 7.2 No Listings (First Visit)
+### 6.2 No Listings (First Visit)
 **Location:** Lines 1420-1450
 
 ```typescript
@@ -1284,7 +1046,7 @@ const handleMapZoomChange = useCallback((zoom: number) => {
 
 ---
 
-### 7.3 No Search Results
+### 6.3 No Search Results
 **Location:** Lines 1577-1595
 
 ```typescript
@@ -1312,7 +1074,7 @@ const handleMapZoomChange = useCallback((zoom: number) => {
 
 ---
 
-### 7.4 Loading More (Pagination)
+### 6.4 Loading More (Pagination)
 **Location:** Lines 1474-1485, 1510-1521
 
 ```typescript
@@ -1337,9 +1099,9 @@ ListFooterComponent={
 
 ---
 
-## 8. Filter Modal
+## 7. Filter Modal
 
-### 8.1 FilterModal Component
+### 7.1 FilterModal Component
 **Location:** Lines 1598-1605
 **Component:** `FilterModalAnimated` (Week 3 optimized version)
 
@@ -1363,7 +1125,7 @@ ListFooterComponent={
 
 ---
 
-### 8.2 Filter Options
+### 7.2 Filter Options
 **Interface:** `FilterOptions` from `FilterModal.tsx`
 
 ```typescript
@@ -1399,7 +1161,7 @@ const defaultFilters: FilterOptions = {
 
 ---
 
-### 8.3 Filter Sections
+### 7.3 Filter Sections
 **Component:** `FilterSections.tsx` (8 memoized sections)
 
 1. **ListingTypeSection**
@@ -1441,7 +1203,7 @@ Each section only re-renders when its specific props change
 
 ---
 
-### 8.4 Filter Application
+### 7.4 Filter Application
 **Handler:** `handleApplyFilters(newFilters)`
 **Location:** Lines 710-724
 
@@ -1477,9 +1239,9 @@ Re-render feed
 
 ---
 
-## 9. Data Flow
+## 8. Data Flow
 
-### 9.1 Data Layer Hooks (Phase 2)
+### 8.1 Data Layer Hooks (Phase 2)
 
 **Architecture:**
 ```
@@ -1612,7 +1374,7 @@ const {
 
 ---
 
-### 9.2 State Management
+### 8.2 State Management
 
 **Local State:**
 ```typescript
@@ -1642,7 +1404,7 @@ const getMapMarkers = useMemo(() => { /* build markers */ }, [listings, mapMode]
 
 ---
 
-### 9.3 Cache Strategy
+### 8.3 Cache Strategy
 
 **Session Cache (5 minutes):**
 - Categories list
@@ -1677,9 +1439,9 @@ useEffect(() => {
 
 ---
 
-## 10. Performance Optimizations
+## 9. Performance Optimizations
 
-### 10.1 Week 1: Quick Wins (40-50% improvement)
+### 9.1 Week 1: Quick Wins (40-50% improvement)
 
 **Optimizations:**
 1. **Memoized ActiveFiltersBar**
@@ -1704,7 +1466,7 @@ useEffect(() => {
 
 ---
 
-### 10.2 Week 2: Core Refactor (additional 40%)
+### 9.2 Week 2: Core Refactor (additional 40%)
 
 **Optimizations:**
 1. **Filter Reducer Pattern**
@@ -1729,7 +1491,7 @@ useEffect(() => {
 
 ---
 
-### 10.3 Week 3: Polish (maintains 90%)
+### 9.3 Week 3: Polish (maintains 90%)
 
 **Additions:**
 1. **Performance Monitoring**
@@ -1754,7 +1516,7 @@ useEffect(() => {
 
 ---
 
-### 10.4 Priority Fixes
+### 9.4 Priority Fixes
 
 **Priority 1: Filter Modal Opening**
 - Memoized `handleOpenFilters`
@@ -1781,7 +1543,7 @@ useEffect(() => {
 
 ---
 
-### 10.5 Virtual Scrolling
+### 9.5 Virtual Scrolling
 
 **FlatList Optimizations:**
 ```typescript
@@ -1810,7 +1572,7 @@ useEffect(() => {
 
 ---
 
-### 10.6 Memoization Strategy
+### 9.6 Memoization Strategy
 
 **Component Level:**
 ```typescript
@@ -1862,18 +1624,45 @@ const handleCardPress = useCallback((id, isJob) => {
 2. Grid View
 3. Map View
 
-**Carousels:** 4 sections
-1. Admin Banner
-2. Trending This Week
-3. Popular Services
-4. Recommended for You
+**Main Content Listings:** 5 sections
+1. Feed Data Structure
+2. ListingCard Component
+3. GridCard Component
+4. Feed Rendering
+5. Pagination
 
-**Additional:** 3 sections
-1. Featured Listings
-2. Empty States (3 types)
-3. Filter Modal (8 subsections)
+**Map View:** 4 sections
+1. Map Component
+2. Map Markers
+3. Map Overlays
+4. Map Interactions
 
-**Total:** 21 major sections + 8 filter subsections = **29 total sections**
+**Empty States:** 4 sections
+1. Initial Loading
+2. No Listings (First Visit)
+3. No Search Results
+4. Loading More (Pagination)
+
+**Filter Modal:** 4 sections + 8 filter types
+1. FilterModal Component
+2. Filter Options
+3. Filter Sections
+4. Filter Application
+
+**Data Flow:** 3 sections
+1. Data Layer Hooks
+2. State Management
+3. Cache Strategy
+
+**Performance Optimizations:** 6 sections
+1. Week 1 Quick Wins
+2. Week 2 Core Refactor
+3. Week 3 Polish
+4. Priority Fixes
+5. Virtual Scrolling
+6. Memoization Strategy
+
+**Total:** 37 subsections + 8 filter types = **45 detailed sections**
 
 ---
 
