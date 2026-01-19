@@ -26,6 +26,7 @@ import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // ============================================================================
 // PERFORMANCE OPTIMIZATION: Memoized chip components to prevent re-renders
@@ -96,6 +97,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
   // DRAFT FILTER STATE - Isolated from parent, only committed on Apply
   const [draftFilters, setDraftFilters] = useState<FilterOptions>(currentFilters);
+
+  // Local state for price inputs with debouncing
+  const [localPriceMin, setLocalPriceMin] = useState(currentFilters.priceMin);
+  const [localPriceMax, setLocalPriceMax] = useState(currentFilters.priceMax);
+  const debouncedPriceMin = useDebounce(localPriceMin, 300);
+  const debouncedPriceMax = useDebounce(localPriceMax, 300);
 
   // UI-only state
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -169,6 +176,8 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
       // Set initial state immediately (synchronous for responsiveness)
       setDraftFilters(currentFilters);
+      setLocalPriceMin(currentFilters.priceMin);
+      setLocalPriceMax(currentFilters.priceMax);
       setSelectedPreset(null);
       setUseCurrentLocation(false);
 
@@ -230,12 +239,22 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     }
   }, [draftFilters, onApply, onClose]);
 
-  // Price handlers update draft state only
-  const handleManualPriceChange = useCallback((type: 'min' | 'max', value: string) => {
+  // Update draftFilters when debounced price values change
+  useEffect(() => {
     setDraftFilters(prev => ({
       ...prev,
-      [type === 'min' ? 'priceMin' : 'priceMax']: value,
+      priceMin: debouncedPriceMin,
+      priceMax: debouncedPriceMax,
     }));
+  }, [debouncedPriceMin, debouncedPriceMax]);
+
+  // Price handlers update local state only (debounced updates to draftFilters)
+  const handleManualPriceChange = useCallback((type: 'min' | 'max', value: string) => {
+    if (type === 'min') {
+      setLocalPriceMin(value);
+    } else {
+      setLocalPriceMax(value);
+    }
     setSelectedPreset(null);
   }, []);
 
@@ -244,6 +263,8 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       logPerfEvent('CLEAR_ALL_TAP');
     }
     setDraftFilters(defaultFilters);
+    setLocalPriceMin('');
+    setLocalPriceMax('');
     setUseCurrentLocation(false);
     setSelectedPreset(null);
     onApply(defaultFilters);
@@ -254,10 +275,14 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
+    const minStr = min.toString();
+    const maxStr = max.toString();
+    setLocalPriceMin(minStr);
+    setLocalPriceMax(maxStr);
     setDraftFilters(prev => ({
       ...prev,
-      priceMin: min.toString(),
-      priceMax: max.toString(),
+      priceMin: minStr,
+      priceMax: maxStr,
     }));
     setSelectedPreset(label);
   }, []);
@@ -558,7 +583,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                         style={styles.priceField}
                         placeholder="$0"
                         placeholderTextColor={colors.textLight}
-                        value={draftFilters.priceMin}
+                        value={localPriceMin}
                         onChangeText={(value) => handleManualPriceChange('min', value)}
                         keyboardType="numeric"
                       />
@@ -570,7 +595,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                         style={styles.priceField}
                         placeholder="Any"
                         placeholderTextColor={colors.textLight}
-                        value={draftFilters.priceMax}
+                        value={localPriceMax}
                         onChangeText={(value) => handleManualPriceChange('max', value)}
                         keyboardType="numeric"
                       />

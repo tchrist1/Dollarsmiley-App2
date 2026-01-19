@@ -1,86 +1,87 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { X, DollarSign, Calendar, MapPin, Tag } from 'lucide-react-native';
+import { X, DollarSign, MapPin, Tag, Star, Award, Filter } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import type { JobFilters } from './FilterModal';
+import type { FilterOptions } from './FilterModal';
 
 interface ActiveFiltersBarProps {
-  filters: JobFilters;
-  onRemoveFilter: (filterType: keyof JobFilters, value?: any) => void;
+  filters: FilterOptions;
+  onRemoveFilter: (filterType: keyof FilterOptions, value?: any) => void;
   onClearAll: () => void;
 }
 
 export function ActiveFiltersBar({ filters, onRemoveFilter, onClearAll }: ActiveFiltersBarProps) {
   const activeFilters: Array<{
-    type: keyof JobFilters;
+    type: keyof FilterOptions;
     label: string;
     value?: any;
     icon: any;
   }> = [];
 
+  if (filters.listingType && filters.listingType !== 'all') {
+    const typeLabels = {
+      Job: 'Jobs',
+      Service: 'Services',
+      CustomService: 'Custom Services',
+    };
+    activeFilters.push({
+      type: 'listingType',
+      label: typeLabels[filters.listingType] || filters.listingType,
+      icon: Filter,
+    });
+  }
+
   if (filters.categories && filters.categories.length > 0) {
-    filters.categories.forEach((category) => {
+    filters.categories.forEach((categoryId) => {
       activeFilters.push({
         type: 'categories',
-        label: category,
-        value: category,
+        label: categoryId.substring(0, 8),
+        value: categoryId,
         icon: Tag,
       });
     });
   }
 
-  if (filters.minPrice || filters.maxPrice) {
+  if (filters.priceMin || filters.priceMax) {
     let priceLabel = '';
-    if (filters.minPrice && filters.maxPrice) {
-      priceLabel = `$${filters.minPrice}-$${filters.maxPrice}`;
-    } else if (filters.minPrice) {
-      priceLabel = `$${filters.minPrice}+`;
-    } else if (filters.maxPrice) {
-      priceLabel = `Under $${filters.maxPrice}`;
+    if (filters.priceMin && filters.priceMax) {
+      priceLabel = `$${filters.priceMin}-$${filters.priceMax}`;
+    } else if (filters.priceMin) {
+      priceLabel = `$${filters.priceMin}+`;
+    } else if (filters.priceMax) {
+      priceLabel = `Under $${filters.priceMax}`;
     }
     activeFilters.push({
-      type: 'minPrice',
+      type: 'priceMin',
       label: priceLabel,
       icon: DollarSign,
     });
   }
 
-  if (filters.startDate || filters.endDate) {
-    let dateLabel = '';
-    if (filters.startDate && filters.endDate) {
-      dateLabel = `${filters.startDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })} - ${filters.endDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })}`;
-    } else if (filters.startDate) {
-      dateLabel = `From ${filters.startDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })}`;
-    } else if (filters.endDate) {
-      dateLabel = `Until ${filters.endDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      })}`;
-    }
+  if (filters.minRating > 0) {
     activeFilters.push({
-      type: 'startDate',
-      label: dateLabel,
-      icon: Calendar,
+      type: 'minRating',
+      label: `${filters.minRating}+ Stars`,
+      icon: Star,
     });
   }
 
   if (filters.location) {
-    const locationLabel = filters.radius
-      ? `${filters.location} (${filters.radius} mi)`
+    const locationLabel = filters.distance
+      ? `${filters.location} (${filters.distance} mi)`
       : filters.location;
     activeFilters.push({
       type: 'location',
       label: locationLabel,
       icon: MapPin,
+    });
+  }
+
+  if (filters.verified) {
+    activeFilters.push({
+      type: 'verified',
+      label: 'Verified Only',
+      icon: Award,
     });
   }
 

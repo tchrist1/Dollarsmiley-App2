@@ -16,14 +16,13 @@ export function useHomeFilters(options: UseHomeFiltersOptions = {}) {
     let count = 0;
 
     if (filters.listingType !== 'all') count++;
-    if (filters.categoryId) count++;
-    if (filters.priceMin !== undefined || filters.priceMax !== undefined) count++;
-    if (filters.distanceRadius !== 50) count++;
-    if (filters.rating !== undefined) count++;
+    if (filters.categories.length > 0) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.distance !== undefined && filters.distance !== 25) count++;
+    if (filters.minRating > 0) count++;
     if (filters.sortBy !== 'relevance') count++;
-    if (filters.availableNow) count++;
-    if (filters.hasReviews) count++;
-    if (filters.verifiedOnly) count++;
+    if (filters.verified) count++;
+    if (filters.location) count++;
 
     return count;
   }, [filters]);

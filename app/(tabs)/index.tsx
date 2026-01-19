@@ -8,6 +8,8 @@ import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 import { FilterModal, FilterOptions, defaultFilters } from '@/components/FilterModal';
+import { ActiveFiltersBar } from '@/components/ActiveFiltersBar';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
 import { RecommendationsCarousel } from '@/components/RecommendationsCarousel';
@@ -714,6 +716,54 @@ export default function HomeScreen() {
     setShowFilters(false);
   }, []);
 
+  const handleRemoveFilter = useCallback((filterType: keyof FilterOptions, value?: any) => {
+    setFilters((prev) => {
+      const newFilters = { ...prev };
+
+      switch (filterType) {
+        case 'categories':
+          if (value) {
+            newFilters.categories = prev.categories.filter((id) => id !== value);
+          } else {
+            newFilters.categories = [];
+          }
+          break;
+        case 'priceMin':
+        case 'priceMax':
+          newFilters.priceMin = '';
+          newFilters.priceMax = '';
+          break;
+        case 'minRating':
+          newFilters.minRating = 0;
+          break;
+        case 'location':
+          newFilters.location = '';
+          newFilters.distance = 25;
+          break;
+        case 'verified':
+          newFilters.verified = false;
+          break;
+        case 'listingType':
+          newFilters.listingType = 'all';
+          break;
+        case 'sortBy':
+          newFilters.sortBy = 'relevance';
+          break;
+        default:
+          break;
+      }
+
+      return newFilters;
+    });
+  }, []);
+
+  const handleClearAllFilters = useCallback(() => {
+    setFilters({
+      ...defaultFilters,
+      listingType: filters.listingType,
+    });
+  }, [filters.listingType]);
+
   // ============================================================================
   // PHASE 1: OPTIMIZED MAP MARKERS - Memoized with reduced dependencies
   // ============================================================================
@@ -1232,6 +1282,12 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <ActiveFiltersBar
+          filters={filters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
         <View style={styles.filterRowContainer}>
           <View style={styles.filterRow}>
             <View style={styles.viewToggle}>
@@ -1520,12 +1576,14 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <FilterModal
-        visible={showFilters}
-        onClose={handleCloseFilters}
-        onApply={handleApplyFilters}
-        currentFilters={filters}
-      />
+      <ErrorBoundary>
+        <FilterModal
+          visible={showFilters}
+          onClose={handleCloseFilters}
+          onApply={handleApplyFilters}
+          currentFilters={filters}
+        />
+      </ErrorBoundary>
     </View>
   );
 }
