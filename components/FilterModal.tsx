@@ -14,7 +14,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Award } from 'lucide-react-native';
+import { X, Award, Navigation } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database';
@@ -516,6 +516,28 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                       }));
                     }}
                   />
+                  <TouchableOpacity
+                    style={[styles.locationToggle, useCurrentLocation && styles.locationToggleActive]}
+                    onPress={handleUseLocationToggle}
+                    activeOpacity={0.7}
+                  >
+                    <Navigation
+                      size={18}
+                      color={useCurrentLocation ? colors.white : colors.primary}
+                      fill={useCurrentLocation ? colors.white : 'none'}
+                    />
+                    <Text
+                      style={[
+                        styles.locationToggleText,
+                        useCurrentLocation && styles.locationToggleTextActive,
+                      ]}
+                    >
+                      Use Current Location
+                    </Text>
+                  </TouchableOpacity>
+                  {fetchingLocation && (
+                    <Text style={styles.locationFetchingText}>Getting your location...</Text>
+                  )}
                 </View>
 
                 <View style={styles.section}>
@@ -523,12 +545,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                   <DistanceRadiusSelector
                     distance={draftFilters.distance || 25}
                     onDistanceChange={(distance) => setDraftFilters(prev => ({ ...prev, distance }))}
-                    useCurrentLocation={useCurrentLocation}
-                    onUseLocationToggle={handleUseLocationToggle}
                   />
-                  {fetchingLocation && (
-                    <Text style={styles.locationFetchingText}>Getting your location...</Text>
-                  )}
                 </View>
 
                 <View style={styles.section}>
@@ -938,6 +955,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.sm,
     fontWeight: fontWeight.medium,
+  },
+  locationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    marginTop: spacing.md,
+  },
+  locationToggleActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  locationToggleText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.primary,
+  },
+  locationToggleTextActive: {
+    color: colors.white,
   },
   loadingSection: {
     paddingVertical: spacing.xl,
