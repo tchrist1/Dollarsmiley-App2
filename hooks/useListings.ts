@@ -62,10 +62,10 @@ function normalizeServiceListing(service: any): MarketplaceListing {
   return {
     id: service.id,
     marketplace_type: service.listing_type || 'Service',
-    title: service.title || 'Untitled',
-    description: service.description || '',
+    title: String(service.title || 'Untitled'),
+    description: String(service.description || ''),
     category_id: service.category_id,
-    location: service.location || '',
+    location: String(service.location || ''),
     latitude,
     longitude,
     photos,
@@ -76,10 +76,10 @@ function normalizeServiceListing(service: any): MarketplaceListing {
     provider_id: service.provider_id,
     status: service.status,
     listing_type: service.listing_type,
-    provider: service.profiles,
-    category: service.categories,
+    provider: service.profiles || null,
+    category: service.categories || null,
     distance_miles: service.distance_miles,
-    view_count: service.view_count,
+    view_count: service.view_count || 0,
   };
 }
 
@@ -104,10 +104,10 @@ function normalizeJob(job: any): MarketplaceListing {
   return {
     id: job.id,
     marketplace_type: 'Job',
-    title: job.title || 'Untitled Job',
-    description: job.description || '',
+    title: String(job.title || 'Untitled Job'),
+    description: String(job.description || ''),
     category_id: job.category_id,
-    location: job.location || '',
+    location: String(job.location || ''),
     latitude,
     longitude,
     photos,
@@ -122,8 +122,8 @@ function normalizeJob(job: any): MarketplaceListing {
     execution_date_start: job.execution_date_start,
     execution_date_end: job.execution_date_end,
     preferred_time: job.preferred_time,
-    customer: job.profiles,
-    category: job.categories,
+    customer: job.profiles || null,
+    category: job.categories || null,
     distance_miles: job.distance_miles,
     view_count: 0,
   };
