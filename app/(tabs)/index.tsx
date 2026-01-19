@@ -514,15 +514,9 @@ export default function HomeScreen() {
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
     if (filters.distance && filters.distance !== 25) count++;
-    if (filters.availability && filters.availability !== 'any') count++;
     if (filters.sortBy && filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;
-    if (filters.instant_booking) count++;
     if (filters.listingType && filters.listingType !== 'all') count++;
-    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
-    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
-    if (filters.hasVAS) count++;
-    if (filters.tags && filters.tags.length > 0) count++;
     return count;
   }, [filters]);
 

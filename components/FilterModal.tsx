@@ -14,7 +14,7 @@ import {
   InteractionManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Star, MapPin, TrendingUp, Clock, Award, DollarSign } from 'lucide-react-native';
+import { X, Award } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database';
@@ -49,47 +49,7 @@ const CategoryChip = memo(({ category, isSelected, onPress }: CategoryChipProps)
   </TouchableOpacity>
 ));
 
-interface TagChipProps {
-  tag: string;
-  isSelected: boolean;
-  onPress: (tag: string) => void;
-}
-
-const TagChip = memo(({ tag, isSelected, onPress }: TagChipProps) => (
-  <TouchableOpacity
-    style={[styles.tagChip, isSelected && styles.tagChipSelected]}
-    onPress={() => onPress(tag)}
-    activeOpacity={0.7}
-  >
-    <Text style={[styles.tagChipText, isSelected && styles.tagChipTextSelected]}>
-      #{tag}
-    </Text>
-  </TouchableOpacity>
-));
-
 const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
-const AVAILABILITY_OPTIONS = [
-  { value: 'any', label: 'Any Time' },
-  { value: 'today', label: 'Today' },
-  { value: 'this_week', label: 'This Week' },
-  { value: 'this_month', label: 'This Month' },
-] as const;
-const LISTING_TYPE_OPTIONS = [
-  { value: 'all', label: 'All Types' },
-  { value: 'Service', label: 'Standard Service' },
-  { value: 'CustomService', label: 'Custom Service' },
-] as const;
-const FULFILLMENT_OPTIONS = ['Pickup', 'DropOff', 'Shipping'] as const;
-const SHIPPING_MODE_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'Platform', label: 'Platform Shipping' },
-  { value: 'External', label: 'External Shipping' },
-] as const;
-const AVAILABLE_TAGS = [
-  'Wedding', 'QuickFix', 'SameDay', 'Handyman', 'Catering',
-  'Braids', 'Moving', 'Cleaning', 'Emergency', 'Licensed',
-  'Insured', 'Background Checked', 'Top Rated', 'Fast Response',
-] as const;
 const PRICE_PRESETS = [
   { label: 'Under $100', min: 0, max: 100 },
   { label: '$100 – $500', min: 100, max: 500 },
@@ -106,15 +66,9 @@ export interface FilterOptions {
   priceMax: string;
   minRating: number;
   distance?: number;
-  availability?: 'any' | 'today' | 'this_week' | 'this_month';
   sortBy?: 'relevance' | 'price_low' | 'price_high' | 'rating' | 'popular' | 'recent' | 'distance';
   verified?: boolean;
-  instant_booking?: boolean;
   listingType?: 'all' | 'Job' | 'Service' | 'CustomService';
-  fulfillmentTypes?: string[];
-  shippingMode?: 'all' | 'Platform' | 'External';
-  hasVAS?: boolean;
-  tags?: string[];
 }
 
 export const defaultFilters: FilterOptions = {
@@ -124,15 +78,9 @@ export const defaultFilters: FilterOptions = {
   priceMax: '',
   minRating: 0,
   distance: 25,
-  availability: 'any',
   sortBy: 'relevance',
   verified: false,
-  instant_booking: false,
   listingType: 'all',
-  fulfillmentTypes: [],
-  shippingMode: 'all',
-  hasVAS: false,
-  tags: [],
 };
 
 interface FilterModalProps {
@@ -273,24 +221,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     }));
   }, []);
 
-  const toggleFulfillmentType = useCallback((type: string) => {
-    setDraftFilters(prev => ({
-      ...prev,
-      fulfillmentTypes: prev.fulfillmentTypes?.includes(type)
-        ? prev.fulfillmentTypes.filter((t) => t !== type)
-        : [...(prev.fulfillmentTypes || []), type]
-    }));
-  }, []);
-
-  const toggleTag = useCallback((tag: string) => {
-    setDraftFilters(prev => ({
-      ...prev,
-      tags: prev.tags?.includes(tag)
-        ? prev.tags.filter((t) => t !== tag)
-        : [...(prev.tags || []), tag]
-    }));
-  }, []);
-
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
     if (__DEV__) {
@@ -425,20 +355,8 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     );
   }, [draftFilters.categories, toggleCategory]);
 
-  const renderTagItem = useCallback(({ item }: { item: string }) => {
-    const isSelected = draftFilters.tags?.includes(item) || false;
-    return (
-      <TagChip
-        tag={item}
-        isSelected={isSelected}
-        onPress={toggleTag}
-      />
-    );
-  }, [draftFilters.tags, toggleTag]);
-
   // Key extractors for FlatList
   const categoryKeyExtractor = useCallback((item: Category) => item.id, []);
-  const tagKeyExtractor = useCallback((item: string) => item, []);
 
   // Memoize price preset chips
   const pricePresetChips = useMemo(() => {
@@ -463,29 +381,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     ));
   }, [selectedPreset, handlePresetClick]);
 
-  // Memoize fulfillment options
-  const fulfillmentChips = useMemo(() => {
-    return FULFILLMENT_OPTIONS.map((type) => (
-      <TouchableOpacity
-        key={type}
-        style={[
-          styles.fulfillmentChip,
-          draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipSelected,
-        ]}
-        onPress={() => toggleFulfillmentType(type)}
-      >
-        <Text
-          style={[
-            styles.fulfillmentChipText,
-            draftFilters.fulfillmentTypes?.includes(type) && styles.fulfillmentChipTextSelected,
-          ]}
-        >
-          {type}
-        </Text>
-      </TouchableOpacity>
-    ));
-  }, [draftFilters.fulfillmentTypes, toggleFulfillmentType]);
-
   // Memoize listing type chips (first section)
   const listingTypeChips = useMemo(() => {
     return LISTING_TYPES.map((type) => (
@@ -508,89 +403,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       </TouchableOpacity>
     ));
   }, [draftFilters.listingType]);
-
-  // Memoize availability chips
-  const availabilityChips = useMemo(() => {
-    return AVAILABILITY_OPTIONS.map((avail) => {
-      const isSelected = draftFilters.availability === avail.value;
-      return (
-        <TouchableOpacity
-          key={avail.value}
-          style={[
-            styles.availabilityChip,
-            isSelected && styles.availabilityChipSelected,
-          ]}
-          onPress={() => setDraftFilters(prev => ({ ...prev, availability: avail.value as any }))}
-          activeOpacity={0.7}
-        >
-          <Clock
-            size={16}
-            color={isSelected ? colors.white : colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.availabilityChipText,
-              isSelected && styles.availabilityChipTextSelected,
-            ]}
-          >
-            {avail.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
-  }, [draftFilters.availability]);
-
-  // Memoize service type chips
-  const serviceTypeChips = useMemo(() => {
-    return LISTING_TYPE_OPTIONS.map((type) => {
-      const isSelected = draftFilters.listingType === type.value;
-      return (
-        <TouchableOpacity
-          key={type.value}
-          style={[
-            styles.availabilityChip,
-            isSelected && styles.availabilityChipSelected,
-          ]}
-          onPress={() => setDraftFilters(prev => ({ ...prev, listingType: type.value as any }))}
-        >
-          <Text
-            style={[
-              styles.availabilityChipText,
-              isSelected && styles.availabilityChipTextSelected,
-            ]}
-          >
-            {type.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
-  }, [draftFilters.listingType]);
-
-  // Memoize shipping mode chips
-  const shippingModeChips = useMemo(() => {
-    return SHIPPING_MODE_OPTIONS.map((mode) => {
-      const isSelected = draftFilters.shippingMode === mode.value;
-      return (
-        <TouchableOpacity
-          key={mode.value}
-          style={[
-            styles.availabilityChip,
-            isSelected && styles.availabilityChipSelected,
-          ]}
-          onPress={() => setDraftFilters(prev => ({ ...prev, shippingMode: mode.value as any }))}
-        >
-          <Text
-            style={[
-              styles.availabilityChipText,
-              isSelected && styles.availabilityChipTextSelected,
-            ]}
-          >
-            {mode.label}
-          </Text>
-        </TouchableOpacity>
-      );
-    });
-  }, [draftFilters.shippingMode]);
 
   return (
     <Modal
@@ -785,96 +597,22 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
             )}
 
             {sectionsReady && (
-              <>
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Availability</Text>
-                  <View style={styles.availabilityContainer}>
-                    {availabilityChips}
+              <View style={styles.lastSection}>
+                <Text style={styles.sectionTitle}>Additional Filters</Text>
+                <TouchableOpacity
+                  style={styles.checkboxRow}
+                  onPress={() => setDraftFilters(prev => ({ ...prev, verified: !prev.verified }))}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, draftFilters.verified && styles.checkboxSelected]}>
+                    {draftFilters.verified && <Award size={16} color={colors.white} />}
                   </View>
-                </View>
-
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Listing Type</Text>
-                  <View style={styles.availabilityContainer}>
-                    {serviceTypeChips}
+                  <View style={styles.checkboxContent}>
+                    <Text style={styles.checkboxLabel}>Verified Providers Only</Text>
+                    <Text style={styles.checkboxSubtext}>Background checked and verified</Text>
                   </View>
-                </View>
-
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Fulfillment Options</Text>
-                  <View style={styles.fulfillmentContainer}>
-                    {fulfillmentChips}
-                  </View>
-                </View>
-
-                {draftFilters.fulfillmentTypes?.includes('Shipping') && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Shipping Mode</Text>
-                    <View style={styles.availabilityContainer}>
-                      {shippingModeChips}
-                    </View>
-                  </View>
-                )}
-
-                {/* Tags - Virtualized for performance */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Tags</Text>
-                  <FlatList
-                    data={Array.from(AVAILABLE_TAGS)}
-                    renderItem={renderTagItem}
-                    keyExtractor={tagKeyExtractor}
-                    numColumns={3}
-                    scrollEnabled={false}
-                    columnWrapperStyle={styles.tagsGrid}
-                    initialNumToRender={9}
-                    maxToRenderPerBatch={6}
-                    removeClippedSubviews={true}
-                  />
-                </View>
-
-                <View style={styles.lastSection}>
-                  <Text style={styles.sectionTitle}>Additional Filters</Text>
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setDraftFilters(prev => ({ ...prev, verified: !prev.verified }))}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.checkbox, draftFilters.verified && styles.checkboxSelected]}>
-                      {draftFilters.verified && <Award size={16} color={colors.white} />}
-                    </View>
-                    <View style={styles.checkboxContent}>
-                      <Text style={styles.checkboxLabel}>Verified Providers Only</Text>
-                      <Text style={styles.checkboxSubtext}>Background checked and verified</Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setDraftFilters(prev => ({ ...prev, instant_booking: !prev.instant_booking }))}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.checkbox, draftFilters.instant_booking && styles.checkboxSelected]}>
-                      {draftFilters.instant_booking && <Clock size={16} color={colors.white} />}
-                    </View>
-                    <View style={styles.checkboxContent}>
-                      <Text style={styles.checkboxLabel}>Instant Booking Available</Text>
-                      <Text style={styles.checkboxSubtext}>Book immediately without approval</Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setDraftFilters(prev => ({ ...prev, hasVAS: !prev.hasVAS }))}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.checkbox, draftFilters.hasVAS && styles.checkboxSelected]}>
-                      {draftFilters.hasVAS && <Star size={16} color={colors.white} />}
-                    </View>
-                    <View style={styles.checkboxContent}>
-                      <Text style={styles.checkboxLabel}>Value-Added Services Available</Text>
-                      <Text style={styles.checkboxSubtext}>Extra options and add-ons</Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              </>
+                </TouchableOpacity>
+              </View>
             )}
               </ScrollView>
 
@@ -1171,32 +909,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: fontWeight.medium,
   },
-  availabilityContainer: {
-    gap: spacing.sm,
-  },
-  availabilityChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  availabilityChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  availabilityChipText: {
-    fontSize: fontSize.sm,
-    color: colors.text,
-  },
-  availabilityChipTextSelected: {
-    color: colors.white,
-    fontWeight: fontWeight.medium,
-  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1230,56 +942,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  fulfillmentContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  fulfillmentChip: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  fulfillmentChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  fulfillmentChipText: {
-    fontSize: fontSize.sm,
-    color: colors.text,
-  },
-  fulfillmentChipTextSelected: {
-    color: colors.white,
-    fontWeight: fontWeight.medium,
-  },
-  tagsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  tagChip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  tagChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  tagChipText: {
-    fontSize: fontSize.sm,
-    color: colors.primary,
-    fontWeight: fontWeight.medium,
-  },
-  tagChipTextSelected: {
-    color: colors.white,
   },
   locationFetchingText: {
     fontSize: fontSize.sm,
