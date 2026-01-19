@@ -146,6 +146,7 @@ export function useListings({
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isMountedRef = useRef(true);
@@ -190,15 +191,20 @@ export function useListings({
           setListings(cachedData.slice(0, pageSize));
           setPage(1);
           setHasMore(cachedData.length > pageSize);
+          setInitialLoadComplete(true);
           if (__DEV__) console.log('[useListings] Cache hit - background refresh');
         }
       }
 
       if (reset) {
-        if (!isInitialLoad || !getCachedHomeListings(userId)) {
+        // Keep loading true until first successful fetch completes
+        if (!initialLoadComplete || !isInitialLoad || !getCachedHomeListings(userId)) {
           setLoading(true);
         }
-        setListings([]);
+        // Don't clear listings if we're showing cached data during background refresh
+        if (!getCachedHomeListings(userId)) {
+          setListings([]);
+        }
       } else {
         if (!hasMore || loadingMore) return;
         setLoadingMore(true);
@@ -401,6 +407,7 @@ export function useListings({
 
           if (isInitialLoad) {
             setCachedHomeListings(allResults, userId);
+            setInitialLoadComplete(true);
           }
         } else {
           setListings(prev => [...prev, ...paginatedResults]);
@@ -409,6 +416,11 @@ export function useListings({
         }
 
         setError(null);
+
+        // Mark initial load as complete on any successful fetch
+        if (!initialLoadComplete) {
+          setInitialLoadComplete(true);
+        }
       } catch (err: any) {
         // QUICK WIN 4: Ignore AbortError (request was cancelled intentionally)
         if (err.name === 'AbortError') {
@@ -429,7 +441,7 @@ export function useListings({
         }
       }
     },
-    [searchQuery, filters, userId, pageSize, page, hasMore, loadingMore]
+    [searchQuery, filters, userId, pageSize, page, hasMore, loadingMore, initialLoadComplete]
   );
 
   // Debounced effect with request cancellation
@@ -438,19 +450,22 @@ export function useListings({
       clearTimeout(searchTimeout.current);
     }
 
+    // Reduce debounce on initial load to show data faster
+    const effectiveDebounce = initialLoadComplete ? debounceMs : 100;
+
     // QUICK WIN 5: Debounce filter changes (already implemented, just documented)
     searchTimeout.current = setTimeout(() => {
       setPage(0);
       setHasMore(true);
       fetchListings(true); // This will cancel any previous request via AbortController
-    }, debounceMs);
+    }, effectiveDebounce);
 
     return () => {
       if (searchTimeout.current) {
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [searchQuery, filters]);
+  }, [searchQuery, filters, userId]);
 
   const fetchMore = useCallback(() => {
     if (!loading && !loadingMore && hasMore) {
