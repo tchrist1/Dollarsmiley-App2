@@ -157,29 +157,29 @@ export function RecommendationsCarousel({
         <Image source={{ uri: primaryPhoto }} style={styles.cardImage} />
 
         <View style={styles.scoreBadge}>
-          <Text style={styles.scoreBadgeText}>{item.score}%</Text>
+          <Text style={styles.scoreBadgeText}>{String(item.score)}%</Text>
         </View>
 
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>
-            {listing.title || 'Untitled'}
+            {String(listing.title || 'Untitled')}
           </Text>
 
           <View style={styles.providerRow}>
             <View style={styles.providerAvatar}>
               <Text style={styles.providerAvatarText}>
-                {provider?.full_name?.charAt(0).toUpperCase() || '?'}
+                {String(provider?.full_name || '?').charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.providerInfo}>
               <Text style={styles.providerName} numberOfLines={1}>
-                {provider?.full_name || 'Unknown Provider'}
+                {String(provider?.full_name || 'Unknown Provider')}
               </Text>
               {provider?.rating_average > 0 && (
                 <View style={styles.ratingRow}>
                   <Star size={12} color={colors.warning} fill={colors.warning} />
                   <Text style={styles.ratingText}>
-                    {provider.rating_average.toFixed(1)} ({provider.rating_count || 0})
+                    {Number(provider.rating_average).toFixed(1)} ({String(provider.rating_count || 0)})
                   </Text>
                 </View>
               )}
@@ -190,7 +190,7 @@ export function RecommendationsCarousel({
             <View style={styles.locationRow}>
               <MapPin size={14} color={colors.textSecondary} />
               <Text style={styles.locationText} numberOfLines={1}>
-                {listing.location}
+                {String(listing.location)}
               </Text>
             </View>
           )}
@@ -198,12 +198,12 @@ export function RecommendationsCarousel({
           <View style={styles.cardFooter}>
             <View>
               <Text style={styles.priceLabel}>From</Text>
-              <Text style={styles.price}>{formatCurrency(listing.base_price)}</Text>
+              <Text style={styles.price}>{String(formatCurrency(listing.base_price))}</Text>
             </View>
             {item.reasoning && (
               <View style={styles.reasoningBadge}>
                 <Text style={styles.reasoningText} numberOfLines={1}>
-                  {item.reasoning}
+                  {String(item.reasoning)}
                 </Text>
               </View>
             )}

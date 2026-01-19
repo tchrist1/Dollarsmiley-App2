@@ -33,7 +33,7 @@ export const HomeHeader = memo<HomeHeaderProps>(({
           <SlidersHorizontal size={20} color={colors.white} />
           {activeFilterCount > 0 && (
             <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              <Text style={styles.filterBadgeText}>{String(activeFilterCount)}</Text>
             </View>
           )}
         </TouchableOpacity>

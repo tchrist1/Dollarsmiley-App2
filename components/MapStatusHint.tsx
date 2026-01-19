@@ -76,7 +76,7 @@ export default function MapStatusHint({
     >
       <MapPin size={16} color={colors.text} />
       <Text style={styles.text}>
-        {locationCount} {label} · Zoom {zoomLevel.toFixed(1)}
+        {String(locationCount)} {label} · Zoom {Number(zoomLevel).toFixed(1)}
       </Text>
     </Animated.View>
   );
