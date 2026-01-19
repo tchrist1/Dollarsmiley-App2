@@ -503,47 +503,11 @@ export default function HomeScreen() {
   // PHASE 2: Core data fetching now handled by useListings hook
   // Includes: search, filtering, pagination, sorting, and caching
   // ============================================================================
-  // fetchListings function removed - replaced by useListings hook (see lines 277-291)
-
-  // PHASE 2: Deprecated - replaced by useListings hook
-  const fetchListings = async (reset: boolean = false) => {
-    // This function is no longer used - all data fetching is handled by useListings hook
-    if (__DEV__) console.warn('[DEPRECATED] fetchListings called - should not happen');
-  };
-
-  // Keep activeFilterCount as it's still used in UI
-  // PHASE 2 OPTIMIZATION: Memoize activeFilterCount to prevent recalculation on every render
-  const activeFilterCount = useMemo(() => {
-    let count = 0;
-    if (filters.categories.length > 0) count++;
-    if (filters.location.trim()) count++;
-    if (filters.priceMin || filters.priceMax) count++;
-    if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++;
-    if (filters.availability && filters.availability !== 'any') count++;
-    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
-    if (filters.verified) count++;
-    if (filters.instant_booking) count++;
-    if (filters.listingType && filters.listingType !== 'all') count++;
-    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
-    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
-    if (filters.hasVAS) count++;
-    if (filters.tags && filters.tags.length > 0) count++;
-    return count;
-  }, [filters]);
+  // fetchListings function - handles all listing fetching logic
+  // ============================================================================
 
   // Dummy search timeout ref kept for compatibility
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // Skip to next section after old fetchListings body
-  // vvvvvvvvvvvv TEMPORARY MARKER - OLD CODE BELOW vvvvvvvvvvvv
-  if (false) {
-    // Old fetch code preserved but never executed - to be removed in cleanup
-    const old_code_block_start = true;
-    const activeFilterCount_placeholder = 0; // Placeholder to prevent duplicate declaration error
-    // Removed malformed code that was causing syntax error
-  }
-  // End of if(false) dead code block
 
   const fetchListings = useCallback(async (reset: boolean = true) => {
     // ============================================================================
