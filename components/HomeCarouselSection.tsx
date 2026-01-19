@@ -71,7 +71,7 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
           </View>
 
           <Text style={styles.carouselCardTitle} numberOfLines={2}>
-            {item.title}
+            {item.title || 'Untitled'}
           </Text>
 
           <Text style={styles.carouselCardLocation} numberOfLines={1}>
