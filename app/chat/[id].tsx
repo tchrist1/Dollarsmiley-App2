@@ -617,7 +617,7 @@ export default function ChatScreen() {
                   minute: '2-digit',
                   hour12: true,
                 })}
-                {item.edited_at && <Text> (edited)</Text>}
+                {item.edited_at && ' (edited)'}
               </Text>
 
               {showDeliveryStatus && !item.optimistic && (

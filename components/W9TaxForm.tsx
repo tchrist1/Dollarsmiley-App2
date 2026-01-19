@@ -216,7 +216,7 @@ export default function W9TaxForm({ providerId, onSubmitSuccess }: W9TaxFormProp
       {(taxClassification !== 'individual' || businessName) && (
         <View style={styles.section}>
           <Text style={styles.label}>
-            Business Name {taxClassification !== 'individual' && <Text>(if different from name)</Text>}
+            Business Name {taxClassification !== 'individual' && '(if different from name)'}
           </Text>
           <TextInput
             style={styles.input}

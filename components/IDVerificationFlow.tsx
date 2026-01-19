@@ -333,9 +333,9 @@ export function IDVerificationFlow({ onComplete, onCancel }: IDVerificationFlowP
     <View style={styles.container}>
       <View style={styles.progressHeader}>
         <Text style={styles.progressTitle}>
-          {currentStep === 'front' && <Text>Step 1 of 3</Text>}
-          {currentStep === 'back' && <Text>Step 2 of 3</Text>}
-          {currentStep === 'selfie' && <Text>Step 3 of 3</Text>}
+          {currentStep === 'front' && 'Step 1 of 3'}
+          {currentStep === 'back' && 'Step 2 of 3'}
+          {currentStep === 'selfie' && 'Step 3 of 3'}
         </Text>
         <View style={styles.progressBar}>
           <View

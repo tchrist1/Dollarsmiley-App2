@@ -697,9 +697,9 @@ export default function BookingScreen() {
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {step === 'datetime' && <Text>Select Date & Time</Text>}
-          {step === 'payment' && <Text>Payment</Text>}
-          {step === 'confirmation' && <Text>Confirmed</Text>}
+          {step === 'datetime' && 'Select Date & Time'}
+          {step === 'payment' && 'Payment'}
+          {step === 'confirmation' && 'Confirmed'}
         </Text>
       </View>
 

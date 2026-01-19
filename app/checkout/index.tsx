@@ -344,8 +344,8 @@ export default function CheckoutScreen() {
           <ArrowLeft size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {step === 'shipping' && <Text>Shipping</Text>}
-          {step === 'payment' && <Text>Payment</Text>}
+          {step === 'shipping' && 'Shipping'}
+          {step === 'payment' && 'Payment'}
         </Text>
       </View>
 
