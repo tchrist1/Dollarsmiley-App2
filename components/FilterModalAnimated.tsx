@@ -347,15 +347,16 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
             style={styles.overlayTouchable}
             activeOpacity={1}
             onPress={onClose}
-          >
+          />
+          <View style={styles.modalWrapper} pointerEvents="box-none">
             <TouchableOpacity
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
-              style={styles.modalWrapper}
+              style={styles.modalContent}
             >
               <Animated.View style={[styles.modalContainer, modalStyle]}>
                 {/* Header */}
-                <View style={styles.header}>
+                <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
                   <Text style={styles.title}>Filters</Text>
                   {applySuccess && (
                     <Animated.View style={[styles.successIcon, successIconStyle]}>
@@ -458,7 +459,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                 </View>
               </Animated.View>
             </TouchableOpacity>
-          </TouchableOpacity>
+          </View>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -476,14 +477,22 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   overlayTouchable: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   keyboardAvoidView: {
     flex: 1,
     justifyContent: 'flex-end',
   },
   modalWrapper: {
-    maxHeight: '85%',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '90%',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    flex: 1,
   },
   modalContainer: {
     backgroundColor: colors.white,
@@ -492,6 +501,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.lg,
     flexShrink: 1,
+    maxHeight: '100%',
   },
   header: {
     flexDirection: 'row',
@@ -520,7 +530,9 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    maxHeight: 600,
+    flexShrink: 1,
+    flexGrow: 0,
+    maxHeight: 500,
   },
   scrollContent: {
     padding: spacing.lg,
