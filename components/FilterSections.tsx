@@ -174,7 +174,7 @@ export const LocationSection = memo(({
         >
           <Navigation
             size={16}
-            color={useCurrentLocation ? colors.primary : colors.textSecondary}
+            color={colors.primary}
           />
           <Text
             style={[
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   useLocationText: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    color: colors.primary,
   },
   useLocationTextActive: {
     color: colors.primary,
