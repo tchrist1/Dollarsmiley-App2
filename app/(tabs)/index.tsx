@@ -22,74 +22,14 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
 import { logPerfEvent, logRender, logNetworkCall } from '@/lib/performance-test-utils';
-import {
-  getCachedTrendingSearches,
-  setCachedTrendingSearches,
-  getCachedCarouselData,
-  setCachedCarouselData,
-  invalidateAllCaches,
-} from '@/lib/session-cache';
+import { invalidateAllCaches } from '@/lib/session-cache';
+import { invalidateAllListingCaches } from '@/lib/listing-cache';
 
-// ============================================================================
-// LIGHTWEIGHT HOME CACHE (MODULE-LEVEL)
-// ============================================================================
-// Purpose: Instant load on warm navigation with background refresh
-// Scope: Home screen initial load only (fetchListings with reset=true)
-// Lifetime: 3 minutes
-// Invalidation: TTL expiry, logout, account switch
-// ============================================================================
-
-interface HomeCacheEntry {
-  listings: MarketplaceListing[];
-  timestamp: number;
-  userId: string | null;
-}
-
-let homeCache: HomeCacheEntry | null = null;
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
-
-// Cache management utilities
-const getCachedListings = (userId: string | null): MarketplaceListing[] | null => {
-  if (!homeCache) {
-    if (__DEV__) console.log('[HOME_CACHE] Cache miss - no cache entry');
-    return null;
-  }
-
-  // Check user match (invalidate on account switch)
-  if (homeCache.userId !== userId) {
-    if (__DEV__) console.log('[HOME_CACHE] Cache invalidated - user mismatch');
-    homeCache = null;
-    return null;
-  }
-
-  // Check TTL
-  const now = Date.now();
-  const age = now - homeCache.timestamp;
-  if (age > CACHE_TTL_MS) {
-    if (__DEV__) console.log('[HOME_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
-    homeCache = null;
-    return null;
-  }
-
-  if (__DEV__) console.log('[HOME_CACHE] Cache hit - age:', Math.round(age / 1000), 's, entries:', homeCache.listings.length);
-  return homeCache.listings;
-};
-
-const setCachedListings = (listings: MarketplaceListing[], userId: string | null) => {
-  homeCache = {
-    listings,
-    timestamp: Date.now(),
-    userId,
-  };
-  if (__DEV__) console.log('[HOME_CACHE] Cache updated - entries:', listings.length);
-};
-
-const invalidateCache = () => {
-  if (homeCache) {
-    if (__DEV__) console.log('[HOME_CACHE] Cache invalidated manually');
-    homeCache = null;
-  }
-};
+// PHASE 2: Import data layer hooks
+import { useListings } from '@/hooks/useListings';
+import { useCarousels } from '@/hooks/useCarousels';
+import { useTrendingSearches } from '@/hooks/useTrendingSearches';
+import { useMapData } from '@/hooks/useMapData';
 
 // ============================================================================
 // PRIORITY 5 FIX: Memoized card components to prevent re-renders
@@ -313,40 +253,84 @@ interface SearchSuggestion {
 export default function HomeScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams();
+
+  // Local UI state
   const [searchQuery, setSearchQuery] = useState('');
-  const [listings, setListings] = useState<MarketplaceListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [trendingSearches, setTrendingSearches] = useState<SearchSuggestion[]>([]);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
   const [mapMode, setMapMode] = useState<'listings' | 'providers'>('listings');
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [searchLocation, setSearchLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [mapZoomLevel, setMapZoomLevel] = useState(12);
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapRef = useRef<NativeInteractiveMapViewRef>(null);
-
-  // PHASE 1: Carousel sections with lazy loading flag
-  const [showCarousels, setShowCarousels] = useState(false);
-  const [recommendedListings, setRecommendedListings] = useState<MarketplaceListing[]>([]);
-  const [trendingListings, setTrendingListings] = useState<MarketplaceListing[]>([]);
-  const [popularListings, setPopularListings] = useState<MarketplaceListing[]>([]);
-  const [carouselsLoading, setCarouselsLoading] = useState(true);
-  // PRIORITY 5 FIX: feedData is now computed via useMemo instead of useState + useEffect
-  // This eliminates one unnecessary re-render cycle
   const [filters, setFilters] = useState<FilterOptions>({
     ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
-  const PAGE_SIZE = 20;
+  // PHASE 1: Carousel sections with lazy loading flag
+  const [showCarousels, setShowCarousels] = useState(false);
+
+  // PHASE 2: Data layer hooks replace old state and fetch functions
+  const {
+    listings,
+    loading,
+    loadingMore,
+    hasMore,
+    error: listingsError,
+    fetchMore,
+    refresh: refreshListings,
+  } = useListings({
+    searchQuery,
+    filters,
+    userId: profile?.id || null,
+    pageSize: 20,
+    debounceMs: 300,
+  });
+
+  const {
+    trending: trendingListings,
+    popular: popularListings,
+    recommended: recommendedListings,
+    loading: carouselsLoading,
+    error: carouselsError,
+    refresh: refreshCarousels,
+  } = useCarousels({
+    userId: profile?.id || null,
+    enabled: true,
+    lazyLoadDelayMs: 2000,
+  });
+
+  const {
+    searches: trendingSearches,
+    loading: trendingSearchesLoading,
+    error: trendingSearchesError,
+    refresh: refreshTrendingSearches,
+  } = useTrendingSearches({
+    userId: profile?.id || null,
+    enabled: true,
+    limit: 5,
+    useInteractionManager: true,
+  });
+
+  const {
+    userLocation,
+    searchLocation,
+    locationPermissionStatus,
+    loading: locationLoading,
+    error: locationError,
+    setSearchLocation,
+    requestLocationPermission,
+    refreshLocation,
+  } = useMapData({
+    userProfileLocation: profile?.latitude && profile?.longitude
+      ? { latitude: profile.latitude, longitude: profile.longitude }
+      : null,
+    requestDelayMs: 500,
+    enabled: true,
+  });
 
   // ============================================================================
   // DEV-ONLY PERFORMANCE INSTRUMENTATION
@@ -383,7 +367,7 @@ export default function HomeScreen() {
     // Invalidate cache if user changed (logout or account switch)
     if (userIdRef.current !== currentUserId) {
       if (__DEV__) console.log('[PHASE_4] User changed - invalidating all caches');
-      invalidateCache(); // Home listings cache
+      invalidateAllListingCaches(); // PHASE 2: Home listings cache
       invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
       userIdRef.current = currentUserId;
     }
@@ -404,158 +388,15 @@ export default function HomeScreen() {
   }, []);
 
   // ============================================================================
-  // PHASE 1: Lightweight background data - Trending searches
-  // PHASE 4: WITH SESSION CACHE (5-minute TTL)
-  // Runs after interaction completes to avoid blocking UI
-  // PHASE 1: Now properly memoized to fix useEffect dependency
+  // PHASE 2: DATA FETCHING NOW HANDLED BY HOOKS
   // ============================================================================
-  const fetchTrendingSearches = useCallback(async () => {
-    // PHASE 4: Check cache first
-    const cached = getCachedTrendingSearches(profile?.id || null);
-    if (cached) {
-      setTrendingSearches(cached);
-      return; // Cache hit - no network request
-    }
-
-    // Cache miss - fetch from network
-    const { data } = await supabase
-      .from('popular_searches')
-      .select('search_term, search_count')
-      .order('search_count', { ascending: false })
-      .limit(5);
-
-    if (data) {
-      const searches = data.map(d => ({ suggestion: d.search_term, search_count: d.search_count }));
-      setTrendingSearches(searches);
-      setCachedTrendingSearches(searches, profile?.id || null);
-    }
-  }, [profile?.id]);
-
-  // ============================================================================
-  // PROGRESSIVE HYDRATION ARCHITECTURE
-  // ============================================================================
-  // PHASE 0: UI Shell renders immediately (no blocking operations)
-  // PHASE 1: Lightweight background data (trending searches)
-  // PHASE 2: Core listings & jobs fetch
-  // PHASE 3: Enhancements (location permission, carousels - if enabled)
+  // - useListings: Main listings with search, filters, pagination
+  // - useCarousels: Trending/popular/recommended with lazy loading
+  // - useTrendingSearches: Search suggestions with InteractionManager
+  // - useMapData: Location permissions and geolocation
   // ============================================================================
 
-  // PHASE 1: Fixed dependency array - includes fetchTrendingSearches
-  useEffect(() => {
-    // PHASE 0: UI shell is already rendered by default state
-    // No blocking operations here
-
-    // PHASE 1: Lightweight background data after interactions complete
-    const phase1Task = InteractionManager.runAfterInteractions(() => {
-      fetchTrendingSearches();
-    });
-
-    // PHASE 2: Core listings fetch (immediate async - triggered by filters/searchQuery effect)
-    // This is handled by the existing useEffect on filters/searchQuery dependencies
-
-    // PHASE 3: Non-critical enhancements with delay
-    const phase3Timer = setTimeout(() => {
-      requestLocationPermission();
-    }, 500);
-
-    return () => {
-      phase1Task.cancel();
-      clearTimeout(phase3Timer);
-    };
-  }, [profile, fetchTrendingSearches]);
-
-  // ============================================================================
-  // PHASE 3: Non-critical enhancement - Carousel sections
-  // PHASE 4: WITH SESSION CACHE (10-minute TTL)
-  // Deferred to avoid blocking initial UI render and core data fetch
-  // ============================================================================
-  const fetchCarouselSections = useCallback(async () => {
-    // PHASE 4: Check cache first
-    const cached = getCachedCarouselData(profile?.id || null);
-    if (cached) {
-      setTrendingListings(cached.trending);
-      setPopularListings(cached.popular);
-      setRecommendedListings(cached.recommended);
-      setCarouselsLoading(false);
-      return; // Cache hit - no network request
-    }
-
-    // Cache miss - fetch from network
-    setCarouselsLoading(true);
-    try {
-      const { data: serviceData } = await supabase
-        .from('service_listings')
-        .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)')
-        .eq('status', 'Active')
-        .order('view_count', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(15);
-
-      const { data: jobData } = await supabase
-        .from('jobs')
-        .select('*, profiles!jobs_customer_id_fkey(*), categories(*)')
-        .eq('status', 'Open')
-        .order('created_at', { ascending: false })
-        .limit(15);
-
-      const allServices = serviceData ? serviceData.map(normalizeServiceListing) : [];
-      const allJobs = jobData ? jobData.map(normalizeJob) : [];
-      const allListings = [...allServices, ...allJobs];
-
-      if (allListings.length > 0) {
-        const trending = allListings
-          .sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
-          .slice(0, 10);
-        setTrendingListings(trending);
-
-        const popular = allListings
-          .sort((a, b) => {
-            const aProfile = a.provider || a.customer;
-            const bProfile = b.provider || b.customer;
-            const aRating = aProfile?.rating_average || 0;
-            const bRating = bProfile?.rating_average || 0;
-
-            if (aRating > 0 && bRating > 0) {
-              const ratingDiff = bRating - aRating;
-              if (Math.abs(ratingDiff) > 0.1) return ratingDiff;
-              return (bProfile?.rating_count || 0) - (aProfile?.rating_count || 0);
-            }
-
-            if (aRating > 0) return -1;
-            if (bRating > 0) return 1;
-
-            return (b.view_count || 0) - (a.view_count || 0);
-          })
-          .slice(0, 10);
-        setPopularListings(popular);
-
-        const recommended = allListings
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 10);
-        setRecommendedListings(recommended);
-
-        // PHASE 4: Cache the results
-        setCachedCarouselData({
-          trending,
-          popular,
-          recommended,
-        }, profile?.id || null);
-      }
-    } catch (error) {
-      // Error handled silently
-    } finally {
-      setCarouselsLoading(false);
-    }
-  }, [profile?.id]);
-
-  // ============================================================================
-  // PHASE 1: CAROUSEL DATA FETCHING (Only when showCarousels is true)
-  // ============================================================================
-  useEffect(() => {
-    if (showCarousels && !trendingListings.length && !popularListings.length && !recommendedListings.length) {
-      fetchCarouselSections();
-    }
-  }, [showCarousels, fetchCarouselSections, trendingListings.length, popularListings.length, recommendedListings.length]);
+  // PHASE 2: Carousel data now managed by useCarousels hook with automatic lazy loading
 
   // Handle filter parameter from navigation
   useEffect(() => {
@@ -590,64 +431,9 @@ export default function HomeScreen() {
     }
   }, [params.search]);
 
-  // ============================================================================
-  // PHASE 3: Non-critical enhancement - Location permission
-  // Deferred to avoid blocking initial UI render
-  // ============================================================================
-  const requestLocationPermission = async () => {
-    try {
-      if (profile?.latitude && profile?.longitude) {
-        setUserLocation({
-          latitude: profile.latitude,
-          longitude: profile.longitude,
-        });
-        return;
-      }
+  // PHASE 2: Location permission now managed by useMapData hook with delayed request
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 10000,
-        distanceInterval: 0,
-      });
-
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-    } catch (error) {
-      // Location unavailable - app will continue without location-based features
-    }
-  };
-
-  // ============================================================================
-  // PHASE 1: OPTIMIZED - Core listings & jobs fetch with proper debounce
-  // ============================================================================
-  // Debounce search queries (300ms) to avoid excessive API calls during typing
-  // Filter changes trigger immediate fetch (no debounce needed)
-  // ============================================================================
-  useEffect(() => {
-    if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current);
-    }
-
-    // Debounce search query changes
-    searchTimeout.current = setTimeout(() => {
-      setPage(0);
-      setHasMore(true);
-      fetchListings(true);
-    }, 300);
-
-    return () => {
-      if (searchTimeout.current) {
-        clearTimeout(searchTimeout.current);
-      }
-    };
-  }, [filters, searchQuery]);
+  // PHASE 2: Debounced search and filtering now managed by useListings hook
 
   const fetchSuggestions = async (query: string) => {
     if (query.length < 2) {
@@ -678,7 +464,7 @@ export default function HomeScreen() {
 
   const handleVoiceResults = (results: any[], query: string) => {
     if (results.length > 0) {
-      setListings(results);
+      // PHASE 2: Voice search now uses search query to trigger useListings hook
       setSearchQuery(query);
       setShowSuggestions(false);
     }
@@ -690,20 +476,9 @@ export default function HomeScreen() {
 
   const handleImageResults = (matches: any[], analysis: any) => {
     if (matches.length > 0) {
-      // Convert image search matches to listing format
-      const matchIds = matches.map(m => m.id);
-
-      // Fetch full listing details
-      supabase
-        .from('profiles')
-        .select('*, category:categories(*)')
-        .in('id', matchIds)
-        .then(({ data }) => {
-          if (data) {
-            setListings(data as any);
-            setSearchQuery(analysis.description || 'Image search results');
-          }
-        });
+      // PHASE 2: Image search now uses search query to trigger useListings hook
+      setSearchQuery(analysis.description || 'Image search results');
+      setShowSuggestions(false);
     }
   };
 
@@ -722,109 +497,52 @@ export default function HomeScreen() {
     });
   };
 
-  const normalizeServiceListing = (service: any): MarketplaceListing => {
-    let photos = [];
-    if (service.photos) {
-      if (Array.isArray(service.photos)) {
-        photos = service.photos;
-      } else if (typeof service.photos === 'string') {
-        try {
-          const parsed = JSON.parse(service.photos);
-          photos = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          photos = [];
-        }
-      }
-    }
-
-    const featuredImage = service.featured_image_url || (photos.length > 0 ? photos[0] : 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg');
-
-    const latitude = service.latitude ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude) : null;
-    const longitude = service.longitude ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude) : null;
-
-    return {
-      id: service.id,
-      marketplace_type: service.listing_type || 'Service',
-      title: service.title,
-      description: service.description,
-      category_id: service.category_id,
-      location: service.location || '',
-      latitude,
-      longitude,
-      photos,
-      featured_image_url: featuredImage,
-      created_at: service.created_at,
-      base_price: service.base_price,
-      pricing_type: service.pricing_type,
-      provider_id: service.provider_id,
-      status: service.status,
-      listing_type: service.listing_type,
-      provider: service.profiles,
-      category: service.categories,
-      distance_miles: service.distance_miles,
-      view_count: service.view_count,
-    };
-  };
-
-  const normalizeJob = (job: any): MarketplaceListing => {
-    let photos = [];
-    if (job.photos) {
-      if (Array.isArray(job.photos)) {
-        photos = job.photos;
-      } else if (typeof job.photos === 'string') {
-        try {
-          const parsed = JSON.parse(job.photos);
-          photos = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          photos = [];
-        }
-      }
-    }
-
-    const featuredImage = job.featured_image_url || (photos.length > 0 ? photos[0] : 'https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg');
-
-    const latitude = job.latitude ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude) : null;
-    const longitude = job.longitude ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude) : null;
-
-    return {
-      id: job.id,
-      marketplace_type: 'Job',
-      title: job.title,
-      description: job.description,
-      category_id: job.category_id,
-      location: job.location,
-      latitude,
-      longitude,
-      photos,
-      featured_image_url: featuredImage,
-      created_at: job.created_at,
-      budget_min: job.budget_min,
-      budget_max: job.budget_max,
-      fixed_price: job.fixed_price,
-      pricing_type: job.pricing_type,
-      customer_id: job.customer_id,
-      status: job.status,
-      execution_date_start: job.execution_date_start,
-      execution_date_end: job.execution_date_end,
-      preferred_time: job.preferred_time,
-      customer: job.profiles,
-      category: job.categories,
-      distance_miles: job.distance_miles,
-      view_count: 0,
-    };
-  };
+  // PHASE 2: Normalization functions now in useListings and useCarousels hooks
 
   // ============================================================================
-  // PHASE 2: Core data fetch - Services & Jobs
-  // Main listing data fetch with filters, pagination, and sorting
-  // Triggered after UI render via debounced effect (300ms)
-  // WITH READ-THROUGH CACHE for initial load (reset=true)
+  // PHASE 2: Core data fetching now handled by useListings hook
+  // Includes: search, filtering, pagination, sorting, and caching
   // ============================================================================
+  // fetchListings function removed - replaced by useListings hook (see lines 277-291)
+
+  // PHASE 2: Deprecated - replaced by useListings hook
   const fetchListings = async (reset: boolean = false) => {
-    // PHASE 2 OPTIMIZATION: Track filter fetch start
-    if (__DEV__ && reset && (activeFilterCount > 0 || searchQuery.trim())) {
-      logPerfEvent('FILTER_FETCH_START', {
-        filterCount: activeFilterCount,
+    // This function is no longer used - all data fetching is handled by useListings hook
+    if (__DEV__) console.warn('[DEPRECATED] fetchListings called - should not happen');
+  };
+
+  // Keep activeFilterCount as it's still used in UI
+  // PHASE 2 OPTIMIZATION: Memoize activeFilterCount to prevent recalculation on every render
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.categories.length > 0) count++;
+    if (filters.location.trim()) count++;
+    if (filters.priceMin || filters.priceMax) count++;
+    if (filters.minRating > 0) count++;
+    if (filters.distance && filters.distance !== 25) count++;
+    if (filters.availability && filters.availability !== 'any') count++;
+    if (filters.sortBy && filters.sortBy !== 'relevance') count++;
+    if (filters.verified) count++;
+    if (filters.instant_booking) count++;
+    if (filters.listingType && filters.listingType !== 'all') count++;
+    if (filters.fulfillmentTypes && filters.fulfillmentTypes.length > 0) count++;
+    if (filters.shippingMode && filters.shippingMode !== 'all') count++;
+    if (filters.hasVAS) count++;
+    if (filters.tags && filters.tags.length > 0) count++;
+    return count;
+  }, [filters]);
+
+  // Dummy search timeout ref kept for compatibility
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Skip to next section after old fetchListings body
+  // vvvvvvvvvvvv TEMPORARY MARKER - OLD CODE BELOW vvvvvvvvvvvv
+  if (false) {
+    // Old fetch code preserved but never executed - to be removed in cleanup
+    const old_code_block_start = true;
+    const activeFilterCount_placeholder = 0; // Placeholder to prevent duplicate declaration error
+    if (old_code_block_start && activeFilterCount_placeholder) {
+      const _dummy = 0;
         hasSearch: !!searchQuery.trim(),
       });
     }
@@ -1441,11 +1159,12 @@ export default function HomeScreen() {
   // ============================================================================
   // PHASE 1: OPTIMIZED PAGINATION - No ref mutations
   // ============================================================================
+  // PHASE 2: Use fetchMore from useListings hook for pagination
   const handleLoadMore = useCallback(() => {
     if (!loadingMore && hasMore && !loading) {
-      fetchListings(false);
+      fetchMore();
     }
-  }, [loadingMore, hasMore, loading]);
+  }, [loadingMore, hasMore, loading, fetchMore]);
 
   // ============================================================================
   // PHASE 1: OPTIMIZED FILTER APPLICATION - Direct state update, no refs
