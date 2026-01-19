@@ -123,6 +123,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
     </TouchableOpacity>
   );
 });
+ListingCard.displayName = 'ListingCard';
 
 const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   const isJob = item.marketplace_type === 'Job';
@@ -235,6 +236,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
     </TouchableOpacity>
   );
 });
+GridCard.displayName = 'GridCard';
 
 // ============================================================================
 
