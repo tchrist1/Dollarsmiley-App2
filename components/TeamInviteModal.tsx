@@ -131,9 +131,9 @@ export default function TeamInviteModal({
                         {getRoleLabel(r)}
                       </Text>
                       <Text style={styles.roleDescription}>
-                        {r === 'admin' && 'Can manage team and members'}
-                        {r === 'member' && 'Can access team resources'}
-                        {r === 'viewer' && 'Read-only access'}
+                        {r === 'admin' && <Text>Can manage team and members</Text>}
+                        {r === 'member' && <Text>Can access team resources</Text>}
+                        {r === 'viewer' && <Text>Read-only access</Text>}
                       </Text>
                     </View>
                   </TouchableOpacity>

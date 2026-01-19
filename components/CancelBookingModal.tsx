@@ -307,7 +307,7 @@ export function CancelBookingModal({
             <View style={styles.warningCard}>
               <AlertTriangle size={20} color={colors.warning} />
               <Text style={styles.warningText}>
-                Cancelling this booking cannot be undone. {refundInfo.eligible && 'A refund will be processed automatically.'}
+                Cancelling this booking cannot be undone. {refundInfo.eligible && <Text>A refund will be processed automatically.</Text>}
               </Text>
             </View>
 
@@ -339,7 +339,7 @@ export function CancelBookingModal({
             {(selectedReason === 'other' || selectedReason) && (
               <View style={styles.detailsSection}>
                 <Text style={styles.sectionTitle}>
-                  Additional Details {selectedReason === 'other' && '*'}
+                  Additional Details {selectedReason === 'other' && <Text>*</Text>}
                 </Text>
                 <TextArea
                   value={details}
@@ -381,7 +381,7 @@ export function CancelBookingModal({
                 <Info size={16} color={colors.info} />
                 <Text style={styles.policyText}>
                   {refundInfo.policy}
-                  {refundInfo.eligible && '\n\nRefund will be processed automatically to your original payment method within 5-7 business days.'}
+                  {refundInfo.eligible && <Text>{'\n\nRefund will be processed automatically to your original payment method within 5-7 business days.'}</Text>}
                 </Text>
               </View>
             </View>

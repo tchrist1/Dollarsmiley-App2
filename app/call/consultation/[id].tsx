@@ -188,9 +188,9 @@ export default function ConsultationCallScreen() {
         <View style={styles.statusRow}>
           <Clock size={16} color={colors.white} />
           <Text style={styles.status}>
-            {callStatus === 'connecting' && 'Connecting...'}
+            {callStatus === 'connecting' && <Text>Connecting...</Text>}
             {callStatus === 'connected' && formatDuration(callDuration)}
-            {callStatus === 'ended' && 'Call Ended'}
+            {callStatus === 'ended' && <Text>Call Ended</Text>}
           </Text>
         </View>
       </View>

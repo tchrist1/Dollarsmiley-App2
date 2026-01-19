@@ -136,9 +136,9 @@ export default function CallScreen() {
       <View style={styles.header}>
         <Text style={styles.name}>{otherPartyName}</Text>
         <Text style={styles.status}>
-          {callStatus === 'connecting' && 'Connecting...'}
+          {callStatus === 'connecting' && <Text>Connecting...</Text>}
           {callStatus === 'connected' && formatDuration(callDuration)}
-          {callStatus === 'ended' && 'Call Ended'}
+          {callStatus === 'ended' && <Text>Call Ended</Text>}
         </Text>
       </View>
 
