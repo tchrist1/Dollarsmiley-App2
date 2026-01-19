@@ -128,14 +128,14 @@ export default function VoiceSearchInterface({
       activeOpacity={0.7}
     >
       <View style={styles.jobHeader}>
-        <Text style={styles.jobTitle}>{item.title || 'Untitled Job'}</Text>
+        <Text style={styles.jobTitle}>{item.title}</Text>
         <View style={styles.budgetBadge}>
           <Text style={styles.budgetText}>${item.budget}</Text>
         </View>
       </View>
 
       <Text style={styles.jobDescription} numberOfLines={2}>
-        {item.description || 'No description available'}
+        {item.description}
       </Text>
 
       <View style={styles.jobMeta}>

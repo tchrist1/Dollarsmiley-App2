@@ -106,7 +106,7 @@ export default function DashboardScreen() {
       {item.provider && (
         <View style={styles.bookingRow}>
           <User size={16} color={colors.textSecondary} />
-          <Text style={styles.bookingText}>{item.provider.full_name || 'Provider'}</Text>
+          <Text style={styles.bookingText}>{item.provider.full_name}</Text>
         </View>
       )}
 

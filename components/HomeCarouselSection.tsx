@@ -45,11 +45,6 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
       price = formatCurrency(item.base_price || 0);
     }
 
-    const safeTitle = String(item.title || 'Untitled');
-    const safeLocation = String(item.location || 'Remote');
-    const safeFullName = String(profile?.full_name || 'Provider');
-    const safePrice = String(price);
-
     return (
       <TouchableOpacity
         style={styles.carouselCard}
@@ -63,12 +58,12 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
             ) : (
               <View style={[styles.carouselAvatar, styles.carouselAvatarPlaceholder]}>
                 <Text style={styles.carouselAvatarText}>
-                  {safeFullName.charAt(0).toUpperCase()}
+                  {(profile?.full_name || 'P').charAt(0).toUpperCase()}
                 </Text>
               </View>
             )}
             <Text style={styles.carouselAccountName} numberOfLines={1}>
-              {safeFullName}
+              {profile?.full_name || 'Provider'}
             </Text>
             <View style={[styles.typeBadge, { backgroundColor: typeLabel.color }]}>
               <Text style={styles.typeBadgeText}>{typeLabel.text}</Text>
@@ -76,20 +71,20 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
           </View>
 
           <Text style={styles.carouselCardTitle} numberOfLines={2}>
-            {safeTitle}
+            {item.title}
           </Text>
 
           <Text style={styles.carouselCardLocation} numberOfLines={1}>
-            {safeLocation}
+            {item.location || 'Remote'}
           </Text>
 
           <View style={styles.carouselCardFooter}>
-            <Text style={styles.carouselCardPrice}>{safePrice}</Text>
+            <Text style={styles.carouselCardPrice}>{price}</Text>
             {profile?.rating_average && profile.rating_average > 0 && (
               <View style={styles.carouselCardRating}>
                 <Star size={12} color={colors.warning} fill={colors.warning} />
                 <Text style={styles.carouselCardRatingText}>
-                  {Number(profile.rating_average).toFixed(1)}
+                  {profile.rating_average.toFixed(1)}
                 </Text>
               </View>
             )}

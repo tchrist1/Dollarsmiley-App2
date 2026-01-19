@@ -112,7 +112,7 @@ export const CompactListingCard = memo(function CompactListingCard({
 
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
-          {title || 'Untitled'}
+          {title}
         </Text>
 
         {price !== undefined && (

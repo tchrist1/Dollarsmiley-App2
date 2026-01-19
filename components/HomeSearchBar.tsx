@@ -74,10 +74,10 @@ export const HomeSearchBar = memo<HomeSearchBarProps>(({
                 onPress={() => onSelectSuggestion(item.suggestion)}
               >
                 <Search size={16} color={colors.textLight} />
-                <Text style={styles.suggestionText}>{String(item.suggestion)}</Text>
+                <Text style={styles.suggestionText}>{item.suggestion}</Text>
                 {item.search_count > 0 && (
                   <Text style={styles.suggestionCount}>
-                    {item.search_count > 999 ? '999+' : String(item.search_count)}
+                    {item.search_count > 999 ? '999+' : item.search_count}
                   </Text>
                 )}
               </TouchableOpacity>

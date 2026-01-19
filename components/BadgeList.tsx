@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import VerificationBadge, { Badge } from './VerificationBadge';
 import { spacing } from '@/constants/theme';
 
@@ -38,7 +38,7 @@ export default function BadgeList({
         ))}
         {remainingCount > 0 && (
           <View style={[styles.badgeWrapper, styles.remainingBadge]}>
-            <Text style={styles.remainingText}>+{remainingCount}</Text>
+            <View style={styles.remainingText}>+{remainingCount}</View>
           </View>
         )}
       </ScrollView>

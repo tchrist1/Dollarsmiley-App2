@@ -124,11 +124,11 @@ export default function FeaturedListingCard({
           </View>
 
           <Text style={styles.heroTitle} numberOfLines={2}>
-            {listing.title || 'Untitled'}
+            {listing.title}
           </Text>
 
           <Text style={styles.heroDescription} numberOfLines={2}>
-            {listing.description || 'No description available'}
+            {listing.description}
           </Text>
 
           <View style={styles.heroFooter}>
@@ -196,7 +196,7 @@ export default function FeaturedListingCard({
 
         <View style={styles.compactContent}>
           <Text style={styles.compactTitle} numberOfLines={1}>
-            {listing.title || 'Untitled'}
+            {listing.title}
           </Text>
 
           <View style={styles.compactMeta}>
@@ -255,11 +255,11 @@ export default function FeaturedListingCard({
         </View>
 
         <Text style={styles.title} numberOfLines={2}>
-          {listing.title || 'Untitled'}
+          {listing.title}
         </Text>
 
         <Text style={styles.description} numberOfLines={2}>
-          {listing.description || 'No description available'}
+          {listing.description}
         </Text>
 
         <View style={styles.footer}>

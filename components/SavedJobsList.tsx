@@ -174,10 +174,10 @@ export default function SavedJobsList({ onJobPress }: SavedJobsListProps) {
 
         {/* Title & Description */}
         <Text style={styles.jobTitle} numberOfLines={2}>
-          {item.title || 'Untitled Job'}
+          {item.title}
         </Text>
         <Text style={styles.jobDescription} numberOfLines={3}>
-          {item.description || 'No description available'}
+          {item.description}
         </Text>
 
         {/* Meta Info */}

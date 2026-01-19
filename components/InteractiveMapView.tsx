@@ -315,7 +315,7 @@ export default function InteractiveMapView({
                 hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
               >
                 <View style={[styles.clusterMarker, isSelected && styles.clusterMarkerSelected]}>
-                  <Text style={styles.clusterCount}>{String(cluster.count)}</Text>
+                  <Text style={styles.clusterCount}>{cluster.count}</Text>
                 </View>
               </TouchableOpacity>
             );

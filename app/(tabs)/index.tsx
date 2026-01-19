@@ -72,13 +72,6 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
     priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
   }
 
-  // Ensure all values are strings
-  const safePriceText = String(priceText);
-  const safeTitle = String(item.title || 'Untitled');
-  const safeDescription = String(item.description || 'No description available');
-  const safeLocation = String(item.location || 'Remote');
-  const safeFullName = String(profile?.full_name || 'Anonymous');
-
   return (
     <TouchableOpacity
       style={styles.listingCard}
@@ -90,23 +83,23 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {safeTitle}
+          {item.title}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {safeDescription}
+          {item.description}
         </Text>
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} />
             <Text style={styles.listingLocationText} numberOfLines={1}>
-              {safeLocation}
+              {item.location || 'Remote'}
             </Text>
           </View>
           {profile?.rating_average && profile.rating_average > 0 && (
             <View style={styles.listingRating}>
               <Star size={14} color={colors.warning} fill={colors.warning} />
               <Text style={styles.listingRatingText}>
-                {Number(profile.rating_average).toFixed(1)} ({profile.rating_count || 0})
+                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
               </Text>
             </View>
           )}
@@ -121,10 +114,10 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               </View>
             )}
             <Text style={styles.providerName} numberOfLines={1}>
-              {safeFullName}
+              {profile?.full_name || 'Anonymous'}
             </Text>
           </View>
-          <Text style={styles.listingPrice}>{safePriceText}</Text>
+          <Text style={styles.listingPrice}>{priceText}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -169,15 +162,6 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
     priceSuffix = `/${priceType}`;
   }
 
-  // Ensure all values are strings
-  const safePriceText = String(priceText);
-  const safePriceSuffix = String(priceSuffix);
-  const safeTitle = String(item.title || 'Untitled');
-  const safeDescription = String(item.description || 'No description available');
-  const safeLocation = String(item.location || 'Remote');
-  const safeFullName = String(profile?.full_name || 'S');
-  const safeFullNameForDisplay = String(profile?.full_name || '');
-
   return (
     <TouchableOpacity
       style={styles.gridCard}
@@ -203,35 +187,35 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           ) : (
             <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
               <Text style={styles.gridAvatarText}>
-                {safeFullName.charAt(0).toUpperCase()}
+                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
               </Text>
             </View>
           )}
-          {safeFullNameForDisplay && (
+          {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
-              {safeFullNameForDisplay}
+              {profile.full_name}
             </Text>
           )}
           {profile && profile.rating_average > 0 && (
             <View style={styles.gridRating}>
               <Star size={10} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.gridRatingText}>{Number(profile.rating_average).toFixed(1)}</Text>
+              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
             </View>
           )}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
-          {safeTitle}
+          {item.title}
         </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
-          {safeDescription}
+          {item.description}
         </Text>
         {listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
             <Navigation size={10} color={colors.white} />
             <Text style={styles.gridDistanceBadgeText}>
               {listing.distance_miles < 1
-                ? `${(Number(listing.distance_miles) * 5280).toFixed(0)} ft`
-                : listing.distance_miles ? `${Number(listing.distance_miles).toFixed(1)} mi` : 'N/A'}
+                ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
+                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
             </Text>
           </View>
         )}
@@ -239,12 +223,12 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />
             <Text style={styles.gridLocationText} numberOfLines={1}>
-              {safeLocation}
+              {item.location || 'Remote'}
             </Text>
           </View>
           <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{safePriceText}</Text>
-            {priceSuffix ? <Text style={styles.gridPriceType}>{safePriceSuffix}</Text> : null}
+            <Text style={styles.gridPriceAmount}>{priceText}</Text>
+            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
           </View>
         </View>
       </View>
@@ -958,13 +942,6 @@ export default function HomeScreen() {
             } else {
               price = formatCurrency(item.base_price || 0);
             }
-
-            // Ensure all values are strings
-            const safePrice = String(price);
-            const safeTitle = String(item.title || 'Untitled');
-            const safeLocation = String(item.location || 'Remote');
-            const safeFullName = String(profile?.full_name || 'Provider');
-
             return (
               <TouchableOpacity
                 style={styles.carouselCard}
@@ -978,30 +955,30 @@ export default function HomeScreen() {
                     ) : (
                       <View style={[styles.carouselAvatar, styles.carouselAvatarPlaceholder]}>
                         <Text style={styles.carouselAvatarText}>
-                          {safeFullName.charAt(0).toUpperCase()}
+                          {(profile?.full_name || 'P').charAt(0).toUpperCase()}
                         </Text>
                       </View>
                     )}
                     <Text style={styles.carouselAccountName} numberOfLines={1}>
-                      {safeFullName}
+                      {profile?.full_name || 'Provider'}
                     </Text>
                     <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2 }}>
                       <Text style={{ color: '#fff', fontSize: 8, fontWeight: '600' }}>{typeLabel.text}</Text>
                     </View>
                   </View>
                   <Text style={styles.carouselCardTitle} numberOfLines={2}>
-                    {safeTitle}
+                    {item.title}
                   </Text>
                   <Text style={styles.carouselCardLocation} numberOfLines={1}>
-                    {safeLocation}
+                    {item.location || 'Remote'}
                   </Text>
                   <View style={styles.carouselCardFooter}>
-                    <Text style={styles.carouselCardPrice}>{safePrice}</Text>
+                    <Text style={styles.carouselCardPrice}>{price}</Text>
                     {profile?.rating_average && (
                       <View style={styles.carouselCardRating}>
                         <Star size={12} color={colors.warning} fill={colors.warning} />
                         <Text style={styles.carouselCardRatingText}>
-                          {Number(profile.rating_average).toFixed(1)}
+                          {profile.rating_average.toFixed(1)}
                         </Text>
                       </View>
                     )}
@@ -1100,11 +1077,6 @@ export default function HomeScreen() {
             const isJob = carouselListing.marketplace_type === 'Job';
             const carouselTypeLabel = getListingTypeLabel(carouselItem);
 
-            // Ensure all values are strings
-            const safeCarouselTitle = String(carouselItem.title || 'Untitled');
-            const safeCarouselFullName = String(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider');
-            const safeCarouselPrice = String(formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0));
-
             return (
               <TouchableOpacity
                 style={styles.embeddedCarouselCard}
@@ -1137,26 +1109,26 @@ export default function HomeScreen() {
                     ) : (
                       <View style={[styles.embeddedCarouselAvatar, styles.embeddedCarouselAvatarPlaceholder]}>
                         <Text style={styles.embeddedCarouselAvatarText}>
-                          {safeCarouselFullName.charAt(0).toUpperCase()}
+                          {(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'P').charAt(0).toUpperCase()}
                         </Text>
                       </View>
                     )}
                     <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
-                      {safeCarouselFullName}
+                      {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
                     </Text>
                   </View>
                   <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
-                    {safeCarouselTitle}
+                    {carouselItem.title}
                   </Text>
                   <View style={styles.embeddedCarouselCardFooter}>
                     <Text style={styles.embeddedCarouselCardPrice}>
-                      {safeCarouselPrice}
+                      {formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0)}
                     </Text>
                     {(carouselListing.rating_average || carouselListing.provider?.rating_average) > 0 && (
                       <View style={styles.embeddedCarouselCardRating}>
                         <Star size={12} color={colors.warning} fill={colors.warning} />
                         <Text style={styles.embeddedCarouselCardRatingText}>
-                          {Number(carouselListing.rating_average || carouselListing.provider?.rating_average).toFixed(1)}
+                          {(carouselListing.rating_average || carouselListing.provider?.rating_average)?.toFixed(1) || 'N/A'}
                         </Text>
                       </View>
                     )}
