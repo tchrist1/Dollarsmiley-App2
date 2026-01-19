@@ -162,7 +162,7 @@ export function RecommendationsCarousel({
 
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>
-            {listing.title}
+            {listing.title || 'Untitled'}
           </Text>
 
           <View style={styles.providerRow}>

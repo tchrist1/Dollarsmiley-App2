@@ -126,7 +126,7 @@ export function SubCategoryGrid({ parentCategoryId, onSelect }: SubCategoryGridP
         </View>
 
         <Text style={styles.subCategoryName} numberOfLines={2}>
-          {item.name}
+          {item.name || 'Unnamed Category'}
         </Text>
       </TouchableOpacity>
     );

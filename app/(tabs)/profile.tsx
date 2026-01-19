@@ -144,13 +144,13 @@ export default function ProfileScreen() {
               <CachedAvatar uri={profile.avatar_url} size={120} fallbackIconSize={48} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>{profile.full_name.charAt(0).toUpperCase()}</Text>
+                <Text style={styles.avatarText}>{(profile.full_name || 'U').charAt(0).toUpperCase()}</Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.name}>{profile.full_name}</Text>
-          <Text style={styles.email}>{profile.email}</Text>
+          <Text style={styles.name}>{profile.full_name || 'No Name'}</Text>
+          <Text style={styles.email}>{profile.email || 'No Email'}</Text>
 
           <TouchableOpacity
             style={styles.editProfileButton}
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
           {/* Account Type Badge - appears right below Edit Profile */}
           {(!isAdmin || !adminMode) && (
             <View style={styles.accountTypeBadge}>
-              <Text style={styles.accountTypeBadgeText}>{profile.user_type}</Text>
+              <Text style={styles.accountTypeBadgeText}>{profile.user_type || 'User'}</Text>
             </View>
           )}
 
