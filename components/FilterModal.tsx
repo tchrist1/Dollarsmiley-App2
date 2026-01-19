@@ -48,7 +48,6 @@ const CategoryChip = memo(({ category, isSelected, onPress }: CategoryChipProps)
     </Text>
   </TouchableOpacity>
 ));
-CategoryChip.displayName = 'CategoryChip';
 
 interface TagChipProps {
   tag: string;
@@ -67,7 +66,6 @@ const TagChip = memo(({ tag, isSelected, onPress }: TagChipProps) => (
     </Text>
   </TouchableOpacity>
 ));
-TagChip.displayName = 'TagChip';
 
 const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
 const AVAILABILITY_OPTIONS = [
@@ -831,12 +829,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                     initialNumToRender={9}
                     maxToRenderPerBatch={6}
                     removeClippedSubviews={true}
-                    windowSize={5}
-                    getItemLayout={(data, index) => ({
-                      length: 35,
-                      offset: 35 * Math.floor(index / 3),
-                      index,
-                    })}
                   />
                 </View>
 
