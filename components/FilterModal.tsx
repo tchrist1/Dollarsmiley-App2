@@ -106,7 +106,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   // PRIORITY 1 FIX: Lazy rendering to prevent 38-second blocking
   // ============================================================================
   const [sectionsReady, setSectionsReady] = useState(false);
-  const [categoriesReady, setCategoriesReady] = useState(false);
   const mountInteractionRef = useRef<any>(null);
 
   // ============================================================================
@@ -167,7 +166,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
       // Reset lazy loading states
       setSectionsReady(false);
-      setCategoriesReady(false);
 
       // Set initial state immediately (synchronous for responsiveness)
       setDraftFilters(currentFilters);
@@ -177,13 +175,8 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       // PRIORITY 1 FIX: Defer heavy rendering until after modal animation
       // This prevents the 38-second blocking issue
       mountInteractionRef.current = InteractionManager.runAfterInteractions(() => {
-        // First, show the essential sections (listing type, location, price)
+        // Show all sections including categories
         setSectionsReady(true);
-
-        // Then, after another frame, show categories (the heavy section)
-        requestAnimationFrame(() => {
-          setCategoriesReady(true);
-        });
       });
     } else {
       if (__DEV__) {
@@ -194,7 +187,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
         mountInteractionRef.current.cancel();
       }
       setSectionsReady(false);
-      setCategoriesReady(false);
     }
   }, [visible, currentFilters]);
 
@@ -485,34 +477,31 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
               </View>
             )}
 
-            {/* Categories - Lazy loaded with virtualization to prevent blocking */}
-            {categoriesReady && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Categories</Text>
-                <FlatList
-                  data={parentCategories}
-                  renderItem={renderCategoryItem}
-                  keyExtractor={categoryKeyExtractor}
-                  numColumns={3}
-                  scrollEnabled={false}
-                  columnWrapperStyle={styles.categoriesGrid}
-                  initialNumToRender={12}
-                  maxToRenderPerBatch={6}
-                  updateCellsBatchingPeriod={50}
-                  removeClippedSubviews={true}
-                  windowSize={5}
-                  getItemLayout={(data, index) => ({
-                    length: 40,
-                    offset: 40 * Math.floor(index / 3),
-                    index,
-                  })}
-                />
-              </View>
-            )}
-
             {/* Essential sections - Show after interaction */}
             {sectionsReady && (
               <>
+                {/* Categories - Virtualized for performance */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Categories</Text>
+                  <FlatList
+                    data={parentCategories}
+                    renderItem={renderCategoryItem}
+                    keyExtractor={categoryKeyExtractor}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    columnWrapperStyle={styles.categoriesGrid}
+                    initialNumToRender={12}
+                    maxToRenderPerBatch={6}
+                    updateCellsBatchingPeriod={50}
+                    removeClippedSubviews={true}
+                    windowSize={5}
+                    getItemLayout={(data, index) => ({
+                      length: 40,
+                      offset: 40 * Math.floor(index / 3),
+                      index,
+                    })}
+                  />
+                </View>
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Location</Text>
                   <MapboxAutocompleteInput
