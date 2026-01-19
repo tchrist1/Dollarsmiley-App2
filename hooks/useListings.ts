@@ -197,99 +197,162 @@ export function useListings({
 
         const fetchPromises: Promise<{ type: 'service' | 'job'; data: any[] | null; error: any }>[] = [];
 
+        // OPTIMIZATION: Use optimized RPC functions for distance + rating filtering
+        const useDistanceFilter = filters.userLatitude && filters.userLongitude && filters.distance && filters.distance < 999;
+
         // Service query
         if (shouldFetchServices) {
-          let serviceQuery = supabase
-            .from('service_listings')
-            .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)');
+          // Use optimized distance-based RPC function when coordinates available
+          if (useDistanceFilter) {
+            fetchPromises.push(
+              (async () => {
+                const listingTypeParam = filters.listingType === 'Service' ? 'Service'
+                  : filters.listingType === 'CustomService' ? 'CustomService'
+                  : null;
 
-          if (filters.listingType === 'Service') {
-            serviceQuery = serviceQuery.eq('listing_type', 'Service');
-          } else if (filters.listingType === 'CustomService') {
-            serviceQuery = serviceQuery.eq('listing_type', 'CustomService');
+                const { data, error } = await supabase.rpc('find_nearby_service_listings', {
+                  p_latitude: filters.userLatitude,
+                  p_longitude: filters.userLongitude,
+                  p_radius_miles: filters.distance,
+                  p_min_rating: filters.minRating || 0,
+                  p_listing_type: listingTypeParam,
+                  p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                  p_search_query: searchQuery.trim() || null,
+                  p_price_min: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                  p_price_max: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                  p_verified_only: filters.verified || false,
+                  p_limit: pageSize * 2,
+                });
+
+                return { type: 'service' as const, data, error };
+              })()
+            );
+          } else {
+            // Fall back to standard query when no distance filter
+            let serviceQuery = supabase
+              .from('service_listings')
+              .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)');
+
+            if (filters.listingType === 'Service') {
+              serviceQuery = serviceQuery.eq('listing_type', 'Service');
+            } else if (filters.listingType === 'CustomService') {
+              serviceQuery = serviceQuery.eq('listing_type', 'CustomService');
+            }
+
+            serviceQuery = serviceQuery.eq('status', 'Active');
+
+            if (searchQuery.trim()) {
+              serviceQuery = serviceQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+            }
+
+            if (filters.categories.length > 0) {
+              serviceQuery = serviceQuery.in('category_id', filters.categories);
+            }
+
+            if (filters.location.trim()) {
+              serviceQuery = serviceQuery.ilike('location', `%${filters.location}%`);
+            }
+
+            if (filters.priceMin) {
+              serviceQuery = serviceQuery.gte('base_price', parseFloat(filters.priceMin));
+            }
+
+            if (filters.priceMax) {
+              serviceQuery = serviceQuery.lte('base_price', parseFloat(filters.priceMax));
+            }
+
+            // OPTIMIZATION: Rating filter at DB level instead of post-query
+            if (filters.minRating > 0) {
+              serviceQuery = serviceQuery.gte('profiles.rating_average', filters.minRating);
+            }
+
+            if (filters.verified) {
+              serviceQuery = serviceQuery.eq('profiles.is_verified', true);
+            }
+
+            serviceQuery = serviceQuery.order('created_at', { ascending: false }).limit(pageSize * 2);
+
+            fetchPromises.push(
+              (async () => {
+                const { data, error } = await serviceQuery;
+                return { type: 'service' as const, data, error };
+              })()
+            );
           }
-
-          serviceQuery = serviceQuery.eq('status', 'Active');
-
-          if (searchQuery.trim()) {
-            serviceQuery = serviceQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-          }
-
-          if (filters.categories.length > 0) {
-            serviceQuery = serviceQuery.in('category_id', filters.categories);
-          }
-
-          if (filters.location.trim()) {
-            serviceQuery = serviceQuery.ilike('location', `%${filters.location}%`);
-          }
-
-          if (filters.priceMin) {
-            serviceQuery = serviceQuery.gte('base_price', parseFloat(filters.priceMin));
-          }
-
-          if (filters.priceMax) {
-            serviceQuery = serviceQuery.lte('base_price', parseFloat(filters.priceMax));
-          }
-
-          if (filters.verified) {
-            serviceQuery = serviceQuery.eq('profiles.is_verified', true);
-          }
-
-          serviceQuery = serviceQuery.order('created_at', { ascending: false }).limit(pageSize * 2);
-
-          fetchPromises.push(
-            (async () => {
-              const { data, error } = await serviceQuery;
-              return { type: 'service' as const, data, error };
-            })()
-          );
         }
 
         // Job query
         if (shouldFetchJobs) {
-          let jobQuery = supabase
-            .from('jobs')
-            .select('*, profiles!jobs_customer_id_fkey(*), categories(*)');
+          // Use optimized distance-based RPC function when coordinates available
+          if (useDistanceFilter) {
+            fetchPromises.push(
+              (async () => {
+                const { data, error } = await supabase.rpc('find_nearby_jobs', {
+                  p_latitude: filters.userLatitude,
+                  p_longitude: filters.userLongitude,
+                  p_radius_miles: filters.distance,
+                  p_min_rating: filters.minRating || 0,
+                  p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                  p_search_query: searchQuery.trim() || null,
+                  p_price_min: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                  p_price_max: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                  p_limit: pageSize * 2,
+                });
 
-          jobQuery = jobQuery.eq('status', 'Open');
+                return { type: 'job' as const, data, error };
+              })()
+            );
+          } else {
+            // Fall back to standard query when no distance filter
+            let jobQuery = supabase
+              .from('jobs')
+              .select('*, profiles!jobs_customer_id_fkey(*), categories(*)');
 
-          if (searchQuery.trim()) {
-            jobQuery = jobQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-          }
+            jobQuery = jobQuery.eq('status', 'Open');
 
-          if (filters.categories.length > 0) {
-            jobQuery = jobQuery.in('category_id', filters.categories);
-          }
-
-          if (filters.location.trim()) {
-            jobQuery = jobQuery.ilike('location', `%${filters.location}%`);
-          }
-
-          if (filters.priceMin || filters.priceMax) {
-            const conditions: string[] = ['pricing_type.eq.quote_based'];
-
-            if (filters.priceMin && filters.priceMax) {
-              conditions.push(`and(budget_min.gte.${parseFloat(filters.priceMin)},budget_max.lte.${parseFloat(filters.priceMax)})`);
-              conditions.push(`and(fixed_price.gte.${parseFloat(filters.priceMin)},fixed_price.lte.${parseFloat(filters.priceMax)})`);
-            } else if (filters.priceMin) {
-              conditions.push(`budget_min.gte.${parseFloat(filters.priceMin)}`);
-              conditions.push(`fixed_price.gte.${parseFloat(filters.priceMin)}`);
-            } else if (filters.priceMax) {
-              conditions.push(`budget_max.lte.${parseFloat(filters.priceMax)}`);
-              conditions.push(`fixed_price.lte.${parseFloat(filters.priceMax)}`);
+            if (searchQuery.trim()) {
+              jobQuery = jobQuery.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
             }
 
-            jobQuery = jobQuery.or(conditions.join(','));
+            if (filters.categories.length > 0) {
+              jobQuery = jobQuery.in('category_id', filters.categories);
+            }
+
+            if (filters.location.trim()) {
+              jobQuery = jobQuery.ilike('location', `%${filters.location}%`);
+            }
+
+            if (filters.priceMin || filters.priceMax) {
+              const conditions: string[] = ['pricing_type.eq.quote_based'];
+
+              if (filters.priceMin && filters.priceMax) {
+                conditions.push(`and(budget_min.gte.${parseFloat(filters.priceMin)},budget_max.lte.${parseFloat(filters.priceMax)})`);
+                conditions.push(`and(fixed_price.gte.${parseFloat(filters.priceMin)},fixed_price.lte.${parseFloat(filters.priceMax)})`);
+              } else if (filters.priceMin) {
+                conditions.push(`budget_min.gte.${parseFloat(filters.priceMin)}`);
+                conditions.push(`fixed_price.gte.${parseFloat(filters.priceMin)}`);
+              } else if (filters.priceMax) {
+                conditions.push(`budget_max.lte.${parseFloat(filters.priceMax)}`);
+                conditions.push(`fixed_price.lte.${parseFloat(filters.priceMax)}`);
+              }
+
+              jobQuery = jobQuery.or(conditions.join(','));
+            }
+
+            // OPTIMIZATION: Rating filter at DB level for jobs (filter by customer rating)
+            if (filters.minRating > 0) {
+              jobQuery = jobQuery.gte('profiles.rating_average', filters.minRating);
+            }
+
+            jobQuery = jobQuery.order('created_at', { ascending: false }).limit(pageSize * 2);
+
+            fetchPromises.push(
+              (async () => {
+                const { data, error } = await jobQuery;
+                return { type: 'job' as const, data, error };
+              })()
+            );
           }
-
-          jobQuery = jobQuery.order('created_at', { ascending: false }).limit(pageSize * 2);
-
-          fetchPromises.push(
-            (async () => {
-              const { data, error } = await jobQuery;
-              return { type: 'job' as const, data, error };
-            })()
-          );
         }
 
         const results = await Promise.all(fetchPromises);
@@ -304,7 +367,12 @@ export function useListings({
           }
         }
 
-        allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // OPTIMIZATION COMPLETE: Distance and rating filtering now handled at DB level
+        // When useDistanceFilter is true, results are pre-filtered and sorted by distance
+        // Otherwise, we sort by creation date
+        if (!useDistanceFilter) {
+          allResults.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        }
 
         const paginatedResults = allResults.slice(offset, offset + pageSize);
 

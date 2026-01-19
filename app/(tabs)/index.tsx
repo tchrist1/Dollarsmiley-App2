@@ -376,6 +376,23 @@ export default function HomeScreen() {
   }, [profile?.id]);
 
   // ============================================================================
+  // OPTIMIZATION: Sync user location to filters for distance-based filtering
+  // ============================================================================
+  useEffect(() => {
+    const location = userLocation || (profile?.latitude && profile?.longitude
+      ? { latitude: profile.latitude, longitude: profile.longitude }
+      : null);
+
+    if (location && location.latitude && location.longitude) {
+      setFilters(prev => ({
+        ...prev,
+        userLatitude: location.latitude,
+        userLongitude: location.longitude,
+      }));
+    }
+  }, [userLocation, profile?.latitude, profile?.longitude]);
+
+  // ============================================================================
   // PHASE 1: CAROUSEL LAZY LOADING WITH 2-SECOND DELAY
   // ============================================================================
   // Enable carousel rendering after 2 seconds to avoid blocking initial load

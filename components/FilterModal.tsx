@@ -70,6 +70,8 @@ export interface FilterOptions {
   sortBy?: 'relevance' | 'price_low' | 'price_high' | 'rating' | 'popular' | 'recent' | 'distance';
   verified?: boolean;
   listingType?: 'all' | 'Job' | 'Service' | 'CustomService';
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
 export const defaultFilters: FilterOptions = {
@@ -82,6 +84,8 @@ export const defaultFilters: FilterOptions = {
   sortBy: 'relevance',
   verified: false,
   listingType: 'all',
+  userLatitude: undefined,
+  userLongitude: undefined,
 };
 
 interface FilterModalProps {
