@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from '
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Sparkles } from 'lucide-react-native';
+import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,11 +14,8 @@ import { ActiveFiltersBar } from '@/components/ActiveFiltersBar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
-import { RecommendationsCarousel } from '@/components/RecommendationsCarousel';
-import FeaturedListingsSection from '@/components/FeaturedListingsSection';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
-import AdminBanner from '@/components/AdminBanner';
 import MapModeBar from '@/components/MapModeBar';
 import MapFAB from '@/components/MapFAB';
 import MapStatusHint from '@/components/MapStatusHint';
@@ -31,7 +28,6 @@ import { invalidateAllListingCaches } from '@/lib/listing-cache';
 
 // PHASE 2: Import data layer hooks
 import { useListings } from '@/hooks/useListings';
-import { useCarousels } from '@/hooks/useCarousels';
 import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
 
@@ -274,9 +270,6 @@ export default function HomeScreen() {
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
-  // PHASE 1: Carousel sections with lazy loading flag
-  const [showCarousels, setShowCarousels] = useState(false);
-
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings,
@@ -292,19 +285,6 @@ export default function HomeScreen() {
     userId: profile?.id || null,
     pageSize: 20,
     debounceMs: 300,
-  });
-
-  const {
-    trending: trendingListings,
-    popular: popularListings,
-    recommended: recommendedListings,
-    loading: carouselsLoading,
-    error: carouselsError,
-    refresh: refreshCarousels,
-  } = useCarousels({
-    userId: profile?.id || null,
-    enabled: true,
-    lazyLoadDelayMs: 2000,
   });
 
   const {
@@ -395,29 +375,12 @@ export default function HomeScreen() {
   }, [userLocation, profile?.latitude, profile?.longitude]);
 
   // ============================================================================
-  // PHASE 1: CAROUSEL LAZY LOADING WITH 2-SECOND DELAY
-  // ============================================================================
-  // Enable carousel rendering after 2 seconds to avoid blocking initial load
-  // This is a one-time effect that runs on mount
-  // ============================================================================
-  useEffect(() => {
-    const carouselTimer = setTimeout(() => {
-      setShowCarousels(true);
-    }, 2000);
-
-    return () => clearTimeout(carouselTimer);
-  }, []);
-
-  // ============================================================================
   // PHASE 2: DATA FETCHING NOW HANDLED BY HOOKS
   // ============================================================================
   // - useListings: Main listings with search, filters, pagination
-  // - useCarousels: Trending/popular/recommended with lazy loading
   // - useTrendingSearches: Search suggestions with InteractionManager
   // - useMapData: Location permissions and geolocation
   // ============================================================================
-
-  // PHASE 2: Carousel data now managed by useCarousels hook with automatic lazy loading
 
   // Handle filter parameter from navigation
   useEffect(() => {
@@ -548,87 +511,7 @@ export default function HomeScreen() {
   // Faster recalculation: ~5ms vs previous ~15ms for 100 listings
   // ============================================================================
   const feedData = useMemo(() => {
-    // PHASE 1: Simple grouped layout when searching/filtering (no carousels needed)
-    if (searchQuery || activeFilterCount > 0) {
-      const groupedListings: any[] = [];
-      for (let i = 0; i < listings.length; i += 2) {
-        groupedListings.push({
-          type: 'row',
-          id: `row-${i}`,
-          items: [listings[i], listings[i + 1]].filter(Boolean)
-        });
-      }
-      return groupedListings;
-    }
-
-    // PHASE 1: Feed with carousels (only when showCarousels is true and carousels have data)
-    if (showCarousels && (trendingListings.length > 0 || popularListings.length > 0 || recommendedListings.length > 0)) {
-      const feed: any[] = [];
-      const ITEMS_PER_BLOCK = 6;
-
-      feed.push({ type: 'banner', id: 'admin-banner' });
-
-      if (trendingListings.length > 0) {
-        feed.push({
-          type: 'carousel',
-          id: 'trending',
-          title: 'Trending This Week',
-          icon: 'trending',
-          data: trendingListings
-        });
-      }
-
-      const block1 = listings.slice(0, ITEMS_PER_BLOCK);
-      for (let i = 0; i < block1.length; i += 2) {
-        feed.push({
-          type: 'row',
-          id: `row-block1-${i}`,
-          items: [block1[i], block1[i + 1]].filter(Boolean)
-        });
-      }
-
-      if (popularListings.length > 0) {
-        feed.push({
-          type: 'carousel',
-          id: 'popular',
-          title: 'Popular Services',
-          icon: 'star',
-          data: popularListings
-        });
-      }
-
-      const block2 = listings.slice(ITEMS_PER_BLOCK, ITEMS_PER_BLOCK * 2);
-      for (let i = 0; i < block2.length; i += 2) {
-        feed.push({
-          type: 'row',
-          id: `row-block2-${i}`,
-          items: [block2[i], block2[i + 1]].filter(Boolean)
-        });
-      }
-
-      if (recommendedListings.length > 0) {
-        feed.push({
-          type: 'carousel',
-          id: 'recommended',
-          title: 'Recommended for You',
-          icon: 'sparkles',
-          data: recommendedListings
-        });
-      }
-
-      const remaining = listings.slice(ITEMS_PER_BLOCK * 2);
-      for (let i = 0; i < remaining.length; i += 2) {
-        feed.push({
-          type: 'row',
-          id: `row-remaining-${i}`,
-          items: [remaining[i], remaining[i + 1]].filter(Boolean)
-        });
-      }
-
-      return feed;
-    }
-
-    // PHASE 1: Simple grouped layout (default when carousels not loaded yet)
+    // Simple grouped layout for all listings
     const groupedListings: any[] = [];
     for (let i = 0; i < listings.length; i += 2) {
       groupedListings.push({
@@ -638,7 +521,7 @@ export default function HomeScreen() {
       });
     }
     return groupedListings;
-  }, [listings, showCarousels, trendingListings, popularListings, recommendedListings, searchQuery, activeFilterCount]);
+  }, [listings]);
 
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
@@ -912,13 +795,6 @@ export default function HomeScreen() {
     return { text: 'SERVICE', color: colors.success };
   }, []);
 
-  const handleSeeAll = useCallback((type: string) => {
-    // PHASE 2: "See All" functionality handled by navigation or filter updates
-    // For now, this is a no-op since listings are managed by useListings hook
-    if (__DEV__) console.log('[HOME] See All clicked:', type);
-    // TODO: Navigate to dedicated view or update filters to show specific carousel items
-  }, []);
-
   const triggerMapStatusHint = useCallback(() => {
     if (mapStatusHintTimer.current) {
       clearTimeout(mapStatusHintTimer.current);
@@ -966,124 +842,12 @@ export default function HomeScreen() {
 
   // PRIORITY 4: Memoized keyExtractor functions to prevent re-creation on every render
   const feedKeyExtractor = useCallback((item: any) => item.id, []);
-  const carouselKeyExtractor = useCallback((item: any) => item.id, []);
 
   // PRIORITY 5 FIX: Stable onPress handler for memoized card components
   // This prevents cards from re-rendering when the parent re-renders
   const handleCardPress = useCallback((id: string, isJob: boolean) => {
     router.push(isJob ? `/jobs/${id}` : `/listing/${id}`);
   }, []);
-
-  const renderCarouselSection = useCallback((title: string, icon: React.ReactNode, data: MarketplaceListing[], type: string) => {
-    if (data.length === 0) return null;
-
-    return (
-      <View style={styles.carouselSection}>
-        <View style={styles.carouselHeader}>
-          <View style={styles.carouselTitleRow}>
-            {icon}
-            <Text style={styles.carouselTitle}>{title}</Text>
-          </View>
-          <TouchableOpacity onPress={() => handleSeeAll(type)}>
-            <Text style={styles.seeAllText}>See All →</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          horizontal
-          data={data}
-          initialNumToRender={5}
-          maxToRenderPerBatch={3}
-          windowSize={5}
-          removeClippedSubviews={true}
-          renderItem={({ item }) => {
-            const isJob = item.marketplace_type === 'Job';
-            const profile = isJob ? item.customer : item.provider;
-            const typeLabel = getListingTypeLabel(item);
-            let price = '';
-            if (isJob) {
-              price = item.fixed_price ? formatCurrency(item.fixed_price) : (item.budget_min ? formatCurrency(item.budget_min) : 'TBD');
-            } else {
-              price = formatCurrency(item.base_price || 0);
-            }
-            return (
-              <TouchableOpacity
-                style={styles.carouselCard}
-                onPress={() => router.push(isJob ? `/jobs/${item.id}` : `/listing/${item.id}`)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.carouselCardContent}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                    {profile?.avatar_url ? (
-                      <Image source={{ uri: profile.avatar_url }} style={styles.carouselAvatar} />
-                    ) : (
-                      <View style={[styles.carouselAvatar, styles.carouselAvatarPlaceholder]}>
-                        <Text style={styles.carouselAvatarText}>
-                          {(profile?.full_name || 'P').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={styles.carouselAccountName} numberOfLines={1}>
-                      {profile?.full_name || 'Provider'}
-                    </Text>
-                    <View style={{ backgroundColor: typeLabel.color, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 2 }}>
-                      <Text style={{ color: '#fff', fontSize: 8, fontWeight: '600' }}>{typeLabel.text}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.carouselCardTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.carouselCardLocation} numberOfLines={1}>
-                    {item.location || 'Remote'}
-                  </Text>
-                  <View style={styles.carouselCardFooter}>
-                    <Text style={styles.carouselCardPrice}>{price}</Text>
-                    {profile?.rating_average && (
-                      <View style={styles.carouselCardRating}>
-                        <Star size={12} color={colors.warning} fill={colors.warning} />
-                        <Text style={styles.carouselCardRatingText}>
-                          {profile.rating_average.toFixed(1)}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          keyExtractor={carouselKeyExtractor}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carouselList}
-        />
-      </View>
-    );
-  }, [handleSeeAll, getListingTypeLabel, carouselKeyExtractor]);
-
-  const renderCarouselsHeader = () => {
-    if (searchQuery || activeFilterCount > 0) return null;
-
-    return (
-      <View style={styles.carouselsContainer}>
-        {recommendedListings.length > 0 && renderCarouselSection(
-          'Recommended for You',
-          <Sparkles size={20} color={colors.primary} />,
-          recommendedListings,
-          'recommended'
-        )}
-        {trendingListings.length > 0 && renderCarouselSection(
-          'Trending This Week',
-          <TrendingUp size={20} color={colors.primary} />,
-          trendingListings,
-          'trending'
-        )}
-        {popularListings.length > 0 && renderCarouselSection(
-          'Popular Services',
-          <Star size={20} color={colors.primary} />,
-          popularListings,
-          'popular'
-        )}
-      </View>
-    );
-  };
 
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
@@ -1097,128 +861,8 @@ export default function HomeScreen() {
     return <GridCard item={item} onPress={handleCardPress} />;
   }, [handleCardPress]);
 
-  // Shared carousel renderer for feed items - no viewMode dependency
-  const renderFeedCarousel = useCallback((item: any) => {
-    const IconComponent = item.icon === 'trending' ? TrendingUp : item.icon === 'star' ? Star : Sparkles;
-    return (
-      <View style={styles.embeddedCarouselSection}>
-        <View style={styles.embeddedCarouselHeader}>
-          <View style={styles.embeddedCarouselTitleRow}>
-            <IconComponent size={22} color={colors.primary} />
-            <Text style={styles.embeddedCarouselTitle}>{item.title}</Text>
-          </View>
-          <TouchableOpacity onPress={() => handleSeeAll(item.id)} activeOpacity={0.7}>
-            <Text style={styles.embeddedSeeAllText}>See All →</Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          horizontal
-          data={item.data}
-          initialNumToRender={5}
-          maxToRenderPerBatch={3}
-          windowSize={5}
-          removeClippedSubviews={true}
-          renderItem={({ item: carouselItem }) => {
-            const carouselListing = carouselItem as any;
-
-            let carouselPhotos: string[] = [];
-            if (carouselListing.photos) {
-              if (Array.isArray(carouselListing.photos)) {
-                carouselPhotos = carouselListing.photos.filter((p: any) => typeof p === 'string' && p.trim() !== '');
-              } else if (typeof carouselListing.photos === 'string') {
-                try {
-                  const parsed = JSON.parse(carouselListing.photos);
-                  carouselPhotos = Array.isArray(parsed) ? parsed.filter((p: any) => typeof p === 'string' && p.trim() !== '') : [];
-                } catch (e) {
-                  if (carouselListing.photos.trim() !== '') {
-                    carouselPhotos = [carouselListing.photos];
-                  }
-                }
-              }
-            }
-            const carouselMainImage = carouselPhotos.length > 0 ? carouselPhotos[0] : null;
-            const isJob = carouselListing.marketplace_type === 'Job';
-            const carouselTypeLabel = getListingTypeLabel(carouselItem);
-
-            return (
-              <TouchableOpacity
-                style={styles.embeddedCarouselCard}
-                onPress={() => router.push(isJob ? `/jobs/${carouselItem.id}` : `/listing/${carouselItem.id}`)}
-                activeOpacity={0.7}
-              >
-                {carouselMainImage ? (
-                  <Image
-                    source={{ uri: carouselMainImage }}
-                    style={styles.embeddedCarouselCardImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.embeddedCarouselCardImage, styles.embeddedCarouselCardImagePlaceholder]}>
-                    <Text style={styles.embeddedCarouselCardImagePlaceholderText}>
-                      {isJob ? '💼' : carouselListing.listing_type === 'CustomService' ? '✨' : '🛠️'}
-                    </Text>
-                  </View>
-                )}
-                <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: carouselTypeLabel.color, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 3, zIndex: 1 }}>
-                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '600' }}>{carouselTypeLabel.text}</Text>
-                </View>
-                <View style={styles.embeddedCarouselCardContent}>
-                  <View style={styles.embeddedCarouselProfileRow}>
-                    {(carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url) ? (
-                      <Image
-                        source={{ uri: carouselListing.provider?.avatar_url || carouselListing.customer?.avatar_url || carouselListing.profiles?.avatar_url }}
-                        style={styles.embeddedCarouselAvatar}
-                      />
-                    ) : (
-                      <View style={[styles.embeddedCarouselAvatar, styles.embeddedCarouselAvatarPlaceholder]}>
-                        <Text style={styles.embeddedCarouselAvatarText}>
-                          {(carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'P').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                    )}
-                    <Text style={styles.embeddedCarouselCardProvider} numberOfLines={1}>
-                      {carouselListing.profiles?.full_name || carouselListing.provider?.full_name || carouselListing.customer?.full_name || 'Provider'}
-                    </Text>
-                  </View>
-                  <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
-                    {carouselItem.title}
-                  </Text>
-                  <View style={styles.embeddedCarouselCardFooter}>
-                    <Text style={styles.embeddedCarouselCardPrice}>
-                      {formatCurrency(carouselItem.base_price || carouselItem.fixed_price || carouselItem.budget_min || 0)}
-                    </Text>
-                    {(carouselListing.rating_average || carouselListing.provider?.rating_average) > 0 && (
-                      <View style={styles.embeddedCarouselCardRating}>
-                        <Star size={12} color={colors.warning} fill={colors.warning} />
-                        <Text style={styles.embeddedCarouselCardRatingText}>
-                          {(carouselListing.rating_average || carouselListing.provider?.rating_average)?.toFixed(1) || 'N/A'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          keyExtractor={carouselKeyExtractor}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.embeddedCarouselList}
-        />
-      </View>
-    );
-  }, [handleSeeAll, getListingTypeLabel, carouselKeyExtractor]);
-
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
-    if (item.type === 'banner') {
-      // PHASE 1: Show AdminBanner when carousels are enabled
-      return showCarousels ? <AdminBanner autoRotate={true} interval={4500} /> : null;
-    }
-
-    if (item.type === 'carousel') {
-      return renderFeedCarousel(item);
-    }
-
     if (item.type === 'row') {
       return (
         <View>
@@ -1232,19 +876,10 @@ export default function HomeScreen() {
     }
 
     return renderListingCard({ item: item.data });
-  }, [renderFeedCarousel, renderListingCard, showCarousels]);
+  }, [renderListingCard]);
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
-    if (item.type === 'banner') {
-      // PHASE 1: Show AdminBanner when carousels are enabled
-      return showCarousels ? <AdminBanner autoRotate={true} interval={4500} /> : null;
-    }
-
-    if (item.type === 'carousel') {
-      return renderFeedCarousel(item);
-    }
-
     if (item.type === 'row') {
       return (
         <View style={styles.gridRow}>
@@ -1258,7 +893,7 @@ export default function HomeScreen() {
     }
 
     return renderGridCard({ item: item.data });
-  }, [renderFeedCarousel, renderGridCard]);
+  }, [renderGridCard]);
 
   return (
     <View style={styles.container}>
@@ -1418,36 +1053,12 @@ export default function HomeScreen() {
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
       ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
-        // PHASE 1: Show carousels only when lazy loaded (after 2s)
-        showCarousels ? (
-          <View style={styles.recommendationsSection}>
-            <FeaturedListingsSection
-              variant="hero"
-              title="Featured Services"
-              showViewAll={true}
-              limit={3}
-            />
-            {profile?.id && (
-              <RecommendationsCarousel
-                userId={profile.id}
-                type="personalized"
-                userLocation={
-                  profile.latitude && profile.longitude
-                    ? { latitude: profile.latitude, longitude: profile.longitude }
-                    : undefined
-                }
-                limit={10}
-              />
-            )}
-            <RecommendationsCarousel type="trending" limit={8} />
-            <RecommendationsCarousel type="popular" limit={8} />
-          </View>
-        ) : (
-          <View style={styles.centerContent}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading recommendations...</Text>
-          </View>
-        )
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyStateTitle}>Welcome to Dollarsmiley</Text>
+          <Text style={styles.emptyStateText}>
+            No listings available right now. Check back soon!
+          </Text>
+        </View>
       ) : listings.length > 0 ? (
         <View style={{ flex: 1 }}>
           {/* List View - kept mounted, visibility toggled */}
@@ -1767,6 +1378,54 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.md,
   },
+  listingLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  listingLocationText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  listingRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  listingRatingText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  listingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  listingProvider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  providerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.full,
+  },
+  providerAvatarPlaceholder: {
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listingPrice: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.primary,
+  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1841,6 +1500,19 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
+  },
+  emptyStateTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyStateText: {
+    fontSize: fontSize.md,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.md,
   },
   emptyText: {
     fontSize: fontSize.md,
