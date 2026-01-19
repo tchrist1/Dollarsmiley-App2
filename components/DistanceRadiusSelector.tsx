@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,14 @@ interface DistanceRadiusSelectorProps {
 }
 
 const DISTANCE_OPTIONS = [5, 10, 25, 50, 100];
+
+// QUICK WIN 2: Pure calculation function (no dependencies)
+function calculateCircleScale(dist: number, minScale: number, maxScale: number): number {
+  const MIN_DISTANCE = 1;
+  const MAX_DISTANCE = 100;
+  const normalized = (dist - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
+  return minScale + normalized * (maxScale - minScale);
+}
 
 export const DistanceRadiusSelector = React.memo(function DistanceRadiusSelector({
   distance,
@@ -37,16 +45,12 @@ export const DistanceRadiusSelector = React.memo(function DistanceRadiusSelector
     return 'Extended Range';
   }, []);
 
-  const calculateCircleScale = useCallback((dist: number, minScale: number, maxScale: number): number => {
-    const MIN_DISTANCE = 1;
-    const MAX_DISTANCE = 100;
-    const normalized = (dist - MIN_DISTANCE) / (MAX_DISTANCE - MIN_DISTANCE);
-    return minScale + normalized * (maxScale - minScale);
-  }, []);
-
-  const innerCircleScale = calculateCircleScale(distance, 0.4, 2.0);
-  const middleCircleScale = calculateCircleScale(distance, 0.6, 3.0);
-  const outerCircleScale = calculateCircleScale(distance, 0.8, 4.0);
+  // QUICK WIN 2: Memoize expensive calculations
+  const { innerCircleScale, middleCircleScale, outerCircleScale } = useMemo(() => ({
+    innerCircleScale: calculateCircleScale(distance, 0.4, 2.0),
+    middleCircleScale: calculateCircleScale(distance, 0.6, 3.0),
+    outerCircleScale: calculateCircleScale(distance, 0.8, 4.0),
+  }), [distance]);
 
   return (
     <View style={styles.container}>

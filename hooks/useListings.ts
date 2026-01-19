@@ -149,11 +149,15 @@ export function useListings({
 
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isMountedRef = useRef(true);
+  // QUICK WIN 4: Add AbortController for request cancellation
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
       if (searchTimeout.current) clearTimeout(searchTimeout.current);
+      // QUICK WIN 4: Cancel pending requests on unmount
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
@@ -163,6 +167,18 @@ export function useListings({
 
   const fetchListings = useCallback(
     async (reset: boolean = false) => {
+      // QUICK WIN 4: Cancel previous request before starting new one
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        if (__DEV__) {
+          logPerfEvent('FETCH_CANCELLED', { reason: 'new request started' });
+        }
+      }
+
+      // Create new AbortController for this request
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       const isInitialLoad = reset && !searchQuery.trim() && filters.categories.length === 0 &&
                             !filters.location.trim() && !filters.priceMin && !filters.priceMax;
 
@@ -394,10 +410,20 @@ export function useListings({
 
         setError(null);
       } catch (err: any) {
+        // QUICK WIN 4: Ignore AbortError (request was cancelled intentionally)
+        if (err.name === 'AbortError') {
+          if (__DEV__) {
+            logPerfEvent('FETCH_ABORTED', { reason: 'request cancelled' });
+          }
+          return;
+        }
+
         if (!isMountedRef.current) return;
+        if (signal.aborted) return; // Don't set error if request was aborted
+
         setError(err.message || 'Failed to fetch listings');
       } finally {
-        if (isMountedRef.current) {
+        if (isMountedRef.current && !signal.aborted) {
           setLoading(false);
           setLoadingMore(false);
         }
@@ -406,16 +432,17 @@ export function useListings({
     [searchQuery, filters, userId, pageSize, page, hasMore, loadingMore]
   );
 
-  // Debounced effect
+  // Debounced effect with request cancellation
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
 
+    // QUICK WIN 5: Debounce filter changes (already implemented, just documented)
     searchTimeout.current = setTimeout(() => {
       setPage(0);
       setHasMore(true);
-      fetchListings(true);
+      fetchListings(true); // This will cancel any previous request via AbortController
     }, debounceMs);
 
     return () => {

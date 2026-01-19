@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { X, DollarSign, MapPin, Tag, Star, Award, Filter } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -10,7 +10,8 @@ interface ActiveFiltersBarProps {
   onClearAll: () => void;
 }
 
-export function ActiveFiltersBar({ filters, onRemoveFilter, onClearAll }: ActiveFiltersBarProps) {
+// QUICK WIN 1: Memoize active filters computation
+function buildActiveFiltersList(filters: FilterOptions) {
   const activeFilters: Array<{
     type: keyof FilterOptions;
     label: string;
@@ -85,6 +86,22 @@ export function ActiveFiltersBar({ filters, onRemoveFilter, onClearAll }: Active
     });
   }
 
+  return activeFilters;
+}
+
+export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
+  filters,
+  onRemoveFilter,
+  onClearAll
+}: ActiveFiltersBarProps) {
+  // QUICK WIN 1: Memoize expensive computation
+  const activeFilters = useMemo(() => buildActiveFiltersList(filters), [filters]);
+
+  // Memoize callbacks
+  const handleRemove = useCallback((type: keyof FilterOptions, value?: any) => {
+    onRemoveFilter(type, value);
+  }, [onRemoveFilter]);
+
   if (activeFilters.length === 0) {
     return null;
   }
@@ -104,7 +121,7 @@ export function ActiveFiltersBar({ filters, onRemoveFilter, onClearAll }: Active
               <Text style={styles.filterText}>{filter.label}</Text>
               <TouchableOpacity
                 style={styles.removeButton}
-                onPress={() => onRemoveFilter(filter.type, filter.value)}
+                onPress={() => handleRemove(filter.type, filter.value)}
               >
                 <X size={14} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -120,7 +137,7 @@ export function ActiveFiltersBar({ filters, onRemoveFilter, onClearAll }: Active
       </ScrollView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
