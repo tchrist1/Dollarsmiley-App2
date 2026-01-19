@@ -58,6 +58,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { forceRefreshAllData, getCacheDebugInfo } from '@/lib/force-refresh-data';
 
 interface NavigationItem {
   label: string;
@@ -748,6 +749,54 @@ export default function DebugNavigationMenu() {
               </View>
             )}
 
+            {/* Debug Actions */}
+            {!searchQuery && (
+              <View style={styles.debugActionsSection}>
+                <Text style={styles.categoryTitle}>Debug Actions</Text>
+                <TouchableOpacity
+                  style={styles.debugActionButton}
+                  onPress={() => {
+                    const result = forceRefreshAllData();
+                    if (Platform.OS !== 'web') {
+                      alert(result.message);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconContainer}>
+                    <RefreshCw size={20} color={colors.warning} />
+                  </View>
+                  <View style={styles.navItemContent}>
+                    <Text style={styles.debugActionLabel}>Clear All Caches</Text>
+                    <Text style={styles.navItemDescription}>
+                      Clear listing and session caches, then pull down on home screen to reload data
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.debugActionButton}
+                  onPress={() => {
+                    const stats = getCacheDebugInfo();
+                    console.log('Cache Stats:', stats);
+                    if (Platform.OS !== 'web') {
+                      alert('Cache info logged to console. Check Expo dev tools.');
+                    }
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconContainer}>
+                    <Activity size={20} color={colors.info} />
+                  </View>
+                  <View style={styles.navItemContent}>
+                    <Text style={styles.debugActionLabel}>View Cache Status</Text>
+                    <Text style={styles.navItemDescription}>
+                      Log cache statistics to console
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.footer}>
               <Text style={styles.footerText}>Total Screens: {filteredItems.length}</Text>
               <Text style={styles.footerWarning}>⚠️ Debug Mode - Disable before production</Text>
@@ -893,6 +942,27 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     marginTop: spacing.xs,
+  },
+  debugActionsSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  debugActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  debugActionLabel: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: 2,
   },
   footer: {
     padding: spacing.lg,
