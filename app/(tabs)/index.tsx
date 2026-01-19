@@ -83,10 +83,10 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
+          {item.title || 'Untitled'}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
+          {item.description || 'No description available'}
         </Text>
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
@@ -191,7 +191,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
               </Text>
             </View>
           )}
-          {profile && (
+          {profile && profile.full_name && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
               {profile.full_name}
             </Text>
@@ -204,10 +204,10 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           )}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
-          {item.title}
+          {item.title || 'Untitled'}
         </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description}
+          {item.description || 'No description available'}
         </Text>
         {listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
@@ -967,7 +967,7 @@ export default function HomeScreen() {
                     </View>
                   </View>
                   <Text style={styles.carouselCardTitle} numberOfLines={2}>
-                    {item.title}
+                    {item.title || 'Untitled'}
                   </Text>
                   <Text style={styles.carouselCardLocation} numberOfLines={1}>
                     {item.location || 'Remote'}
@@ -1118,7 +1118,7 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                   <Text style={styles.embeddedCarouselCardTitle} numberOfLines={2}>
-                    {carouselItem.title}
+                    {carouselItem.title || 'Untitled'}
                   </Text>
                   <View style={styles.embeddedCarouselCardFooter}>
                     <Text style={styles.embeddedCarouselCardPrice}>
