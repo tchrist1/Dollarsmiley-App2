@@ -271,7 +271,7 @@ export function RatingFilter({
           style={styles.quickAction}
           onPress={() => onRatingChange(0)}
         >
-          <Text style={styles.quickActionText}>Clear Filter</Text>
+          <Text style={styles.quickActionText}>Clear Selection</Text>
         </TouchableOpacity>
       </View>
     </View>
