@@ -541,12 +541,11 @@ export default function HomeScreen() {
     // Old fetch code preserved but never executed - to be removed in cleanup
     const old_code_block_start = true;
     const activeFilterCount_placeholder = 0; // Placeholder to prevent duplicate declaration error
-    if (old_code_block_start && activeFilterCount_placeholder) {
-      const _dummy = 0;
-        hasSearch: !!searchQuery.trim(),
-      });
-    }
+    // Removed malformed code that was causing syntax error
+  }
+  // End of if(false) dead code block
 
+  const fetchListings = useCallback(async (reset: boolean = true) => {
     // ============================================================================
     // CACHE OPTIMIZATION: Check cache on initial load only
     // ============================================================================
@@ -984,7 +983,7 @@ export default function HomeScreen() {
       setLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [searchQuery, filters, page, hasMore, profile?.id, loadingMore, userLocation, mapMode]);
 
   // PHASE 2 OPTIMIZATION: Memoize activeFilterCount to prevent recalculation on every render
   const activeFilterCount = useMemo(() => {
