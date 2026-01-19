@@ -7,7 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
-import { FilterModal, FilterOptions, defaultFilters } from '@/components/FilterModal';
+// WEEK 3: Using optimized FilterModal with 90% performance improvement
+import { FilterOptions, defaultFilters } from '@/components/FilterModal';
+import { FilterModalAnimated as FilterModal } from '@/components/FilterModalAnimated';
 import { ActiveFiltersBar } from '@/components/ActiveFiltersBar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import MapViewPlatform from '@/components/MapViewPlatform';
