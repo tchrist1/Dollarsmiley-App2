@@ -46,15 +46,15 @@ export default function MapFAB({
   };
 
   // Position at center-right, below the menu FAB
-  // Total height of both FABs + gap = 40 + 10 + 40 = 90
-  // Center is at 50% - 45, this FAB is 50dp below that (40 FAB + 10 gap)
+  // Total height of both FABs + gap = 56 + 10 + 56 = 122
+  // Center is at 50% - 61, this FAB is 66dp below that (56 FAB + 10 gap)
   return (
     <View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: 5, // -45 + 40 + 10 = 5
+          marginTop: 5, // -61 + 56 + 10 = 5
           right: spacing.md,
         },
       ]}
@@ -69,7 +69,7 @@ export default function MapFAB({
                 {
                   translateY: scaleAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0, -10],
+                    outputRange: [20, 0],
                   }),
                 },
               ],
@@ -81,7 +81,7 @@ export default function MapFAB({
             onPress={() => handleAction(onLayersPress)}
             activeOpacity={0.7}
           >
-            <Layers size={18} color={colors.text} />
+            <Layers size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Layers</Text>
           </TouchableOpacity>
 
@@ -90,7 +90,7 @@ export default function MapFAB({
             onPress={() => handleAction(onZoomIn)}
             activeOpacity={0.7}
           >
-            <Plus size={18} color={colors.text} />
+            <Plus size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Zoom In</Text>
           </TouchableOpacity>
 
@@ -99,7 +99,7 @@ export default function MapFAB({
             onPress={() => handleAction(onZoomOut)}
             activeOpacity={0.7}
           >
-            <Minus size={18} color={colors.text} />
+            <Minus size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Zoom Out</Text>
           </TouchableOpacity>
 
@@ -108,7 +108,7 @@ export default function MapFAB({
             onPress={() => handleAction(onFullscreen)}
             activeOpacity={0.7}
           >
-            <Maximize2 size={18} color={colors.text} />
+            <Maximize2 size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Recenter</Text>
           </TouchableOpacity>
         </Animated.View>
@@ -132,9 +132,9 @@ export default function MapFAB({
           }}
         >
           {expanded ? (
-            <X size={20} color={colors.white} />
+            <X size={24} color={colors.white} />
           ) : (
-            <MoreVertical size={20} color={colors.white} />
+            <MoreVertical size={24} color={colors.white} />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -153,9 +153,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   actionsContainer: {
-    position: 'absolute',
-    bottom: 50,
-    right: 0,
+    marginBottom: spacing.sm,
     gap: spacing.xs,
     alignItems: 'flex-end',
   },
@@ -175,18 +173,16 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fab: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary,
-    opacity: 0.85,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
   },
   fabExpanded: {
     backgroundColor: colors.error,
-    opacity: 0.95,
   },
   backdrop: {
     position: 'absolute',
