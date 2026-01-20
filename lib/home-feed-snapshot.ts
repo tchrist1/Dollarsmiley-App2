@@ -195,6 +195,7 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       title: snapshot.title,
       price: snapshot.price,
       image_url: snapshot.image_url,
+      featured_image_url: snapshot.image_url,
       created_at: snapshot.created_at,
       average_rating: snapshot.rating || 0,
       provider: {
@@ -203,7 +204,7 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       },
       listing_type: snapshot.listing_type,
       description: '', // Will be hydrated later
-      status: 'active',
+      status: 'Active',
       provider_id: snapshot.provider_id
     } as any;
   }

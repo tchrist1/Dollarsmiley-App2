@@ -389,11 +389,13 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     description: service.description || '',
     price: service.price,
     image_url: service.image_url,
+    featured_image_url: service.image_url,
     created_at: service.created_at,
     status: service.status,
     provider_id: service.provider_id,
     category_id: service.category_id,
     average_rating: service.rating || 0,
+    rating_average: service.rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
     provider: service.provider_full_name ? {
@@ -409,13 +411,29 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
 }
 
 function normalizeJobCursor(job: any): MarketplaceListing {
+  // Parse photos if it's a JSONB string, otherwise use as-is
+  let photos = [];
+  if (job.photos) {
+    if (Array.isArray(job.photos)) {
+      photos = job.photos;
+    } else if (typeof job.photos === 'object') {
+      // JSONB object - extract array or use empty
+      photos = Array.isArray(job.photos) ? job.photos : [];
+    }
+  }
+
+  // Fallback to featured_image_url if available
+  if (photos.length === 0 && job.featured_image_url) {
+    photos = [job.featured_image_url];
+  }
+
   return {
     id: job.id,
     marketplace_type: 'Job',
     title: job.title,
     description: job.description || '',
     budget: job.budget,
-    photos: job.photos || [],
+    photos,
     created_at: job.created_at,
     status: job.status,
     customer_id: job.customer_id,
