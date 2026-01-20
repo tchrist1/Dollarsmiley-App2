@@ -30,7 +30,8 @@ import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 
 // PHASE 2: Import data layer hooks
-import { useListings } from '@/hooks/useListings';
+// TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
+import { useListingsCursor as useListings } from '@/hooks/useListingsCursor';
 import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
 
@@ -1107,11 +1108,22 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
-              initialNumToRender={10}
-              maxToRenderPerBatch={5}
-              updateCellsBatchingPeriod={50}
-              windowSize={7}
+              // TIER 3: Optimized for above-the-fold priority loading
+              initialNumToRender={6}
+              maxToRenderPerBatch={3}
+              updateCellsBatchingPeriod={100}
+              windowSize={5}
               removeClippedSubviews={true}
+              // Improve scroll performance
+              getItemLayout={(data, index) => ({
+                length: 200,
+                offset: 200 * index,
+                index,
+              })}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+                autoscrollToTopThreshold: 10,
+              }}
               ListFooterComponent={
                 loadingMore ? (
                   <View style={styles.loadingMoreContainer}>
@@ -1143,10 +1155,11 @@ export default function HomeScreen() {
               showsVerticalScrollIndicator={false}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
-              initialNumToRender={10}
-              maxToRenderPerBatch={5}
-              updateCellsBatchingPeriod={50}
-              windowSize={7}
+              // TIER 3: Optimized for above-the-fold priority loading
+              initialNumToRender={8}
+              maxToRenderPerBatch={4}
+              updateCellsBatchingPeriod={100}
+              windowSize={5}
               removeClippedSubviews={true}
               ListFooterComponent={
                 loadingMore ? (

@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { Profile } from '@/types/database';
 import { registerForPushNotificationsAsync, savePushToken } from '@/lib/notifications';
+import { prewarmHomeFeed } from '@/lib/home-feed-snapshot';
 
 interface AuthContextType {
   session: Session | null;
@@ -59,6 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (error) {
             // Silently fail - push notifications are optional
+          }
+
+          // TIER 3 PERFORMANCE: Pre-warm home feed after login
+          // This loads and caches the home feed snapshot before user navigates to Home
+          // Result: Instant home screen load with no empty state flash
+          try {
+            prewarmHomeFeed(userId).catch(err => {
+              if (__DEV__) console.log('[Prewarm] Non-blocking error:', err);
+            });
+          } catch (error) {
+            // Silently fail - prewarming is an optimization, not critical
           }
         }
       }
