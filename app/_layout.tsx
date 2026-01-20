@@ -73,10 +73,8 @@ if (Platform.OS !== 'web') {
   // Initialize Mapbox once for native platforms
   try {
     const Mapbox = require('@rnmapbox/maps').default;
-    const nativeModules = require('../config/native-modules');
-    if (nativeModules.MAPBOX_CONFIG?.accessToken) {
-      Mapbox.setAccessToken(nativeModules.MAPBOX_CONFIG.accessToken);
-    }
+    const { MAPBOX_CONFIG } = require('@/config/native-modules');
+    Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
   } catch (error) {
     console.warn('Failed to initialize Mapbox:', error);
   }
