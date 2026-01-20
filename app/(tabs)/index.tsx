@@ -18,7 +18,7 @@ import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
-import MapModeBar from '@/components/MapModeBar';
+import MapViewFAB, { MapViewMode } from '@/components/MapViewFAB';
 import MapFAB from '@/components/MapFAB';
 import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
@@ -264,7 +264,7 @@ export default function HomeScreen() {
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('grid');
-  const [mapMode, setMapMode] = useState<'listings' | 'providers'>('listings');
+  const [mapMode, setMapMode] = useState<MapViewMode>('listings');
   const [mapZoomLevel, setMapZoomLevel] = useState(12);
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -719,42 +719,64 @@ export default function HomeScreen() {
       return Array.from(providersMap.values());
     }
 
-    const listingMarkers = listings
-      .filter((listing) => listing.latitude != null && listing.longitude != null)
-      .map((listing) => {
-        let price: number | undefined = 0;
-        let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
-        let lat = listing.latitude!;
-        let lng = listing.longitude!;
+    // Filter listings based on map mode
+    let filteredListings = listings.filter((listing) => listing.latitude != null && listing.longitude != null);
 
-        if (listing.marketplace_type === 'Job') {
-          listingType = 'Job';
-          if (listing.pricing_type === 'quote_based' || (!listing.fixed_price && !listing.budget_min)) {
-            price = undefined;
-          } else {
-            price = listing.fixed_price || listing.budget_min || 0;
-          }
+    if (mapMode === 'services') {
+      // Show only services (not custom services, not jobs)
+      filteredListings = filteredListings.filter(
+        (listing) => listing.marketplace_type !== 'Job' && listing.listing_type !== 'CustomService'
+      );
+    } else if (mapMode === 'jobs_all') {
+      // Show all jobs (both fixed and quoted)
+      filteredListings = filteredListings.filter((listing) => listing.marketplace_type === 'Job');
+    } else if (mapMode === 'jobs_fixed') {
+      // Show only fixed-price jobs
+      filteredListings = filteredListings.filter(
+        (listing) => listing.marketplace_type === 'Job' && listing.pricing_type === 'fixed_price'
+      );
+    } else if (mapMode === 'jobs_quoted') {
+      // Show only quote-based jobs
+      filteredListings = filteredListings.filter(
+        (listing) => listing.marketplace_type === 'Job' && listing.pricing_type === 'quote_based'
+      );
+    }
+    // 'listings' mode shows all listings (no additional filtering)
 
-          if (profile?.user_type === 'Customer') {
-            lat = Math.round(lat * 100) / 100;
-            lng = Math.round(lng * 100) / 100;
-          }
+    const listingMarkers = filteredListings.map((listing) => {
+      let price: number | undefined = 0;
+      let listingType: 'Service' | 'CustomService' | 'Job' = 'Service';
+      let lat = listing.latitude!;
+      let lng = listing.longitude!;
+
+      if (listing.marketplace_type === 'Job') {
+        listingType = 'Job';
+        if (listing.pricing_type === 'quote_based' || (!listing.fixed_price && !listing.budget_min)) {
+          price = undefined;
         } else {
-          price = listing.base_price || 0;
-          listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
+          price = listing.fixed_price || listing.budget_min || 0;
         }
 
-        return {
-          id: listing.id,
-          latitude: lat,
-          longitude: lng,
-          title: listing.title,
-          price: price,
-          type: 'listing' as const,
-          listingType: listingType,
-          pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
-        };
-      });
+        if (profile?.user_type === 'Customer') {
+          lat = Math.round(lat * 100) / 100;
+          lng = Math.round(lng * 100) / 100;
+        }
+      } else {
+        price = listing.base_price || 0;
+        listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
+      }
+
+      return {
+        id: listing.id,
+        latitude: lat,
+        longitude: lng,
+        title: listing.title,
+        price: price,
+        type: 'listing' as const,
+        listingType: listingType,
+        pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
+      };
+    });
 
     return listingMarkers;
   }, [listings, mapMode, profile?.user_type]);
@@ -817,7 +839,7 @@ export default function HomeScreen() {
     }
   }, [mapZoomLevel, triggerMapStatusHint]);
 
-  const handleMapModeChange = useCallback((mode: 'listings' | 'providers') => {
+  const handleMapModeChange = useCallback((mode: MapViewMode) => {
     setMapMode(mode);
     triggerMapStatusHint();
   }, [triggerMapStatusHint]);
@@ -1206,16 +1228,16 @@ export default function HomeScreen() {
 
             {viewMode === 'map' && (
               <>
-                <MapModeBar
-                  mode={mapMode}
-                  onModeChange={handleMapModeChange}
-                />
-
                 <MapStatusHint
                   locationCount={getMapMarkers.length}
                   zoomLevel={mapZoomLevel}
                   visible={showMapStatusHint}
                   mode={mapMode}
+                />
+
+                <MapViewFAB
+                  mode={mapMode}
+                  onModeChange={handleMapModeChange}
                 />
 
                 <MapFAB

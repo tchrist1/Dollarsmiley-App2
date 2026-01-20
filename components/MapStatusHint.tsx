@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
+type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | 'jobs_fixed' | 'jobs_quoted';
+
 interface MapStatusHintProps {
   locationCount: number;
   zoomLevel: number;
   visible: boolean;
-  mode: 'listings' | 'providers';
+  mode: MapViewMode;
 }
 
 export default function MapStatusHint({
@@ -61,7 +63,19 @@ export default function MapStatusHint({
 
   if (!visible) return null;
 
-  const label = mode === 'listings' ? 'locations' : 'providers';
+  const getModeLabel = (): string => {
+    switch (mode) {
+      case 'listings': return 'locations';
+      case 'providers': return 'providers';
+      case 'services': return 'services';
+      case 'jobs_all': return 'jobs';
+      case 'jobs_fixed': return 'fixed-price jobs';
+      case 'jobs_quoted': return 'quoted jobs';
+      default: return 'locations';
+    }
+  };
+
+  const label = getModeLabel();
 
   return (
     <Animated.View

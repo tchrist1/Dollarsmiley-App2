@@ -149,7 +149,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
       if (marker.type === 'provider') {
         letterText = 'SP';
       } else if (marker.listingType === 'Job') {
-        letterText = marker.pricingType === 'fixed_price' ? 'J' : 'JQ';
+        letterText = marker.pricingType === 'fixed_price' ? 'FJ' : 'QJ';
       } else if (marker.listingType === 'Service' || marker.listingType === 'CustomService') {
         letterText = 'S';
       }
