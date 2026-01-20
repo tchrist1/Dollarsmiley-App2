@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager, Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User } from 'lucide-react-native';
@@ -20,6 +22,7 @@ import MapModeBar from '@/components/MapModeBar';
 import MapFAB from '@/components/MapFAB';
 import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
+import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
 import { logPerfEvent, logRender, logNetworkCall } from '@/lib/performance-test-utils';
@@ -1047,10 +1050,37 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {loading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading...</Text>
+      {loading && listings.length > 0 && (
+        <View style={styles.backgroundRefreshIndicator}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.backgroundRefreshText}>Updating...</Text>
+        </View>
+      )}
+
+      {loading && listings.length === 0 ? (
+        <View style={{ flex: 1 }}>
+          {viewMode === 'list' ? (
+            <FlatList
+              data={Array.from({ length: 8 }, (_, i) => i)}
+              renderItem={() => <SkeletonCard customWidth={undefined} />}
+              keyExtractor={(_, index) => `skeleton-${index}`}
+              contentContainerStyle={styles.listingsContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <FlatList
+              data={Array.from({ length: 8 }, (_, i) => i)}
+              renderItem={({ index }) => (
+                <View style={index % 2 === 0 ? { marginRight: spacing.sm } : {}}>
+                  <SkeletonCard customWidth={(width - spacing.lg * 3) / 2} />
+                </View>
+              )}
+              keyExtractor={(_, index) => `skeleton-grid-${index}`}
+              contentContainerStyle={styles.gridContainer}
+              numColumns={2}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
         </View>
       ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.centerContent}>
@@ -1979,5 +2009,20 @@ const styles = StyleSheet.create({
   },
   viewContainerHidden: {
     opacity: 0,
+  },
+  backgroundRefreshIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.xs,
+  },
+  backgroundRefreshText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
   },
 });
