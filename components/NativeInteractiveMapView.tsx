@@ -481,16 +481,11 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
           animationDuration={1000}
         />
 
-        {/* REGRESSION FIX: User location indicator (blue dot)
-            - Ensure renderMode is set to 'normal' for visibility
-            - Component must be placed before markers for proper layer ordering */}
         {showUserLocation && (
           <Mapbox.UserLocation
             visible={true}
-            renderMode="normal"
             showsUserHeadingIndicator={true}
             minDisplacement={10}
-            androidRenderMode="normal"
           />
         )}
 
