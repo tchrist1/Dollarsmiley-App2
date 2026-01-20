@@ -388,6 +388,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     title: service.title,
     description: service.description || '',
     price: service.price,
+    base_price: service.price, // Map to base_price for UI compatibility
     image_url: service.image_url,
     featured_image_url: service.image_url,
     created_at: service.created_at,

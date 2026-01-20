@@ -194,6 +194,7 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       id: snapshot.id,
       title: snapshot.title,
       price: snapshot.price,
+      base_price: snapshot.price, // Map to base_price for UI compatibility
       image_url: snapshot.image_url,
       featured_image_url: snapshot.image_url,
       created_at: snapshot.created_at,
