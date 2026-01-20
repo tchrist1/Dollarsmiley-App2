@@ -17,6 +17,7 @@ interface MapFABProps {
   onZoomOut: () => void;
   onFullscreen: () => void;
   onLayersPress: () => void;
+  fabOpacity?: Animated.Value;
 }
 
 export default function MapFAB({
@@ -24,6 +25,7 @@ export default function MapFAB({
   onZoomOut,
   onFullscreen,
   onLayersPress,
+  fabOpacity,
 }: MapFABProps) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
@@ -49,15 +51,17 @@ export default function MapFAB({
   // Total height of both FABs + gap = 37 + 10 + 37 = 84
   // Center is at 50% - 42, this FAB is 47dp below that (37 FAB + 10 gap)
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         {
           top: '50%',
           marginTop: 5, // -42 + 37 + 10 = 5
           right: spacing.md,
+          opacity: fabOpacity || 1,
         },
       ]}
+      pointerEvents={fabOpacity && fabOpacity.__getValue() === 0 ? 'none' : 'auto'}
     >
       {expanded && (
         <Animated.View
@@ -142,7 +146,7 @@ export default function MapFAB({
       {expanded && (
         <Pressable style={styles.backdrop} onPress={toggleExpanded} />
       )}
-    </View>
+    </Animated.View>
   );
 }
 

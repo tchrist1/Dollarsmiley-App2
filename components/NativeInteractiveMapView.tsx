@@ -72,6 +72,8 @@ interface NativeInteractiveMapViewProps {
   onRecenter?: () => void;
   onLayersPress?: () => void;
   onZoomChange?: (zoom: number) => void;
+  onMapGestureStart?: () => void;
+  onMapGestureEnd?: () => void;
 }
 
 export interface NativeInteractiveMapViewRef {
@@ -102,16 +104,27 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
   onRecenter: externalOnRecenter,
   onLayersPress: externalOnLayersPress,
   onZoomChange,
+  onMapGestureStart,
+  onMapGestureEnd,
 }, ref) => {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<Mapbox.Camera>(null);
   const mapRef = useRef<Mapbox.MapView>(null);
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
+  const gestureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isGesturingRef = useRef(false);
   const [currentMapStyle, setCurrentMapStyle] = useState(MAP_STYLES[0]);
   const [showStyleSelector, setShowStyleSelector] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(12);
 
+  useEffect(() => {
+    return () => {
+      if (gestureTimeoutRef.current) {
+        clearTimeout(gestureTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const getMarkerConfig = (listingType?: 'Service' | 'CustomService' | 'Job') => {
     switch (listingType) {
@@ -416,8 +429,34 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     );
   }
 
+  const handleTouchStart = () => {
+    if (!isGesturingRef.current) {
+      isGesturingRef.current = true;
+      onMapGestureStart?.();
+    }
+    if (gestureTimeoutRef.current) {
+      clearTimeout(gestureTimeoutRef.current);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (gestureTimeoutRef.current) {
+      clearTimeout(gestureTimeoutRef.current);
+    }
+    gestureTimeoutRef.current = setTimeout(() => {
+      if (isGesturingRef.current) {
+        isGesturingRef.current = false;
+        onMapGestureEnd?.();
+      }
+    }, 100);
+  };
+
   return (
-    <View style={[styles.container, style]}>
+    <View
+      style={[styles.container, style]}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <Mapbox.MapView
         ref={mapRef}
         style={styles.map}

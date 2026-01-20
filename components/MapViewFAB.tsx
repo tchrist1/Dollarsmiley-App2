@@ -16,6 +16,7 @@ export type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | '
 interface MapViewFABProps {
   mode: MapViewMode;
   onModeChange: (mode: MapViewMode) => void;
+  fabOpacity?: Animated.Value;
 }
 
 interface ConcentricIconProps {
@@ -54,7 +55,7 @@ const ConcentricIcon: React.FC<ConcentricIconProps> = ({ label, color, isActive 
   );
 };
 
-export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
+export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFABProps) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -90,15 +91,17 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   // Total height of both FABs + gap = 37 + 10 + 37 = 84
   // This FAB centers at 50% - 42dp (half of total), placing it perfectly above the lower FAB
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         {
           top: '50%',
           marginTop: -42,
           right: spacing.md,
+          opacity: fabOpacity || 1,
         },
       ]}
+      pointerEvents={fabOpacity && fabOpacity.__getValue() === 0 ? 'none' : 'auto'}
     >
       {expanded && (
         <Animated.View
@@ -243,7 +246,7 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
       {expanded && (
         <Pressable style={styles.backdrop} onPress={toggleExpanded} />
       )}
-    </View>
+    </Animated.View>
   );
 }
 
