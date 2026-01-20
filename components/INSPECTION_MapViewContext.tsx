@@ -110,11 +110,12 @@ const handleMapPress = async (event: any) => {
         const marker = markers.find((m) => m.id === markerId);
         if (marker) {
           if (__DEV__) {
-            console.log('[MAP_PIN_TRACE] ✅ HIT_TEST_SUCCESS', {
-              markerId,
-              title: marker.title,
-              timestamp: Date.now(),
-            });
+            console.log(
+              '[MAP_PIN_TRACE] HIT_TEST_SUCCESS',
+              'markerId:', markerId,
+              'title:', marker.title,
+              'timestamp:', Date.now()
+            );
           }
           handleMarkerPress(marker);
         }
@@ -122,7 +123,7 @@ const handleMapPress = async (event: any) => {
     }
   } catch (error) {
     if (__DEV__) {
-      console.log('[MAP_PIN_TRACE] ⚠️ HIT_TEST_ERROR', error);
+      console.error('[MAP_PIN_TRACE] HIT_TEST_ERROR', error);
     }
   }
 };

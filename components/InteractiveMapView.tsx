@@ -86,12 +86,13 @@ export default function InteractiveMapView({
   // DEV-ONLY: Startup diagnostic log
   useEffect(() => {
     if (__DEV__) {
-      console.log('[MAP_PIN_TRACE] 🚀 WEB_MAP_MOUNTED', {
-        markerCount: markers.length,
-        hasOnMarkerPress: !!onMarkerPress,
-        timestamp: Date.now(),
-        platform: 'Web',
-      });
+      console.log(
+        '[MAP_PIN_TRACE] WEB_MAP_MOUNTED',
+        'markerCount:', markers.length,
+        'hasOnMarkerPress:', !!onMarkerPress,
+        'timestamp:', Date.now(),
+        'platform:', 'Web'
+      );
     }
   }, []);
 

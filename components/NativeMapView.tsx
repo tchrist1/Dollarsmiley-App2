@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Platform, Text } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { theme } from '@/constants/theme';
+import { MAPBOX_CONFIG } from '@/config/native-modules';
 
 // Mapbox is initialized once in app/_layout.tsx
 

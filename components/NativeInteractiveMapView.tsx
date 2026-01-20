@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
+import { MAPBOX_CONFIG } from '@/config/native-modules';
 
 // Mapbox is initialized once in app/_layout.tsx
 
