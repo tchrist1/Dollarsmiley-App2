@@ -1,16 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
-  Animated,
-  Modal,
-  Pressable,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Minus, Maximize2, Layers, MoreVertical, X } from 'lucide-react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
+import { Plus, Minus, Maximize2, Layers } from 'lucide-react-native';
+import { colors, spacing, shadows } from '@/constants/theme';
 
 interface MapFABProps {
   onZoomIn: () => void;
@@ -25,123 +20,53 @@ export default function MapFAB({
   onFullscreen,
   onLayersPress,
 }: MapFABProps) {
-  const insets = useSafeAreaInsets();
-  const [expanded, setExpanded] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-
-  const toggleExpanded = () => {
-    const toValue = expanded ? 0 : 1;
-    Animated.spring(scaleAnim, {
-      toValue,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7,
-    }).start();
-    setExpanded(!expanded);
-  };
-
-  const handleAction = (action: () => void) => {
-    action();
-    toggleExpanded();
-  };
-
   // Position at center-right, below the menu FAB
-  // Total height of both FABs + gap = 56 + 10 + 56 = 122
-  // Center is at 50% - 61, this FAB is 66dp below that (56 FAB + 10 gap)
+  // Total height of both FABs + gap = 37 + 10 + 37 = 84
+  // Center is at 50% - 42, this FAB is 47dp below that (37 FAB + 10 gap)
   return (
     <View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: 5, // -61 + 56 + 10 = 5
+          marginTop: 5,
           right: spacing.md,
         },
       ]}
     >
-      {expanded && (
-        <Animated.View
-          style={[
-            styles.actionsContainer,
-            {
-              opacity: scaleAnim,
-              transform: [
-                {
-                  translateY: scaleAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
+      <View style={styles.buttonStack}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onLayersPress}
+          activeOpacity={0.7}
         >
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleAction(onLayersPress)}
-            activeOpacity={0.7}
-          >
-            <Layers size={20} color={colors.text} />
-            <Text style={styles.actionLabel}>Layers</Text>
-          </TouchableOpacity>
+          <Layers size={16} color={colors.white} />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleAction(onZoomIn)}
-            activeOpacity={0.7}
-          >
-            <Plus size={20} color={colors.text} />
-            <Text style={styles.actionLabel}>Zoom In</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleAction(onZoomOut)}
-            activeOpacity={0.7}
-          >
-            <Minus size={20} color={colors.text} />
-            <Text style={styles.actionLabel}>Zoom Out</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleAction(onFullscreen)}
-            activeOpacity={0.7}
-          >
-            <Maximize2 size={20} color={colors.text} />
-            <Text style={styles.actionLabel}>Recenter</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-
-      <TouchableOpacity
-        style={[styles.fab, expanded && styles.fabExpanded]}
-        onPress={toggleExpanded}
-        activeOpacity={0.9}
-      >
-        <Animated.View
-          style={{
-            transform: [
-              {
-                rotate: scaleAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0deg', '45deg'],
-                }),
-              },
-            ],
-          }}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onZoomIn}
+          activeOpacity={0.7}
         >
-          {expanded ? (
-            <X size={24} color={colors.white} />
-          ) : (
-            <MoreVertical size={24} color={colors.white} />
-          )}
-        </Animated.View>
-      </TouchableOpacity>
+          <Plus size={16} color={colors.white} />
+        </TouchableOpacity>
 
-      {expanded && (
-        <Pressable style={styles.backdrop} onPress={toggleExpanded} />
-      )}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onZoomOut}
+          activeOpacity={0.7}
+        >
+          <Minus size={16} color={colors.white} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onFullscreen}
+          activeOpacity={0.7}
+        >
+          <Maximize2 size={16} color={colors.white} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -152,44 +77,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     zIndex: 1000,
   },
-  actionsContainer: {
-    marginBottom: spacing.sm,
+  buttonStack: {
     gap: spacing.xs,
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    gap: spacing.sm,
-    ...shadows.md,
-  },
-  actionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+    width: 37,
+    height: 37,
+    borderRadius: 18.5,
+    backgroundColor: 'rgba(59, 130, 246, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.lg,
-  },
-  fabExpanded: {
-    backgroundColor: colors.error,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
-    bottom: -1000,
-    zIndex: -1,
+    ...shadows.md,
   },
 });
