@@ -45,13 +45,17 @@ export default function MapFAB({
     toggleExpanded();
   };
 
+  // Position at center-right, below the menu FAB
+  // Total height of both FABs + gap = 56 + 10 + 56 = 122
+  // Center is at 50% - 61, this FAB is 66dp below that (56 FAB + 10 gap)
   return (
     <View
       style={[
         styles.container,
         {
-          bottom: insets.bottom - 16,
-          right: 6,
+          top: '50%',
+          marginTop: 5, // -61 + 56 + 10 = 5
+          right: spacing.md,
         },
       ]}
     >
@@ -169,9 +173,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fab: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',

@@ -86,12 +86,16 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
     }
   };
 
+  // Position at center-right, above the utility FAB
+  // Total height of both FABs + gap = 56 + 10 + 56 = 122
+  // This FAB centers at 50% - 61dp (half of total), placing it perfectly above the lower FAB
   return (
     <View
       style={[
         styles.container,
         {
-          bottom: insets.bottom + 16,
+          top: '50%',
+          marginTop: -61,
           right: spacing.md,
         },
       ]}
