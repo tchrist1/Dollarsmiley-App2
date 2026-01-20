@@ -37,7 +37,6 @@ import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database';
 import { Button } from '@/components/Button';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { logPerfEvent } from '@/lib/performance-test-utils';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useFilterReducer } from '@/hooks/useFilterReducer';

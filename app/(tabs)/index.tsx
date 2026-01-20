@@ -25,7 +25,6 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
-import { logPerfEvent, logRender, logNetworkCall } from '@/lib/performance-test-utils';
 import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 
@@ -320,29 +319,6 @@ export default function HomeScreen() {
     enabled: true,
   });
 
-  // ============================================================================
-  // DEV-ONLY PERFORMANCE INSTRUMENTATION
-  // ============================================================================
-  const firstRenderRef = useRef(true);
-
-  useEffect(() => {
-    if (__DEV__) {
-      logRender('HomeScreen');
-
-      if (firstRenderRef.current) {
-        logPerfEvent('HOME_FIRST_RENDER');
-        firstRenderRef.current = false;
-      }
-    }
-  });
-
-  useEffect(() => {
-    if (__DEV__ && !loading && listings.length > 0) {
-      logPerfEvent('HOME_INTERACTIVE_READY', {
-        listingsCount: listings.length,
-      });
-    }
-  }, [loading, listings.length]);
 
   // ============================================================================
   // PHASE 4: CACHE INVALIDATION - Clear all caches on user change or logout
@@ -354,7 +330,6 @@ export default function HomeScreen() {
 
     // Invalidate cache if user changed (logout or account switch)
     if (userIdRef.current !== currentUserId) {
-      if (__DEV__) console.log('[PHASE_4] User changed - invalidating all caches');
       invalidateAllListingCaches(); // PHASE 2: Home listings cache
       invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
       userIdRef.current = currentUserId;
@@ -595,26 +570,12 @@ export default function HomeScreen() {
   // the same event handler only cause one re-render
   // ============================================================================
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
-    if (__DEV__) {
-      logPerfEvent('FILTER_APPLY_START', {
-        listingType: newFilters.listingType,
-        categoriesCount: newFilters.categories.length,
-      });
-    }
-
     // React 18 batches these automatically - single re-render
     setFilters(newFilters);
-
-    if (__DEV__) {
-      logPerfEvent('FILTER_STATE_UPDATED');
-    }
   }, []);
 
   // PRIORITY 1 FIX: Memoize filter open handler to prevent function recreation
   const handleOpenFilters = useCallback(() => {
-    if (__DEV__) {
-      logPerfEvent('FILTER_OPEN_TAP');
-    }
     setShowFilters(true);
   }, []);
 

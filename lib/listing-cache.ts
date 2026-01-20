@@ -57,22 +57,18 @@ function isCacheValid<T>(
   cacheName: string
 ): boolean {
   if (!cache) {
-    if (__DEV__) console.log(`[${cacheName}] Cache miss`);
     return false;
   }
 
   if (cache.userId !== userId) {
-    if (__DEV__) console.log(`[${cacheName}] User mismatch`);
     return false;
   }
 
   const age = Date.now() - cache.timestamp;
   if (age > ttl) {
-    if (__DEV__) console.log(`[${cacheName}] Expired (${Math.round(age / 1000)}s)`);
     return false;
   }
 
-  if (__DEV__) console.log(`[${cacheName}] Hit (age: ${Math.round(age / 1000)}s)`);
   return true;
 }
 
@@ -94,12 +90,10 @@ export function getCachedHomeListings(userId: string | null): MarketplaceListing
 
 export function setCachedHomeListings(listings: MarketplaceListing[], userId: string | null): void {
   homeListingsCache = createCacheEntry(listings, userId);
-  if (__DEV__) console.log(`[HOME_LISTINGS] Cached ${listings.length} items`);
 }
 
 export function invalidateHomeListingsCache(): void {
   if (homeListingsCache) {
-    if (__DEV__) console.log('[HOME_LISTINGS] Invalidated');
     homeListingsCache = null;
   }
 }
@@ -118,15 +112,10 @@ export function getCachedCarouselData(userId: string | null): CarouselData | nul
 
 export function setCachedCarouselData(data: CarouselData, userId: string | null): void {
   carouselCache = createCacheEntry(data, userId);
-  if (__DEV__) {
-    const total = data.trending.length + data.popular.length + data.recommended.length;
-    console.log(`[CAROUSEL_DATA] Cached ${total} items`);
-  }
 }
 
 export function invalidateCarouselCache(): void {
   if (carouselCache) {
-    if (__DEV__) console.log('[CAROUSEL_DATA] Invalidated');
     carouselCache = null;
   }
 }
@@ -145,12 +134,10 @@ export function getCachedTrendingSearches(userId: string | null): TrendingSearch
 
 export function setCachedTrendingSearches(searches: TrendingSearch[], userId: string | null): void {
   trendingSearchesCache = createCacheEntry(searches, userId);
-  if (__DEV__) console.log(`[TRENDING_SEARCHES] Cached ${searches.length} items`);
 }
 
 export function invalidateTrendingSearchesCache(): void {
   if (trendingSearchesCache) {
-    if (__DEV__) console.log('[TRENDING_SEARCHES] Invalidated');
     trendingSearchesCache = null;
   }
 }
@@ -160,7 +147,6 @@ export function invalidateTrendingSearchesCache(): void {
 // ============================================================================
 
 export function invalidateAllListingCaches(): void {
-  if (__DEV__) console.log('[CACHE] Invalidating all caches');
   invalidateHomeListingsCache();
   invalidateCarouselCache();
   invalidateTrendingSearchesCache();

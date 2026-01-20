@@ -24,7 +24,6 @@ import { RatingFilter } from '@/components/RatingFilter';
 import { SortOptionsSelector, SortOption } from '@/components/SortOptionsSelector';
 import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -124,12 +123,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   // ============================================================================
   const scrollStartTimeRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (__DEV__) {
-      logRender('FilterModal');
-    }
-  });
-
   // PHASE 3: Optimize category fetch - only fetch once, not on every modal open
   // PHASE 4: WITH SESSION CACHE (1-hour TTL, cross-component sharing)
   const fetchCategories = useCallback(async () => {
@@ -164,17 +157,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   // Reset draft filters when modal opens with current filters
   useEffect(() => {
     if (visible) {
-      if (__DEV__) {
-        const startTime = performance.now();
-        logPerfEvent('FILTER_MODAL_OPENING', { filtersCount: Object.keys(currentFilters).length });
-
-        // Log when modal is fully mounted
-        requestAnimationFrame(() => {
-          const mountTime = performance.now() - startTime;
-          logPerfEvent('FILTER_MODAL_MOUNTED', { mountTime: `${mountTime.toFixed(2)}ms` });
-        });
-      }
-
       // Reset lazy loading states
       setSectionsReady(false);
 
@@ -192,9 +174,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
         setSectionsReady(true);
       });
     } else {
-      if (__DEV__) {
-        logPerfEvent('FILTER_MODAL_CLOSED');
-      }
       // Cancel any pending lazy loads
       if (mountInteractionRef.current) {
         mountInteractionRef.current.cancel();
@@ -228,19 +207,8 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
-    if (__DEV__) {
-      logPerfEvent('APPLY_FILTERS_TAP', {
-        listingType: draftFilters.listingType,
-        categoriesCount: draftFilters.categories.length,
-        hasLocation: !!draftFilters.location,
-        hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
-      });
-    }
     onApply(draftFilters);
     onClose();
-    if (__DEV__) {
-      logPerfEvent('FILTER_APPLY_COMPLETE');
-    }
   }, [draftFilters, onApply, onClose]);
 
   // Update draftFilters when debounced price values change
@@ -263,9 +231,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   }, []);
 
   const handleReset = useCallback(() => {
-    if (__DEV__) {
-      logPerfEvent('CLEAR_ALL_TAP');
-    }
     setDraftFilters(defaultFilters);
     setLocalPriceMin('');
     setLocalPriceMax('');
@@ -273,9 +238,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     setSelectedPreset(null);
     onApply(defaultFilters);
     onClose();
-    if (__DEV__) {
-      logPerfEvent('CLEAR_ALL_COMPLETE');
-    }
   }, [onApply, onClose]);
 
   const handlePresetClick = useCallback((label: string, min: number, max: number) => {
@@ -431,11 +393,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       animationType="slide"
       transparent
       onRequestClose={onClose}
-      onShow={() => {
-        if (__DEV__) {
-          logPerfEvent('FILTER_OPEN_VISIBLE');
-        }
-      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -445,13 +402,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
           style={styles.overlay}
           activeOpacity={1}
           onPress={() => {
-            if (__DEV__) {
-              logPerfEvent('FILTER_CLOSE_TAP');
-            }
             onClose();
-            if (__DEV__) {
-              logPerfEvent('FILTER_CLOSE_COMPLETE');
-            }
           }}
         >
           <TouchableOpacity
@@ -475,21 +426,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                 keyboardDismissMode="on-drag"
                 removeClippedSubviews={Platform.OS === 'android'}
                 scrollEventThrottle={16}
-                onScrollBeginDrag={() => {
-                  if (__DEV__ && !scrollStartTimeRef.current) {
-                    scrollStartTimeRef.current = performance.now();
-                    logPerfEvent('FILTER_MODAL_SCROLL_START');
-                  }
-                }}
-                onScrollEndDrag={() => {
-                  if (__DEV__ && scrollStartTimeRef.current) {
-                    const scrollDuration = performance.now() - scrollStartTimeRef.current;
-                    logPerfEvent('FILTER_MODAL_SCROLL_END', {
-                      duration: `${scrollDuration.toFixed(2)}ms`
-                    });
-                    scrollStartTimeRef.current = null;
-                  }
-                }}
               >
             {/* Listing Type - First - Always show immediately */}
             <View style={styles.section}>

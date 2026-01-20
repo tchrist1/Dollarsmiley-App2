@@ -13,7 +13,6 @@ import {
   getCachedHomeListings,
   setCachedHomeListings,
 } from '@/lib/listing-cache';
-import { logPerfEvent } from '@/lib/performance-test-utils';
 
 // ============================================================================
 // TYPES
@@ -171,9 +170,6 @@ export function useListings({
       // QUICK WIN 4: Cancel previous request before starting new one
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-        if (__DEV__) {
-          logPerfEvent('FETCH_CANCELLED', { reason: 'new request started' });
-        }
       }
 
       // Create new AbortController for this request
@@ -424,9 +420,6 @@ export function useListings({
       } catch (err: any) {
         // QUICK WIN 4: Ignore AbortError (request was cancelled intentionally)
         if (err.name === 'AbortError') {
-          if (__DEV__) {
-            logPerfEvent('FETCH_ABORTED', { reason: 'request cancelled' });
-          }
           return;
         }
 

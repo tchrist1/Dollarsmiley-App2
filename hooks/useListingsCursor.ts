@@ -19,7 +19,6 @@ import {
   snapshotToMarketplaceListing,
   fetchHomeFeedSnapshot
 } from '@/lib/home-feed-snapshot';
-import { logPerfEvent } from '@/lib/performance-test-utils';
 
 // ============================================================================
 // TYPES
@@ -109,14 +108,10 @@ export function useListingsCursor({
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
 
-        if (__DEV__) {
-          console.log('[Cursor] Snapshot loaded instantly:', instantFeed.listings.length);
-        }
-
         return true;
       }
     } catch (err) {
-      console.error('[Cursor] Snapshot load error:', err);
+      // Snapshot load failed, continue with normal fetch
     }
 
     return false;
@@ -131,9 +126,6 @@ export function useListingsCursor({
       // Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
-        if (__DEV__) {
-          logPerfEvent('FETCH_CANCELLED', { reason: 'new request started' });
-        }
       }
 
       abortControllerRef.current = new AbortController();
@@ -265,7 +257,6 @@ export function useListingsCursor({
 
         for (const result of results) {
           if (result.error) {
-            console.error(`[Cursor] ${result.type} fetch error:`, result.error);
             continue;
           }
 

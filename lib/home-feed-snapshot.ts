@@ -61,13 +61,11 @@ export async function fetchHomeFeedSnapshot(
       });
 
     if (error) {
-      console.error('[Snapshot] Server fetch error:', error);
       return null;
     }
 
     return data as SnapshotMinimal[];
   } catch (err) {
-    console.error('[Snapshot] Exception during fetch:', err);
     return null;
   }
 }
@@ -236,13 +234,9 @@ export async function prewarmHomeFeed(userId: string | null): Promise<void> {
         created_at: snapshot[snapshot.length - 1].created_at,
         id: snapshot[snapshot.length - 1].id
       });
-
-      if (__DEV__) {
-        console.log(`[Prewarm] Cached ${snapshot.length} listings for instant display`);
-      }
     }
   } catch (err) {
-    console.error('[Prewarm] Error warming home feed:', err);
+    // Prewarm failed, non-critical
   }
 }
 
@@ -266,7 +260,6 @@ export async function getInstantHomeFeed(
 
     return null;
   } catch (err) {
-    console.error('[InstantFeed] Error:', err);
     return null;
   }
 }

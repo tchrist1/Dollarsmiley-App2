@@ -40,24 +40,20 @@ const TRENDING_SEARCHES_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 export const getCachedTrendingSearches = (userId: string | null): TrendingSearch[] | null => {
   if (!trendingSearchesCache) {
-    if (__DEV__) console.log('[TRENDING_CACHE] Cache miss - no entry');
     return null;
   }
 
   if (trendingSearchesCache.userId !== userId) {
-    if (__DEV__) console.log('[TRENDING_CACHE] Cache invalidated - user mismatch');
     trendingSearchesCache = null;
     return null;
   }
 
   const age = Date.now() - trendingSearchesCache.timestamp;
   if (age > TRENDING_SEARCHES_TTL_MS) {
-    if (__DEV__) console.log('[TRENDING_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
     trendingSearchesCache = null;
     return null;
   }
 
-  if (__DEV__) console.log('[TRENDING_CACHE] Cache hit - age:', Math.round(age / 1000), 's');
   return trendingSearchesCache.data;
 };
 
@@ -67,12 +63,10 @@ export const setCachedTrendingSearches = (data: TrendingSearch[], userId: string
     timestamp: Date.now(),
     userId,
   };
-  if (__DEV__) console.log('[TRENDING_CACHE] Cache updated - entries:', data.length);
 };
 
 export const invalidateTrendingSearchesCache = () => {
   if (trendingSearchesCache) {
-    if (__DEV__) console.log('[TRENDING_CACHE] Cache invalidated');
     trendingSearchesCache = null;
   }
 };
@@ -95,24 +89,20 @@ const CAROUSEL_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export const getCachedCarouselData = (userId: string | null): CarouselData | null => {
   if (!carouselCache) {
-    if (__DEV__) console.log('[CAROUSEL_CACHE] Cache miss - no entry');
     return null;
   }
 
   if (carouselCache.userId !== userId) {
-    if (__DEV__) console.log('[CAROUSEL_CACHE] Cache invalidated - user mismatch');
     carouselCache = null;
     return null;
   }
 
   const age = Date.now() - carouselCache.timestamp;
   if (age > CAROUSEL_TTL_MS) {
-    if (__DEV__) console.log('[CAROUSEL_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
     carouselCache = null;
     return null;
   }
 
-  if (__DEV__) console.log('[CAROUSEL_CACHE] Cache hit - age:', Math.round(age / 1000), 's');
   return carouselCache.data;
 };
 
@@ -122,12 +112,10 @@ export const setCachedCarouselData = (data: CarouselData, userId: string | null)
     timestamp: Date.now(),
     userId,
   };
-  if (__DEV__) console.log('[CAROUSEL_CACHE] Cache updated');
 };
 
 export const invalidateCarouselCache = () => {
   if (carouselCache) {
-    if (__DEV__) console.log('[CAROUSEL_CACHE] Cache invalidated');
     carouselCache = null;
   }
 };
@@ -154,24 +142,20 @@ export const getCachedGeocode = (address: string, userId: string | null): Geocod
   const entry = geocodingCache.get(normalizedAddress);
 
   if (!entry) {
-    if (__DEV__) console.log('[GEOCODE_CACHE] Cache miss -', address);
     return null;
   }
 
   if (entry.userId !== userId) {
-    if (__DEV__) console.log('[GEOCODE_CACHE] Cache invalidated - user mismatch');
     geocodingCache.delete(normalizedAddress);
     return null;
   }
 
   const age = Date.now() - entry.timestamp;
   if (age > GEOCODING_TTL_MS) {
-    if (__DEV__) console.log('[GEOCODE_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
     geocodingCache.delete(normalizedAddress);
     return null;
   }
 
-  if (__DEV__) console.log('[GEOCODE_CACHE] Cache hit -', address);
   return entry.data;
 };
 
@@ -182,12 +166,10 @@ export const setCachedGeocode = (address: string, location: GeocodedLocation, us
     timestamp: Date.now(),
     userId,
   });
-  if (__DEV__) console.log('[GEOCODE_CACHE] Cache updated -', address);
 };
 
 export const invalidateGeocodingCache = () => {
   if (geocodingCache.size > 0) {
-    if (__DEV__) console.log('[GEOCODE_CACHE] Cache cleared - entries:', geocodingCache.size);
     geocodingCache.clear();
   }
 };
@@ -213,24 +195,20 @@ const CATEGORIES_TTL_MS = 60 * 60 * 1000; // 1 hour (very stable)
 
 export const getCachedCategories = (userId: string | null): Category[] | null => {
   if (!categoriesCache) {
-    if (__DEV__) console.log('[CATEGORIES_CACHE] Cache miss - no entry');
     return null;
   }
 
   if (categoriesCache.userId !== userId) {
-    if (__DEV__) console.log('[CATEGORIES_CACHE] Cache invalidated - user mismatch');
     categoriesCache = null;
     return null;
   }
 
   const age = Date.now() - categoriesCache.timestamp;
   if (age > CATEGORIES_TTL_MS) {
-    if (__DEV__) console.log('[CATEGORIES_CACHE] Cache expired - age:', Math.round(age / 1000), 's');
     categoriesCache = null;
     return null;
   }
 
-  if (__DEV__) console.log('[CATEGORIES_CACHE] Cache hit - age:', Math.round(age / 1000), 's, entries:', categoriesCache.data.length);
   return categoriesCache.data;
 };
 
@@ -240,12 +218,10 @@ export const setCachedCategories = (data: Category[], userId: string | null) => 
     timestamp: Date.now(),
     userId,
   };
-  if (__DEV__) console.log('[CATEGORIES_CACHE] Cache updated - entries:', data.length);
 };
 
 export const invalidateCategoriesCache = () => {
   if (categoriesCache) {
-    if (__DEV__) console.log('[CATEGORIES_CACHE] Cache invalidated');
     categoriesCache = null;
   }
 };
@@ -255,8 +231,6 @@ export const invalidateCategoriesCache = () => {
 // ============================================================================
 
 export const invalidateAllCaches = () => {
-  if (__DEV__) console.log('[SESSION_CACHE] Invalidating all caches');
-
   invalidateTrendingSearchesCache();
   invalidateCarouselCache();
   invalidateGeocodingCache();

@@ -30,7 +30,6 @@ import { supabase } from '@/lib/supabase';
 import { Category } from '@/types/database';
 import { Button } from '@/components/Button';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { logPerfEvent, logRender } from '@/lib/performance-test-utils';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useFilterReducer } from '@/hooks/useFilterReducer';
@@ -91,12 +90,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
   const [sectionsReady, setSectionsReady] = useState(false);
   const mountInteractionRef = useRef<any>(null);
 
-  // Performance instrumentation
-  useEffect(() => {
-    if (__DEV__) {
-      logRender('FilterModalOptimized');
-    }
-  });
 
   // Fetch categories with session cache
   const fetchCategories = useCallback(async () => {
@@ -127,16 +120,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
   // Reset draft filters when modal opens
   useEffect(() => {
     if (visible) {
-      if (__DEV__) {
-        const startTime = performance.now();
-        logPerfEvent('FILTER_MODAL_OPENING_OPTIMIZED', { filtersCount: Object.keys(currentFilters).length });
-
-        requestAnimationFrame(() => {
-          const mountTime = performance.now() - startTime;
-          logPerfEvent('FILTER_MODAL_MOUNTED_OPTIMIZED', { mountTime: `${mountTime.toFixed(2)}ms` });
-        });
-      }
-
       // Reset states
       setSectionsReady(false);
       actions.setAllFilters(currentFilters);
@@ -151,9 +134,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
         setSectionsReady(true);
       });
     } else {
-      if (__DEV__) {
-        logPerfEvent('FILTER_MODAL_CLOSED_OPTIMIZED');
-      }
       if (mountInteractionRef.current) {
         mountInteractionRef.current.cancel();
       }
@@ -181,15 +161,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
 
   // WEEK 2 OPTIMIZATION 3: Optimistic apply - show loading immediately
   const handleApply = useCallback(() => {
-    if (__DEV__) {
-      logPerfEvent('APPLY_FILTERS_TAP_OPTIMIZED', {
-        listingType: draftFilters.listingType,
-        categoriesCount: draftFilters.categories.length,
-        hasLocation: !!draftFilters.location,
-        hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
-      });
-    }
-
     // Show optimistic loading state immediately
     setOptimisticLoading(true);
 
@@ -199,16 +170,10 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
     // Apply filters in background (non-blocking)
     requestAnimationFrame(() => {
       onApply(draftFilters);
-      if (__DEV__) {
-        logPerfEvent('FILTER_APPLY_COMPLETE_OPTIMIZED');
-      }
     });
   }, [draftFilters, onApply, onClose]);
 
   const handleReset = useCallback(() => {
-    if (__DEV__) {
-      logPerfEvent('CLEAR_ALL_TAP_OPTIMIZED');
-    }
     actions.resetFilters(defaultFilters);
     setLocalPriceMin('');
     setLocalPriceMax('');
@@ -216,9 +181,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
     setSelectedPreset(null);
     onApply(defaultFilters);
     onClose();
-    if (__DEV__) {
-      logPerfEvent('CLEAR_ALL_COMPLETE_OPTIMIZED');
-    }
   }, [actions, onApply, onClose]);
 
   const handlePriceChange = useCallback((type: 'min' | 'max', value: string) => {
@@ -320,11 +282,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
       animationType="slide"
       transparent
       onRequestClose={onClose}
-      onShow={() => {
-        if (__DEV__) {
-          logPerfEvent('FILTER_OPEN_VISIBLE_OPTIMIZED');
-        }
-      }}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

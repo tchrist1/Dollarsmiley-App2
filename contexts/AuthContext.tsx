@@ -66,8 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // This loads and caches the home feed snapshot before user navigates to Home
           // Result: Instant home screen load with no empty state flash
           try {
-            prewarmHomeFeed(userId).catch(err => {
-              if (__DEV__) console.log('[Prewarm] Non-blocking error:', err);
+            prewarmHomeFeed(userId).catch(() => {
+              // Silently fail - prewarming is an optimization, not critical
             });
           } catch (error) {
             // Silently fail - prewarming is an optimization, not critical
