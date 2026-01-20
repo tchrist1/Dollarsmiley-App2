@@ -8,7 +8,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, User, Briefcase, X } from 'lucide-react-native';
+import { MapPin, User, X } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
 export type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | 'jobs_fixed' | 'jobs_quoted';
@@ -17,6 +17,42 @@ interface MapViewFABProps {
   mode: MapViewMode;
   onModeChange: (mode: MapViewMode) => void;
 }
+
+interface ConcentricIconProps {
+  label: string;
+  color: string;
+  isActive: boolean;
+}
+
+const ConcentricIcon: React.FC<ConcentricIconProps> = ({ label, color, isActive }) => {
+  return (
+    <View style={styles.concentricContainer}>
+      <View
+        style={[
+          styles.concentricOuter,
+          { borderColor: color },
+          isActive && { borderColor: colors.white, backgroundColor: colors.white },
+        ]}
+      >
+        <View
+          style={[
+            styles.concentricInner,
+            { backgroundColor: isActive ? color : colors.white },
+          ]}
+        >
+          <Text
+            style={[
+              styles.concentricText,
+              { color: isActive ? colors.white : color },
+            ]}
+          >
+            {label}
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   const insets = useSafeAreaInsets();
@@ -113,16 +149,15 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             onPress={() => handleModeSelect('services')}
             activeOpacity={0.7}
           >
-            <View style={styles.textIcon}>
-              <Text style={[styles.textIconLabel, mode === 'services' && styles.textIconLabelActive]}>S</Text>
-            </View>
+            <ConcentricIcon
+              label="S"
+              color="#10B981"
+              isActive={mode === 'services'}
+            />
             <Text style={[styles.menuText, mode === 'services' && styles.menuTextActive]}>
               Services
             </Text>
           </TouchableOpacity>
-
-          {/* Separator */}
-          <View style={styles.separator} />
 
           {/* All Jobs */}
           <TouchableOpacity
@@ -130,9 +165,11 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             onPress={() => handleModeSelect('jobs_all')}
             activeOpacity={0.7}
           >
-            <View style={styles.textIcon}>
-              <Text style={[styles.textIconLabel, mode === 'jobs_all' && styles.textIconLabelActive]}>J</Text>
-            </View>
+            <ConcentricIcon
+              label="J"
+              color="#F59E0B"
+              isActive={mode === 'jobs_all'}
+            />
             <Text style={[styles.menuText, mode === 'jobs_all' && styles.menuTextActive]}>
               All Jobs
             </Text>
@@ -144,9 +181,11 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             onPress={() => handleModeSelect('jobs_fixed')}
             activeOpacity={0.7}
           >
-            <View style={styles.textIcon}>
-              <Text style={[styles.textIconLabel, mode === 'jobs_fixed' && styles.textIconLabelActive]}>FJ</Text>
-            </View>
+            <ConcentricIcon
+              label="FJ"
+              color="#F59E0B"
+              isActive={mode === 'jobs_fixed'}
+            />
             <Text style={[styles.menuText, mode === 'jobs_fixed' && styles.menuTextActive]}>
               Fixed-priced Jobs
             </Text>
@@ -158,9 +197,11 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             onPress={() => handleModeSelect('jobs_quoted')}
             activeOpacity={0.7}
           >
-            <View style={styles.textIcon}>
-              <Text style={[styles.textIconLabel, mode === 'jobs_quoted' && styles.textIconLabelActive]}>QJ</Text>
-            </View>
+            <ConcentricIcon
+              label="QJ"
+              color="#F59E0B"
+              isActive={mode === 'jobs_quoted'}
+            />
             <Text style={[styles.menuText, mode === 'jobs_quoted' && styles.menuTextActive]}>
               Quoted Jobs
             </Text>
@@ -235,25 +276,32 @@ const styles = StyleSheet.create({
   menuTextActive: {
     color: colors.white,
   },
-  textIcon: {
+  concentricContainer: {
     width: 18,
     height: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textIconLabel: {
-    fontSize: 11,
+  concentricOuter: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  concentricInner: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  concentricText: {
+    fontSize: 7,
     fontWeight: fontWeight.bold,
-    color: colors.text,
-  },
-  textIconLabelActive: {
-    color: colors.white,
-  },
-  separator: {
-    width: '80%',
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.xs,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   fab: {
     width: 56,
