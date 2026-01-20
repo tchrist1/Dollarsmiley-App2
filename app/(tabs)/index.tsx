@@ -675,7 +675,7 @@ export default function HomeScreen() {
               subtitle: String((profile as any).business_name || 'Service Provider'),
               type: 'provider' as const,
               rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-              isVerified: profile.is_verified,
+              isVerified: (profile as any).id_verified || false,
               reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
               categories: categories,
               responseTime: String((profile as any).response_time || 'Within 24 hours'),
