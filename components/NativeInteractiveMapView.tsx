@@ -29,10 +29,9 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { MAPBOX_CONFIG } from '@/config/native-modules';
 import { formatCurrency } from '@/lib/currency-utils';
 
-Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
+// Mapbox is initialized once in app/_layout.tsx
 
 interface MapMarker {
   id: string;

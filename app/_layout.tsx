@@ -69,6 +69,15 @@ let StripeProvider: any = ({ children }: any) => children;
 if (Platform.OS !== 'web') {
   const stripe = require('@stripe/stripe-react-native');
   StripeProvider = stripe.StripeProvider;
+
+  // Initialize Mapbox once for native platforms
+  try {
+    const Mapbox = require('@rnmapbox/maps').default;
+    const { MAPBOX_CONFIG } = require('@/config/native-modules');
+    Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
+  } catch (error) {
+    console.warn('Failed to initialize Mapbox:', error);
+  }
 }
 
 export default function RootLayout() {
