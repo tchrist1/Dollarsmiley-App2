@@ -87,15 +87,15 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   };
 
   // Position at center-right, above the utility FAB
-  // Total height of both FABs + gap = 37 + 10 + 37 = 84
-  // This FAB centers at 50% - 42dp (half of total), placing it perfectly above the lower FAB
+  // Total height of both FABs + gap = 56 + 10 + 56 = 122
+  // This FAB centers at 50% - 61dp (half of total), placing it perfectly above the lower FAB
   return (
     <View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: -42,
+          marginTop: -61,
           right: spacing.md,
         },
       ]}
@@ -232,9 +232,9 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
           }}
         >
           {expanded ? (
-            <X size={20} color={colors.white} />
+            <X size={24} color={colors.white} />
           ) : (
-            <MapPin size={20} color={colors.white} />
+            <MapPin size={24} color={colors.white} />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -308,16 +308,16 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   fab: {
-    width: 37,
-    height: 37,
-    borderRadius: 18.5,
-    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
   },
   fabExpanded: {
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    backgroundColor: colors.error,
   },
   backdrop: {
     position: 'absolute',
