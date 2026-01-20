@@ -175,22 +175,6 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             </Text>
           </TouchableOpacity>
 
-          {/* Fixed-priced Jobs */}
-          <TouchableOpacity
-            style={[styles.menuItem, mode === 'jobs_fixed' && styles.menuItemActive]}
-            onPress={() => handleModeSelect('jobs_fixed')}
-            activeOpacity={0.7}
-          >
-            <ConcentricIcon
-              label="FJ"
-              color="#F59E0B"
-              isActive={mode === 'jobs_fixed'}
-            />
-            <Text style={[styles.menuText, mode === 'jobs_fixed' && styles.menuTextActive]}>
-              Fixed-priced Jobs
-            </Text>
-          </TouchableOpacity>
-
           {/* Quoted Jobs */}
           <TouchableOpacity
             style={[styles.menuItem, mode === 'jobs_quoted' && styles.menuItemActive]}
@@ -204,6 +188,22 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             />
             <Text style={[styles.menuText, mode === 'jobs_quoted' && styles.menuTextActive]}>
               Quoted Jobs
+            </Text>
+          </TouchableOpacity>
+
+          {/* Fixed-priced Jobs */}
+          <TouchableOpacity
+            style={[styles.menuItem, mode === 'jobs_fixed' && styles.menuItemActive]}
+            onPress={() => handleModeSelect('jobs_fixed')}
+            activeOpacity={0.7}
+          >
+            <ConcentricIcon
+              label="FJ"
+              color="#F59E0B"
+              isActive={mode === 'jobs_fixed'}
+            />
+            <Text style={[styles.menuText, mode === 'jobs_fixed' && styles.menuTextActive]}>
+              Fixed-priced Jobs
             </Text>
           </TouchableOpacity>
         </Animated.View>
