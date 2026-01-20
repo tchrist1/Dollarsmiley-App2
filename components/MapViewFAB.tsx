@@ -252,6 +252,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'flex-end',
     zIndex: 999,
+    overflow: 'visible',
   },
   menuContainer: {
     position: 'absolute',
@@ -259,6 +260,8 @@ const styles = StyleSheet.create({
     right: 0,
     gap: spacing.xs,
     alignItems: 'flex-end',
+    minWidth: 180,
+    overflow: 'visible',
   },
   menuItem: {
     flexDirection: 'row',
@@ -269,7 +272,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     gap: spacing.sm,
     minHeight: 44,
+    minWidth: 160,
+    flexWrap: 'nowrap',
     ...shadows.md,
+    elevation: 6,
   },
   menuItemActive: {
     backgroundColor: colors.primary,
@@ -278,6 +284,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.text,
+    flexShrink: 0,
+    whiteSpace: 'nowrap',
   },
   menuTextActive: {
     color: colors.white,
@@ -313,13 +321,14 @@ const styles = StyleSheet.create({
     width: 37,
     height: 37,
     borderRadius: 18.5,
-    backgroundColor: colors.primary + 'E6',
+    backgroundColor: colors.primary + 'E0',
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
+    elevation: 8,
   },
   fabExpanded: {
-    backgroundColor: colors.error + 'E6',
+    backgroundColor: colors.error + 'E0',
   },
   backdrop: {
     position: 'absolute',
