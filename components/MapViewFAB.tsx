@@ -87,15 +87,15 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   };
 
   // Position at center-right, above the utility FAB
-  // Total height of both FABs + gap = 56 + 10 + 56 = 122
-  // This FAB centers at 50% - 61dp (half of total), placing it perfectly above the lower FAB
+  // Total height of both FABs + gap = 37 + 10 + 37 = 84
+  // This FAB centers at 50% - 42dp (half of total), placing it perfectly above the lower FAB
   return (
     <View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: -61,
+          marginTop: -42,
           right: spacing.md,
         },
       ]}
@@ -110,7 +110,7 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
                 {
                   translateY: scaleAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
+                    outputRange: [10, 0],
                   }),
                 },
               ],
@@ -232,9 +232,9 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
           }}
         >
           {expanded ? (
-            <X size={24} color={colors.white} />
+            <X size={16} color={colors.white} />
           ) : (
-            <MapPin size={24} color={colors.white} />
+            <MapPin size={16} color={colors.white} />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -254,7 +254,9 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   menuContainer: {
-    marginBottom: spacing.sm,
+    position: 'absolute',
+    bottom: 45,
+    right: 0,
     gap: spacing.xs,
     alignItems: 'flex-end',
   },
@@ -308,16 +310,16 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+    width: 37,
+    height: 37,
+    borderRadius: 18.5,
+    backgroundColor: colors.primary + 'E6',
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
   },
   fabExpanded: {
-    backgroundColor: colors.error,
+    backgroundColor: colors.error + 'E6',
   },
   backdrop: {
     position: 'absolute',

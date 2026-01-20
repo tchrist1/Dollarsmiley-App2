@@ -46,15 +46,15 @@ export default function MapFAB({
   };
 
   // Position at center-right, below the menu FAB
-  // Total height of both FABs + gap = 56 + 10 + 56 = 122
-  // Center is at 50% - 61, this FAB is 66dp below that (56 FAB + 10 gap)
+  // Total height of both FABs + gap = 37 + 10 + 37 = 84
+  // Center is at 50% - 42, this FAB is 47dp below that (37 FAB + 10 gap)
   return (
     <View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: 5, // -61 + 56 + 10 = 5
+          marginTop: 5, // -42 + 37 + 10 = 5
           right: spacing.md,
         },
       ]}
@@ -69,7 +69,7 @@ export default function MapFAB({
                 {
                   translateY: scaleAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [20, 0],
+                    outputRange: [-10, 0],
                   }),
                 },
               ],
@@ -132,9 +132,9 @@ export default function MapFAB({
           }}
         >
           {expanded ? (
-            <X size={24} color={colors.white} />
+            <X size={16} color={colors.white} />
           ) : (
-            <MoreVertical size={24} color={colors.white} />
+            <MoreVertical size={16} color={colors.white} />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -153,7 +153,9 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   actionsContainer: {
-    marginBottom: spacing.sm,
+    position: 'absolute',
+    top: 45,
+    right: 0,
     gap: spacing.xs,
     alignItems: 'flex-end',
   },
@@ -173,16 +175,16 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fab: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
+    width: 37,
+    height: 37,
+    borderRadius: 18.5,
+    backgroundColor: colors.primary + 'E6',
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
   },
   fabExpanded: {
-    backgroundColor: colors.error,
+    backgroundColor: colors.error + 'E6',
   },
   backdrop: {
     position: 'absolute',
