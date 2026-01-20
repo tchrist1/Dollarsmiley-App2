@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Platform, Text } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
-import { theme } from '@/constants/theme';
 import { MAPBOX_CONFIG } from '@/config/native-modules';
+import { theme } from '@/constants/theme';
 
-// Mapbox is initialized once in app/_layout.tsx
+Mapbox.setAccessToken(MAPBOX_CONFIG.accessToken);
 
 interface MapMarker {
   id: string;

@@ -1,15 +1,7 @@
 import React, { forwardRef } from 'react';
 import { Platform } from 'react-native';
-import { NativeInteractiveMapViewRef } from './NativeInteractiveMapView';
-
-// Use conditional imports to prevent Mapbox from being imported on web
-// and to prevent duplicate registrations
-const NativeInteractiveMapView = Platform.OS !== 'web'
-  ? require('./NativeInteractiveMapView').default
-  : null;
-const InteractiveMapView = Platform.OS === 'web'
-  ? require('./InteractiveMapView').default
-  : null;
+import NativeInteractiveMapView, { NativeInteractiveMapViewRef } from './NativeInteractiveMapView';
+import InteractiveMapView from './InteractiveMapView';
 
 interface MapMarker {
   id: string;
