@@ -638,12 +638,14 @@ export default function HomeScreen() {
   // Only recalculate when listings array actually changes (not on every render)
   // ============================================================================
   const getMapMarkers = useMemo(() => {
-    // REGRESSION FIX: Restore provider pins alongside listings
-    // Provider pins now appear in ALL modes except when explicitly viewing providers-only mode
-    // This restores the previous behavior where users could see both listings and providers together
+    // FAB MODE ENFORCEMENT: Provider pins visible ONLY when "Providers" mode is explicitly selected
+    // - Providers mode: Show ONLY provider pins (includes Provider + Hybrid accounts)
+    // - All other modes: Show ONLY listing pins (services/jobs)
+    // This enforces strict mode-based visibility control per product requirements
 
     if (mapMode === 'providers') {
-      // Providers-only mode: Show ONLY provider pins (no listings)
+      // Providers mode: Show ONLY provider pins (no listings)
+      // Includes both Provider and Hybrid account types
       const providersMap = new Map();
 
       listings.forEach((listing) => {
@@ -686,7 +688,7 @@ export default function HomeScreen() {
       return Array.from(providersMap.values());
     }
 
-    // All other modes: Show listings + providers together
+    // All other modes: Show ONLY listing pins (no provider pins)
     // Filter listings based on map mode
     let filteredListings = listings.filter((listing) => listing.latitude != null && listing.longitude != null);
 
@@ -746,50 +748,8 @@ export default function HomeScreen() {
       };
     });
 
-    // REGRESSION FIX: Add provider markers alongside listing markers
-    // Extract unique providers from the current listings
-    const providersMap = new Map();
-    filteredListings.forEach((listing) => {
-      const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
-      if (profile && profile.latitude && profile.longitude) {
-        if (!providersMap.has(profile.id)) {
-          const providerListings = filteredListings.filter(
-            (l) => {
-              const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-              return lProfile?.id === profile.id;
-            }
-          );
-          const categories = Array.from(
-            new Set(
-              providerListings
-                .map((l) => l.category?.name)
-                .filter(Boolean)
-                .filter((name) => typeof name === 'string')
-            )
-          ).slice(0, 5).map(cat => String(cat));
-
-          providersMap.set(profile.id, {
-            id: profile.id,
-            latitude: profile.latitude,
-            longitude: profile.longitude,
-            title: String(profile.full_name || 'Provider'),
-            subtitle: String((profile as any).business_name || 'Service Provider'),
-            type: 'provider' as const,
-            rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-            isVerified: profile.is_verified,
-            reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-            categories: categories,
-            responseTime: String((profile as any).response_time || 'Within 24 hours'),
-            completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-          });
-        }
-      }
-    });
-
-    const providerMarkers = Array.from(providersMap.values());
-
-    // Return combined array: listings + providers
-    return [...listingMarkers, ...providerMarkers];
+    // FAB MODE ENFORCEMENT: Only listing pins in non-providers modes
+    return listingMarkers;
   }, [listings, mapMode, profile?.user_type]);
 
   const handleMarkerPress = useCallback((marker: any) => {
