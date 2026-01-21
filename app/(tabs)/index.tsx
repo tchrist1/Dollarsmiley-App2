@@ -230,8 +230,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
             </Text>
           </View>
           <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText}</Text>
-            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
+            <Text style={styles.gridPriceAmount}>{priceText}</Text>{priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
           </View>
         </View>
       </View>
