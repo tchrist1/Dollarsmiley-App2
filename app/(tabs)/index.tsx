@@ -102,7 +102,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
             <View style={styles.listingRating}>
               <Star size={14} color={colors.warning} fill={colors.warning} />
               <Text style={styles.listingRatingText}>
-                {`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`}
+                {String(`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`)}
               </Text>
             </View>
           )}
@@ -120,7 +120,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               {profile?.full_name || 'Anonymous'}
             </Text>
           </View>
-          <Text style={styles.listingPrice}>{priceText || '$0'}</Text>
+          <Text style={styles.listingPrice}>{String(priceText || '$0')}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -202,7 +202,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           {profile && profile.rating_average > 0 && (
             <View style={styles.gridRating}>
               <Star size={10} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
+              <Text style={styles.gridRatingText}>{String(profile.rating_average?.toFixed(1) || 'N/A')}</Text>
             </View>
           )}
         </View>
@@ -212,13 +212,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
         <Text style={styles.gridDescription} numberOfLines={2}>
           {item.description || ''}
         </Text>
-        {listing.distance_miles !== undefined && (
+        {listing.distance_miles !== undefined && listing.distance_miles !== null && (
           <View style={styles.gridDistanceBadge}>
             <Navigation size={10} color={colors.white} />
             <Text style={styles.gridDistanceBadgeText}>
-              {listing.distance_miles < 1
+              {String(listing.distance_miles < 1
                 ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
+                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A')}
             </Text>
           </View>
         )}
@@ -230,8 +230,8 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
             </Text>
           </View>
           <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText || '$0'}</Text>
-            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
+            <Text style={styles.gridPriceAmount}>{String(priceText || '$0')}</Text>
+            {priceSuffix ? <Text style={styles.gridPriceType}>{String(priceSuffix)}</Text> : null}
           </View>
         </View>
       </View>
@@ -1009,7 +1009,7 @@ export default function HomeScreen() {
             <Text style={styles.filterButtonText}>Filters</Text>
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                <Text style={styles.filterBadgeText}>{String(activeFilterCount)}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1047,8 +1047,8 @@ export default function HomeScreen() {
                       onPress={() => selectSuggestion(s.suggestion)}
                     >
                       <Search size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
-                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
+                      <Text style={styles.suggestionText}>{String(s.suggestion || '')}</Text>
+                      <Text style={styles.suggestionCount}>({String(s.search_count || 0)})</Text>
                     </TouchableOpacity>
                   ))}
                 </>
@@ -1069,8 +1069,8 @@ export default function HomeScreen() {
                       onPress={() => selectSuggestion(s.suggestion)}
                     >
                       <TrendingUp size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
-                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
+                      <Text style={styles.suggestionText}>{String(s.suggestion || '')}</Text>
+                      <Text style={styles.suggestionCount}>({String(s.search_count || 0)})</Text>
                     </TouchableOpacity>
                   ))}
                 </>
