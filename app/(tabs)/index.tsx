@@ -51,7 +51,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   const listing = item as any;
 
   // Type label logic
-  let typeLabel = { text: 'SERVICE', color: colors.success };
+  let typeLabel: { text: string; color: string } = { text: 'SERVICE', color: colors.success };
   if (isJob) {
     typeLabel = { text: 'JOB', color: colors.primary };
   } else if (listing.listing_type === 'CustomService') {
@@ -62,17 +62,17 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   let priceText = '';
   if (isJob) {
     if (listing.fixed_price) {
-      priceText = formatCurrency(listing.fixed_price);
+      priceText = String(formatCurrency(listing.fixed_price));
     } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${formatCurrency(listing.budget_min)} - ${formatCurrency(listing.budget_max)}`;
+      priceText = `${String(formatCurrency(listing.budget_min))} - ${String(formatCurrency(listing.budget_max))}`;
     } else if (listing.budget_min) {
-      priceText = `From ${formatCurrency(listing.budget_min)}`;
+      priceText = `From ${String(formatCurrency(listing.budget_min))}`;
     } else {
       priceText = 'Budget TBD';
     }
   } else {
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
+    priceText = `${String(formatCurrency(listing.base_price || 0))}/${String(priceType)}`;
   }
 
   return (
@@ -82,20 +82,20 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       onPress={() => onPress(item.id, isJob)}
     >
       <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{String(typeLabel.text || '')}</Text>
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title || ''}
+          {String(item.title || '')}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description || ''}
+          {String(item.description || '')}
         </Text>
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} />
             <Text style={styles.listingLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {String(item.location || 'Remote')}
             </Text>
           </View>
           {profile?.rating_average && profile.rating_average > 0 && (
@@ -117,7 +117,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               </View>
             )}
             <Text style={styles.providerName} numberOfLines={1}>
-              {profile?.full_name || 'Anonymous'}
+              {String(profile?.full_name || 'Anonymous')}
             </Text>
           </View>
           <Text style={styles.listingPrice}>{String(priceText || '$0')}</Text>
@@ -133,7 +133,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   const listing = item as any;
 
   // Type label logic
-  let typeLabel = { text: 'SERVICE', color: colors.success };
+  let typeLabel: { text: string; color: string } = { text: 'SERVICE', color: colors.success };
   if (isJob) {
     typeLabel = { text: 'JOB', color: colors.primary };
   } else if (listing.listing_type === 'CustomService') {
@@ -147,13 +147,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   let priceSuffix = '';
   if (isJob) {
     if (listing.fixed_price) {
-      priceText = formatCurrency(listing.fixed_price);
+      priceText = String(formatCurrency(listing.fixed_price));
       priceSuffix = '';
     } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${formatCurrency(listing.budget_min)}-${formatCurrency(listing.budget_max)}`;
+      priceText = `${String(formatCurrency(listing.budget_min))}-${String(formatCurrency(listing.budget_max))}`;
       priceSuffix = '';
     } else if (listing.budget_min) {
-      priceText = formatCurrency(listing.budget_min);
+      priceText = String(formatCurrency(listing.budget_min));
       priceSuffix = '+';
     } else {
       priceText = 'Budget TBD';
@@ -161,8 +161,8 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
     }
   } else {
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = formatCurrency(listing.base_price || 0);
-    priceSuffix = `/${priceType}`;
+    priceText = String(formatCurrency(listing.base_price || 0));
+    priceSuffix = `/${String(priceType)}`;
   }
 
   return (
@@ -176,12 +176,12 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
-            {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+            {String(isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️')}
           </Text>
         </View>
       )}
       <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{String(typeLabel.text || '')}</Text>
       </View>
       <View style={styles.gridCardContent}>
         <View style={styles.gridHeader}>
@@ -190,13 +190,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           ) : (
             <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
               <Text style={styles.gridAvatarText}>
-                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
+                {String(profile?.full_name?.charAt(0).toUpperCase() || 'S')}
               </Text>
             </View>
           )}
           {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
-              {profile.full_name || 'Anonymous'}
+              {String(profile.full_name || 'Anonymous')}
             </Text>
           )}
           {profile && profile.rating_average > 0 && (
@@ -207,10 +207,10 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           )}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
-          {item.title || ''}
+          {String(item.title || '')}
         </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description || ''}
+          {String(item.description || '')}
         </Text>
         {listing.distance_miles !== undefined && listing.distance_miles !== null && (
           <View style={styles.gridDistanceBadge}>
@@ -226,7 +226,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />
             <Text style={styles.gridLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {String(item.location || 'Remote')}
             </Text>
           </View>
           <View style={styles.gridPrice}>
@@ -885,36 +885,44 @@ export default function HomeScreen() {
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
+    if (!item) return null;
+
     if (item.type === 'row') {
       return (
         <View>
-          {item.items.map((listing: MarketplaceListing) => (
-            <View key={listing.id} style={{ marginBottom: spacing.md }}>
-              {renderListingCard({ item: listing })}
-            </View>
+          {(item.items || []).map((listing: MarketplaceListing) => (
+            listing ? (
+              <View key={listing.id} style={{ marginBottom: spacing.md }}>
+                {renderListingCard({ item: listing })}
+              </View>
+            ) : null
           ))}
         </View>
       );
     }
 
-    return renderListingCard({ item: item.data });
+    return item.data ? renderListingCard({ item: item.data }) : null;
   }, [renderListingCard]);
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
+    if (!item) return null;
+
     if (item.type === 'row') {
       return (
         <View style={styles.gridRow}>
-          {item.items.map((listing: MarketplaceListing) => (
-            <View key={listing.id} style={styles.gridItemWrapper}>
-              {renderGridCard({ item: listing })}
-            </View>
+          {(item.items || []).map((listing: MarketplaceListing) => (
+            listing ? (
+              <View key={listing.id} style={styles.gridItemWrapper}>
+                {renderGridCard({ item: listing })}
+              </View>
+            ) : null
           ))}
         </View>
       );
     }
 
-    return renderGridCard({ item: item.data });
+    return item.data ? renderGridCard({ item: item.data }) : null;
   }, [renderGridCard]);
 
   // Skeleton loading renderers
@@ -969,11 +977,13 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <ActiveFiltersBar
-          filters={filters}
-          onRemoveFilter={handleRemoveFilter}
-          onClearAll={handleClearAllFilters}
-        />
+        {activeFilterCount > 0 && (
+          <ActiveFiltersBar
+            filters={filters}
+            onRemoveFilter={handleRemoveFilter}
+            onClearAll={handleClearAllFilters}
+          />
+        )}
 
         <View style={styles.filterRowContainer}>
           <View style={styles.filterRow}>
@@ -1019,7 +1029,7 @@ export default function HomeScreen() {
         {activeFilterCount > 0 && (
           <View style={styles.activeFiltersRow}>
             <Text style={styles.activeFiltersText}>
-              {filterIndicatorText}
+              {String(filterIndicatorText || '')}
             </Text>
             <TouchableOpacity
               onPress={() => {
