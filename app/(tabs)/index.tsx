@@ -647,6 +647,20 @@ export default function HomeScreen() {
           totalListings: listings.length,
           timestamp: Date.now(),
         });
+
+        // Log first listing structure for debugging
+        if (listings.length > 0) {
+          const firstListing = listings[0];
+          const firstProfile = firstListing.marketplace_type === 'Job' ? firstListing.customer : firstListing.provider;
+          console.log('[PROVIDER_PINS_DEBUG] First listing structure:', {
+            listingId: firstListing.id,
+            marketplaceType: firstListing.marketplace_type,
+            hasProvider: !!firstListing.provider,
+            hasCustomer: !!firstListing.customer,
+            profileKeys: firstProfile ? Object.keys(firstProfile) : null,
+            profileData: firstProfile,
+          });
+        }
       }
 
       listings.forEach((listing) => {
@@ -659,6 +673,7 @@ export default function HomeScreen() {
               profileId: profile.id,
               userType: profile.user_type,
               name: profile.full_name,
+              allKeys: Object.keys(profile),
             });
           }
           return;

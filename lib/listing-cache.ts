@@ -11,10 +11,14 @@ import { MarketplaceListing } from '@/types/database';
 // TYPES
 // ============================================================================
 
+// CACHE VERSION: Increment when schema changes to auto-invalidate old cache
+const CACHE_VERSION = 2; // v2: Added user_type to provider/customer data
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
   userId: string | null;
+  version: number;
 }
 
 export interface CarouselData {
@@ -60,6 +64,14 @@ function isCacheValid<T>(
     return false;
   }
 
+  // Auto-invalidate if cache version doesn't match
+  if (cache.version !== CACHE_VERSION) {
+    if (__DEV__) {
+      console.log(`[CACHE] Invalidating ${cacheName} due to version mismatch (cached: ${cache.version}, current: ${CACHE_VERSION})`);
+    }
+    return false;
+  }
+
   if (cache.userId !== userId) {
     return false;
   }
@@ -73,7 +85,7 @@ function isCacheValid<T>(
 }
 
 function createCacheEntry<T>(data: T, userId: string | null): CacheEntry<T> {
-  return { data, timestamp: Date.now(), userId };
+  return { data, timestamp: Date.now(), userId, version: CACHE_VERSION };
 }
 
 // ============================================================================
