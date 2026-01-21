@@ -86,10 +86,10 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
+          {item.title || ''}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
+          {item.description || ''}
         </Text>
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
@@ -120,7 +120,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               {profile?.full_name || 'Anonymous'}
             </Text>
           </View>
-          <Text style={styles.listingPrice}>{priceText}</Text>
+          <Text style={styles.listingPrice}>{priceText || '$0'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -196,7 +196,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           )}
           {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
-              {profile.full_name}
+              {profile.full_name || 'Anonymous'}
             </Text>
           )}
           {profile && profile.rating_average > 0 && (
@@ -207,10 +207,10 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           )}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
-          {item.title}
+          {item.title || ''}
         </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description}
+          {item.description || ''}
         </Text>
         {listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
@@ -230,7 +230,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
             </Text>
           </View>
           <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText}</Text>
+            <Text style={styles.gridPriceAmount}>{priceText || '$0'}</Text>
             {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
           </View>
         </View>
