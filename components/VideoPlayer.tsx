@@ -7,6 +7,7 @@ import {
   Text,
   Platform,
 } from 'react-native';
+// TODO: Migrate from expo-av to expo-video (expo-av deprecated in SDK 54+)
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import {
   Play,

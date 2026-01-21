@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+// TODO: Migrate from expo-av to expo-audio (expo-av deprecated in SDK 54+)
 import { Audio } from 'expo-av';
 import { supabase } from './supabase';
 

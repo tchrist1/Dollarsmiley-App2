@@ -188,6 +188,9 @@ class FilterPerformanceMonitor {
 // Singleton instance
 export const filterPerf = new FilterPerformanceMonitor();
 
+// Import useRef, useEffect, and useCallback for the hook
+import { useRef, useEffect, useCallback } from 'react';
+
 /**
  * React hook for filter performance tracking
  */
@@ -205,22 +208,25 @@ export function useFilterPerformance(componentName: string) {
     }
   }, [componentName]);
 
+  const trackOperation = useCallback((operation: string, metadata?: Record<string, any>) => {
+    filterPerf.start(`${componentName}_${operation}`, metadata);
+    return () => filterPerf.end(`${componentName}_${operation}`);
+  }, [componentName]);
+
+  const measure = useCallback(<T,>(operation: string, fn: () => T, metadata?: Record<string, any>) => {
+    return filterPerf.measure(`${componentName}_${operation}`, fn, metadata);
+  }, [componentName]);
+
+  const measureAsync = useCallback(<T,>(operation: string, fn: () => Promise<T>, metadata?: Record<string, any>) => {
+    return filterPerf.measureAsync(`${componentName}_${operation}`, fn, metadata);
+  }, [componentName]);
+
   return {
-    trackOperation: (operation: string, metadata?: Record<string, any>) => {
-      filterPerf.start(`${componentName}_${operation}`, metadata);
-      return () => filterPerf.end(`${componentName}_${operation}`);
-    },
-    measure: <T,>(operation: string, fn: () => T, metadata?: Record<string, any>) => {
-      return filterPerf.measure(`${componentName}_${operation}`, fn, metadata);
-    },
-    measureAsync: <T,>(operation: string, fn: () => Promise<T>, metadata?: Record<string, any>) => {
-      return filterPerf.measureAsync(`${componentName}_${operation}`, fn, metadata);
-    },
+    trackOperation,
+    measure,
+    measureAsync,
   };
 }
-
-// Import useRef and useEffect for the hook
-import { useRef, useEffect } from 'react';
 
 /**
  * Performance thresholds for warnings

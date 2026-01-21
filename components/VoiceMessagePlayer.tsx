@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+// TODO: Migrate from expo-av to expo-audio (expo-av deprecated in SDK 54+)
 import { Audio } from 'expo-av';
 import { Play, Pause } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
