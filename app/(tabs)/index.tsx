@@ -643,42 +643,58 @@ export default function HomeScreen() {
 
       listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
-        if (profile && profile.latitude && profile.longitude) {
-          if (!providersMap.has(profile.id)) {
-            const providerListings = listings.filter(
-              (l) => {
-                const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-                return lProfile?.id === profile.id;
-              }
-            );
-            const categories = Array.from(
-              new Set(
-                providerListings
-                  .map((l) => l.category?.name)
-                  .filter(Boolean)
-                  .filter((name) => typeof name === 'string')
-              )
-            ).slice(0, 5).map(cat => String(cat));
 
-            providersMap.set(profile.id, {
-              id: profile.id,
-              latitude: profile.latitude,
-              longitude: profile.longitude,
-              title: String(profile.full_name || 'Provider'),
-              subtitle: String((profile as any).business_name || 'Service Provider'),
-              type: 'provider' as const,
-              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-              isVerified: profile.is_verified,
-              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-              categories: categories,
-              responseTime: String((profile as any).response_time || 'Within 24 hours'),
-              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-            });
-          }
+        // CRITICAL: Filter by user_type - only show Provider and Hybrid users
+        if (!profile || !profile.latitude || !profile.longitude) return;
+        if (!profile.user_type || (profile.user_type !== 'Provider' && profile.user_type !== 'Hybrid')) return;
+
+        if (!providersMap.has(profile.id)) {
+          const providerListings = listings.filter(
+            (l) => {
+              const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
+              return lProfile?.id === profile.id;
+            }
+          );
+          const categories = Array.from(
+            new Set(
+              providerListings
+                .map((l) => l.category?.name)
+                .filter(Boolean)
+                .filter((name) => typeof name === 'string')
+            )
+          ).slice(0, 5).map(cat => String(cat));
+
+          providersMap.set(profile.id, {
+            id: profile.id,
+            latitude: profile.latitude,
+            longitude: profile.longitude,
+            title: String(profile.full_name || 'Provider'),
+            subtitle: String((profile as any).business_name || 'Service Provider'),
+            type: 'provider' as const,
+            rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
+            isVerified: profile.is_verified,
+            reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
+            categories: categories,
+            responseTime: String((profile as any).response_time || 'Within 24 hours'),
+            completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
+            userType: profile.user_type, // Include for debugging
+          });
         }
       });
 
-      return Array.from(providersMap.values());
+      const providerPins = Array.from(providersMap.values());
+
+      // Debug logging to verify data flow
+      if (__DEV__) {
+        console.log('[MAP DEBUG] Provider pins:', {
+          totalListings: listings.length,
+          totalProviders: providerPins.length,
+          firstProvider: providerPins[0],
+          sampleProfile: listings[0]?.provider || listings[0]?.customer
+        });
+      }
+
+      return providerPins;
     }
 
     // Filter listings based on map mode
