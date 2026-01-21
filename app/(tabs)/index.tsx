@@ -643,38 +643,82 @@ export default function HomeScreen() {
 
       listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
-        if (profile && profile.latitude && profile.longitude) {
-          if (!providersMap.has(profile.id)) {
-            const providerListings = listings.filter(
-              (l) => {
-                const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-                return lProfile?.id === profile.id;
-              }
-            );
-            const categories = Array.from(
-              new Set(
-                providerListings
-                  .map((l) => l.category?.name)
-                  .filter(Boolean)
-                  .filter((name) => typeof name === 'string')
-              )
-            ).slice(0, 5).map(cat => String(cat));
 
-            providersMap.set(profile.id, {
-              id: profile.id,
-              latitude: profile.latitude,
-              longitude: profile.longitude,
-              title: String(profile.full_name || 'Provider'),
-              subtitle: String((profile as any).business_name || 'Service Provider'),
-              type: 'provider' as const,
-              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-              isVerified: profile.is_verified,
-              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-              categories: categories,
-              responseTime: String((profile as any).response_time || 'Within 24 hours'),
-              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-            });
+        // Only include Provider and Hybrid user types (exclude Customer-only)
+        if (!profile || (profile.user_type !== 'Provider' && profile.user_type !== 'Hybrid')) {
+          return;
+        }
+
+        // Skip if already processed
+        if (providersMap.has(profile.id)) {
+          return;
+        }
+
+        // Get all listings for this provider
+        const providerListings = listings.filter(
+          (l) => {
+            const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
+            return lProfile?.id === profile.id;
           }
+        );
+
+        // Find first listing with valid coordinates to use as provider location
+        let providerLat: number | null = profile.latitude || null;
+        let providerLng: number | null = profile.longitude || null;
+
+        if (!providerLat || !providerLng) {
+          for (const pListing of providerListings) {
+            if (
+              pListing.latitude != null &&
+              pListing.longitude != null &&
+              typeof pListing.latitude === 'number' &&
+              typeof pListing.longitude === 'number' &&
+              isFinite(pListing.latitude) &&
+              isFinite(pListing.longitude)
+            ) {
+              providerLat = pListing.latitude;
+              providerLng = pListing.longitude;
+              break;
+            }
+          }
+        }
+
+        // Only add provider if we have valid mappable coordinates
+        if (
+          providerLat != null &&
+          providerLng != null &&
+          typeof providerLat === 'number' &&
+          typeof providerLng === 'number' &&
+          isFinite(providerLat) &&
+          isFinite(providerLng) &&
+          providerLat >= -90 &&
+          providerLat <= 90 &&
+          providerLng >= -180 &&
+          providerLng <= 180
+        ) {
+          const categories = Array.from(
+            new Set(
+              providerListings
+                .map((l) => l.category?.name)
+                .filter(Boolean)
+                .filter((name) => typeof name === 'string')
+            )
+          ).slice(0, 5).map(cat => String(cat));
+
+          providersMap.set(profile.id, {
+            id: profile.id,
+            latitude: providerLat,
+            longitude: providerLng,
+            title: String(profile.full_name || 'Provider'),
+            subtitle: String((profile as any).business_name || 'Service Provider'),
+            type: 'provider' as const,
+            rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
+            isVerified: profile.is_verified,
+            reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
+            categories: categories,
+            responseTime: String((profile as any).response_time || 'Within 24 hours'),
+            completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
+          });
         }
       });
 
