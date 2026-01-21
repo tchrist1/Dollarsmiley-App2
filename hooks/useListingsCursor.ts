@@ -399,7 +399,9 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       user_type: service.provider_user_type,
       rating_average: service.provider_rating_average,
       rating_count: service.provider_rating_count,
-      id_verified: service.provider_id_verified
+      id_verified: service.provider_id_verified,
+      latitude: service.latitude,
+      longitude: service.longitude
     } : undefined,
     latitude: service.latitude,
     longitude: service.longitude,
@@ -441,7 +443,9 @@ function normalizeJobCursor(job: any): MarketplaceListing {
       user_type: job.customer_user_type,
       rating_average: job.customer_rating_average,
       rating_count: job.customer_rating_count,
-      id_verified: job.customer_id_verified
+      id_verified: job.customer_id_verified,
+      latitude: job.latitude,
+      longitude: job.longitude
     } : undefined,
     city: job.city,
     state: job.state,
