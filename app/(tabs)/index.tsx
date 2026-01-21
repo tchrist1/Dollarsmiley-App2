@@ -677,7 +677,6 @@ export default function HomeScreen() {
             categories: categories,
             responseTime: String((profile as any).response_time || 'Within 24 hours'),
             completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-            userType: profile.user_type, // Include for debugging
           });
         }
       });
@@ -686,11 +685,21 @@ export default function HomeScreen() {
 
       // Debug logging to verify data flow
       if (__DEV__) {
-        console.log('[MAP DEBUG] Provider pins:', {
+        const sampleProfiles = listings.slice(0, 5).map(l => {
+          const prof = l.marketplace_type === 'Job' ? l.customer : l.provider;
+          return {
+            id: prof?.id,
+            name: prof?.full_name,
+            userType: prof?.user_type,
+            hasCoords: !!(prof?.latitude && prof?.longitude)
+          };
+        });
+
+        console.log('[MAP DEBUG] Provider pins generation:', {
           totalListings: listings.length,
           totalProviders: providerPins.length,
-          firstProvider: providerPins[0],
-          sampleProfile: listings[0]?.provider || listings[0]?.customer
+          firstPin: providerPins[0],
+          sampleProfiles
         });
       }
 
