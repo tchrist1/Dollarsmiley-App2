@@ -448,15 +448,11 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         isGesturingRef.current = false;
         onMapGestureEnd?.();
       }
-    }, 100);
+    }, 50);
   };
 
   return (
-    <View
-      style={[styles.container, style]}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <View style={[styles.container, style]} pointerEvents="box-none">
       <Mapbox.MapView
         ref={mapRef}
         style={styles.map}
@@ -467,6 +463,8 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         scaleBarEnabled={false}
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         onCameraChanged={(state) => {
           const newZoom = state.properties.zoom;
           setZoomLevel(newZoom);
@@ -631,7 +629,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
       </Modal>
 
       {selectedMarker && (
-        <View style={styles.markerInfo}>
+        <View style={styles.markerInfo} pointerEvents="box-none">
           <TouchableOpacity
             style={[
               styles.markerInfoCard,
