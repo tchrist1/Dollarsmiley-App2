@@ -519,7 +519,7 @@ export default function InteractiveMapView({
                   {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && typeof selectedMarker.completionRate === 'number' && !isNaN(selectedMarker.completionRate) && (
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
-                      <Text style={styles.providerStatText}>{selectedMarker.completionRate}% complete</Text>
+                      <Text style={styles.providerStatText}>{`${selectedMarker.completionRate}% complete`}</Text>
                     </View>
                   )}
                 </View>
@@ -528,12 +528,12 @@ export default function InteractiveMapView({
                 <View style={styles.providerDistance}>
                   <Navigation size={14} color={colors.primary} />
                   <Text style={styles.providerDistanceText}>
-                    {calculateDistance(
+                    {`${calculateDistance(
                       region.latitude,
                       region.longitude,
                       selectedMarker.latitude,
                       selectedMarker.longitude
-                    )} away
+                    )} away`}
                   </Text>
                 </View>
 
