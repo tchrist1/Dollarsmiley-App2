@@ -373,6 +373,56 @@ export function useListingsCursor({
 // ============================================================================
 
 function normalizeServiceCursor(service: any): MarketplaceListing {
+  // PROVIDER PINS FIX: Parse coordinates as numbers
+  const latitude = service.latitude != null
+    ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude)
+    : null;
+  const longitude = service.longitude != null
+    ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude)
+    : null;
+
+  // PROVIDER PINS FIX: Support both nested and flat RPC formats for provider data
+  let provider;
+  if (service.profiles) {
+    // Nested format from direct query
+    provider = {
+      id: service.provider_id,
+      full_name: service.profiles.full_name,
+      avatar_url: service.profiles.avatar_url,
+      city: service.profiles.city,
+      state: service.profiles.state,
+      user_type: service.profiles.user_type, // CRITICAL: user_type for provider pins
+      latitude: service.profiles.latitude != null
+        ? (typeof service.profiles.latitude === 'string' ? parseFloat(service.profiles.latitude) : service.profiles.latitude)
+        : latitude, // Fallback to listing coords
+      longitude: service.profiles.longitude != null
+        ? (typeof service.profiles.longitude === 'string' ? parseFloat(service.profiles.longitude) : service.profiles.longitude)
+        : longitude, // Fallback to listing coords
+      rating_average: service.profiles.rating_average || 0,
+      rating_count: service.profiles.rating_count || 0,
+      is_verified: service.profiles.is_verified || false,
+    };
+  } else if (service.provider_full_name) {
+    // Flat format from RPC
+    provider = {
+      id: service.provider_id,
+      full_name: service.provider_full_name,
+      avatar_url: service.provider_avatar,
+      city: service.provider_city,
+      state: service.provider_state,
+      user_type: service.provider_user_type, // CRITICAL: user_type from RPC flat format
+      latitude: service.provider_latitude != null
+        ? (typeof service.provider_latitude === 'string' ? parseFloat(service.provider_latitude) : service.provider_latitude)
+        : latitude, // Fallback to listing coords
+      longitude: service.provider_longitude != null
+        ? (typeof service.provider_longitude === 'string' ? parseFloat(service.provider_longitude) : service.provider_longitude)
+        : longitude, // Fallback to listing coords
+      rating_average: service.provider_rating_average || service.rating || 0,
+      rating_count: service.provider_rating_count || 0,
+      is_verified: service.provider_is_verified || false,
+    };
+  }
+
   return {
     id: service.id,
     marketplace_type: 'Service',
@@ -390,15 +440,9 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     rating_average: service.rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
-    provider: service.provider_full_name ? {
-      id: service.provider_id,
-      full_name: service.provider_full_name,
-      avatar_url: service.provider_avatar,
-      city: service.provider_city,
-      state: service.provider_state
-    } : undefined,
-    latitude: service.latitude,
-    longitude: service.longitude,
+    provider,
+    latitude,
+    longitude,
   } as any;
 }
 
@@ -419,6 +463,52 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     photos = [job.featured_image_url];
   }
 
+  // PROVIDER PINS FIX: Parse coordinates as numbers
+  const latitude = job.latitude != null
+    ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude)
+    : null;
+  const longitude = job.longitude != null
+    ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude)
+    : null;
+
+  // PROVIDER PINS FIX: Support both nested and flat RPC formats for customer data
+  let customer;
+  if (job.profiles) {
+    // Nested format from direct query
+    customer = {
+      id: job.customer_id,
+      full_name: job.profiles.full_name,
+      avatar_url: job.profiles.avatar_url,
+      user_type: job.profiles.user_type, // CRITICAL: user_type for provider pins
+      latitude: job.profiles.latitude != null
+        ? (typeof job.profiles.latitude === 'string' ? parseFloat(job.profiles.latitude) : job.profiles.latitude)
+        : latitude, // Fallback to listing coords
+      longitude: job.profiles.longitude != null
+        ? (typeof job.profiles.longitude === 'string' ? parseFloat(job.profiles.longitude) : job.profiles.longitude)
+        : longitude, // Fallback to listing coords
+      rating_average: job.profiles.rating_average || 0,
+      rating_count: job.profiles.rating_count || 0,
+      is_verified: job.profiles.is_verified || false,
+    };
+  } else if (job.customer_full_name) {
+    // Flat format from RPC
+    customer = {
+      id: job.customer_id,
+      full_name: job.customer_full_name,
+      avatar_url: job.customer_avatar,
+      user_type: job.customer_user_type, // CRITICAL: user_type from RPC flat format
+      latitude: job.customer_latitude != null
+        ? (typeof job.customer_latitude === 'string' ? parseFloat(job.customer_latitude) : job.customer_latitude)
+        : latitude, // Fallback to listing coords
+      longitude: job.customer_longitude != null
+        ? (typeof job.customer_longitude === 'string' ? parseFloat(job.customer_longitude) : job.customer_longitude)
+        : longitude, // Fallback to listing coords
+      rating_average: job.customer_rating_average || 0,
+      rating_count: job.customer_rating_count || 0,
+      is_verified: job.customer_is_verified || false,
+    };
+  }
+
   return {
     id: job.id,
     marketplace_type: 'Job',
@@ -430,15 +520,11 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     status: job.status,
     customer_id: job.customer_id,
     category_id: job.category_id,
-    customer: job.customer_full_name ? {
-      id: job.customer_id,
-      full_name: job.customer_full_name,
-      avatar_url: job.customer_avatar
-    } : undefined,
+    customer,
     city: job.city,
     state: job.state,
-    latitude: job.latitude,
-    longitude: job.longitude,
+    latitude,
+    longitude,
     deadline: job.deadline
   } as any;
 }

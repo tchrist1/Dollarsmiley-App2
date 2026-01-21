@@ -10,10 +10,15 @@ import { MarketplaceListing } from '@/types/database';
 const SNAPSHOT_PREFIX = 'home_feed_snapshot:';
 const SNAPSHOT_TTL_MS = 5 * 60 * 1000; // 5 minutes client-side TTL
 
+// PROVIDER PINS FIX: Cache versioning to bust stale snapshots
+// Increment this when data structure changes (e.g., adding user_type, coordinates)
+const SNAPSHOT_VERSION = 2;
+
 interface SnapshotData {
   listings: MarketplaceListing[];
   timestamp: number;
   cursor: { created_at: string; id: string } | null;
+  version?: number; // Cache versioning for breaking changes
 }
 
 interface SnapshotMinimal {
@@ -89,6 +94,18 @@ export async function getCachedSnapshot(
     const snapshot: SnapshotData = JSON.parse(cached);
     const now = Date.now();
 
+    // Check version - invalidate if outdated
+    if (!snapshot.version || snapshot.version < SNAPSHOT_VERSION) {
+      if (__DEV__) {
+        console.log('[Snapshot] Version mismatch - invalidating cache', {
+          cached: snapshot.version,
+          current: SNAPSHOT_VERSION
+        });
+      }
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+
     // Check if expired
     if (now - snapshot.timestamp > SNAPSHOT_TTL_MS) {
       // Clean up expired snapshot
@@ -117,7 +134,8 @@ export async function saveSnapshot(
     const snapshot: SnapshotData = {
       listings,
       timestamp: Date.now(),
-      cursor
+      cursor,
+      version: SNAPSHOT_VERSION
     };
 
     await AsyncStorage.setItem(key, JSON.stringify(snapshot));
