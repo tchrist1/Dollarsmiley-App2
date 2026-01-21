@@ -429,7 +429,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     );
   }
 
-  const handleTouchStart = () => {
+  const handleRegionWillChange = () => {
     if (!isGesturingRef.current) {
       isGesturingRef.current = true;
       onMapGestureStart?.();
@@ -439,7 +439,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     }
   };
 
-  const handleTouchEnd = () => {
+  const handleRegionDidChange = () => {
     if (gestureTimeoutRef.current) {
       clearTimeout(gestureTimeoutRef.current);
     }
@@ -448,7 +448,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         isGesturingRef.current = false;
         onMapGestureEnd?.();
       }
-    }, 50);
+    }, 300);
   };
 
   return (
@@ -463,8 +463,8 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         scaleBarEnabled={false}
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        onRegionWillChange={handleRegionWillChange}
+        onRegionDidChange={handleRegionDidChange}
         onCameraChanged={(state) => {
           const newZoom = state.properties.zoom;
           setZoomLevel(newZoom);

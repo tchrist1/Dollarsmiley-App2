@@ -101,7 +101,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           opacity: fabOpacity || 1,
         },
       ]}
-      pointerEvents={fabOpacity && fabOpacity.__getValue() === 0 ? 'none' : 'auto'}
+      pointerEvents="box-none"
     >
       {expanded && (
         <Animated.View
@@ -254,7 +254,8 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     alignItems: 'flex-end',
-    zIndex: 1000,
+    zIndex: 10000,
+    elevation: 10000,
     overflow: 'visible',
   },
   menuContainer: {
@@ -281,7 +282,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 10001,
+    zIndex: 10001,
   },
   menuItemActive: {
     backgroundColor: colors.primary,
@@ -336,7 +338,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 10001,
+    zIndex: 10001,
   },
   fabExpanded: {
     backgroundColor: colors.error,
