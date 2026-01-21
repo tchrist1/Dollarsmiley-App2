@@ -660,9 +660,9 @@ export default function HomeScreen() {
               providerListings
                 .map((l) => l.category?.name)
                 .filter(Boolean)
-                .filter((name) => typeof name === 'string')
+                .filter((name) => typeof name === 'string' && name.trim().length > 0)
             )
-          ).slice(0, 5).map(cat => String(cat));
+          ).slice(0, 5).map(cat => String(cat)).filter(Boolean);
 
           providersMap.set(profile.id, {
             id: profile.id,

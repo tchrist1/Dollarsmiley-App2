@@ -301,7 +301,6 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.text,
     flexShrink: 0,
-    whiteSpace: 'nowrap',
   },
   menuTextActive: {
     color: colors.white,
