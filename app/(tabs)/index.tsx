@@ -35,6 +35,37 @@ import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
 
 // ============================================================================
+// DEV-ONLY DIAGNOSTIC: Identify raw text nodes causing React Native crashes
+// This helper wraps any suspicious render output to identify primitives
+// being rendered directly in <View> (which is illegal in React Native).
+// ============================================================================
+function safeChild(node: any, contextLabel: string): React.ReactNode {
+  if (__DEV__) {
+    const nodeType = typeof node;
+
+    // Detect illegal primitives
+    if (nodeType === 'string' || nodeType === 'number' || nodeType === 'boolean') {
+      console.error('[RENDER_SAFETY] 🚨 PRIMITIVE RENDERED ILLEGALLY 🚨', {
+        contextLabel,
+        type: nodeType,
+        value: String(node),
+        timestamp: new Date().toISOString()
+      });
+      // DEV-ONLY: Auto-wrap to prevent crash and reveal culprit
+      return <Text style={{ color: 'red', fontSize: 10 }}>{String(node)}</Text>;
+    }
+  }
+
+  // Nullish values are safe
+  if (node === null || node === undefined) {
+    return null;
+  }
+
+  // Valid React elements pass through
+  return node;
+}
+
+// ============================================================================
 // PRIORITY 5 FIX: Memoized card components to prevent re-renders
 // Before: Parent re-renders → renderListingCard recreates all card elements → all cards re-render
 // After: Parent re-renders → Memoized cards check if props changed → only changed cards re-render
@@ -82,37 +113,37 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       onPress={() => onPress(item.id, isJob)}
     >
       <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{safeChild(typeLabel.text, 'ListingCard:typeLabel')}</Text>
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
+          {safeChild(item.title, 'ListingCard:title')}
         </Text><Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
+          {safeChild(item.description, 'ListingCard:description')}
         </Text><View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} /><Text style={styles.listingLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {safeChild(item.location || 'Remote', 'ListingCard:location')}
             </Text>
-          </View>{profile?.rating_average && profile.rating_average > 0 && (
+          </View>{safeChild(profile?.rating_average && profile.rating_average > 0 && (
             <View style={styles.listingRating}>
               <Star size={14} color={colors.warning} fill={colors.warning} /><Text style={styles.listingRatingText}>
-                {`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`}
+                {safeChild(`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`, 'ListingCard:rating')}
               </Text>
             </View>
-          )}
+          ), 'ListingCard:ratingBlock')}
         </View><View style={styles.listingFooter}>
           <View style={styles.listingProvider}>
-            {profile?.avatar_url ? (
+            {safeChild(profile?.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.providerAvatar} />
             ) : (
               <View style={[styles.providerAvatar, styles.providerAvatarPlaceholder]}>
                 <User size={16} color={colors.textLight} />
               </View>
-            )}<Text style={styles.providerName} numberOfLines={1}>
-              {profile?.full_name || 'Anonymous'}
+            ), 'ListingCard:avatar')}<Text style={styles.providerName} numberOfLines={1}>
+              {safeChild(profile?.full_name || 'Anonymous', 'ListingCard:providerName')}
             </Text>
-          </View><Text style={styles.listingPrice}>{priceText}</Text>
+          </View><Text style={styles.listingPrice}>{safeChild(priceText, 'ListingCard:price')}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -168,51 +199,51 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
-            {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
+            {safeChild(isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️', 'GridCard:emoji')}
           </Text>
         </View>
       )}
       <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{safeChild(typeLabel.text, 'GridCard:typeLabel')}</Text>
       </View>
       <View style={styles.gridCardContent}>
         <View style={styles.gridHeader}>
-          {profile?.avatar_url ? (
+          {safeChild(profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.gridAvatar} />
           ) : (
             <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
               <Text style={styles.gridAvatarText}>
-                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
+                {safeChild(profile?.full_name?.charAt(0).toUpperCase() || 'S', 'GridCard:avatarInitial')}
               </Text>
             </View>
-          )}{profile && (
+          ), 'GridCard:avatar')}{safeChild(profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
-              {profile.full_name}
+              {safeChild(profile.full_name, 'GridCard:accountName')}
             </Text>
-          )}{profile && profile.rating_average > 0 && (
+          ), 'GridCard:accountNameBlock')}{safeChild(profile && profile.rating_average > 0 && (
             <View style={styles.gridRating}>
-              <Star size={10} color={colors.warning} fill={colors.warning} /><Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
+              <Star size={10} color={colors.warning} fill={colors.warning} /><Text style={styles.gridRatingText}>{safeChild(profile.rating_average?.toFixed(1) || 'N/A', 'GridCard:rating')}</Text>
             </View>
-          )}
+          ), 'GridCard:ratingBlock')}
         </View><Text style={styles.gridTitle} numberOfLines={2}>
-          {item.title}
+          {safeChild(item.title, 'GridCard:title')}
         </Text><Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description}
-        </Text>{listing.distance_miles !== undefined && (
+          {safeChild(item.description, 'GridCard:description')}
+        </Text>{safeChild(listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
             <Navigation size={10} color={colors.white} /><Text style={styles.gridDistanceBadgeText}>
-              {listing.distance_miles < 1
+              {safeChild(listing.distance_miles < 1
                 ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
+                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A', 'GridCard:distance')}
             </Text>
           </View>
-        )}<View style={styles.gridFooter}>
+        ), 'GridCard:distanceBlock')}<View style={styles.gridFooter}>
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} /><Text style={styles.gridLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {safeChild(item.location || 'Remote', 'GridCard:location')}
             </Text>
           </View><View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText}</Text>{priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
+            <Text style={styles.gridPriceAmount}>{safeChild(priceText, 'GridCard:priceText')}</Text>{safeChild(priceSuffix ? <Text style={styles.gridPriceType}>{safeChild(priceSuffix, 'GridCard:priceSuffix')}</Text> : null, 'GridCard:priceSuffixBlock')}
           </View>
         </View>
       </View>
@@ -855,13 +886,15 @@ export default function HomeScreen() {
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} />;
+    const result = <ListingCard item={item} onPress={handleCardPress} />;
+    return safeChild(result, `renderListingCard:${item?.id || 'unknown'}`);
   }, [handleCardPress]);
 
   // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} />;
+    const result = <GridCard item={item} onPress={handleCardPress} />;
+    return safeChild(result, `renderGridCard:${item?.id || 'unknown'}`);
   }, [handleCardPress]);
 
   // List view renderer - stable, no viewMode dependency
@@ -869,16 +902,17 @@ export default function HomeScreen() {
     if (item.type === 'row') {
       return (
         <View>
-          {item.items.map((listing: MarketplaceListing) => (
+          {item.items.map((listing: MarketplaceListing, idx: number) => safeChild(
             <View key={listing.id} style={{ marginBottom: spacing.md }}>
-              {renderListingCard({ item: listing })}
-            </View>
+              {safeChild(renderListingCard({ item: listing }), `renderFeedItemList:row[${idx}]:card`)}
+            </View>,
+            `renderFeedItemList:row[${idx}]:wrapper`
           ))}
         </View>
       );
     }
 
-    return renderListingCard({ item: item.data });
+    return safeChild(renderListingCard({ item: item.data }), 'renderFeedItemList:single');
   }, [renderListingCard]);
 
   // Grid view renderer - stable, no viewMode dependency
@@ -886,16 +920,17 @@ export default function HomeScreen() {
     if (item.type === 'row') {
       return (
         <View style={styles.gridRow}>
-          {item.items.map((listing: MarketplaceListing) => (
+          {item.items.map((listing: MarketplaceListing, idx: number) => safeChild(
             <View key={listing.id} style={styles.gridItemWrapper}>
-              {renderGridCard({ item: listing })}
-            </View>
+              {safeChild(renderGridCard({ item: listing }), `renderFeedItemGrid:row[${idx}]:card`)}
+            </View>,
+            `renderFeedItemGrid:row[${idx}]:wrapper`
           ))}
         </View>
       );
     }
 
-    return renderGridCard({ item: item.data });
+    return safeChild(renderGridCard({ item: item.data }), 'renderFeedItemGrid:single');
   }, [renderGridCard]);
 
   // Skeleton loading renderers
