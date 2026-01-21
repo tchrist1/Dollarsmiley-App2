@@ -48,15 +48,15 @@ export default function MapFAB({
   };
 
   // Position at center-right, below the menu FAB
-  // Total height of both FABs + gap = 42 + 10 + 40 = 92
-  // Center is at 50% - 46, this FAB is 52dp below that (42 FAB + 10 gap)
+  // Total height of both FABs + gap = 42 + 15 + 40 = 97
+  // Center is at 50% - 46, this FAB is 57dp below that (42 FAB + 15 gap)
   return (
     <Animated.View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: 6, // -46 + 42 + 10 = 6
+          marginTop: 11, // -46 + 42 + 15 = 11
           right: spacing.md,
           opacity: fabOpacity || 1,
         },
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     alignItems: 'flex-end',
-    zIndex: 1000,
+    zIndex: 999,
     overflow: 'visible',
   },
   actionsContainer: {
