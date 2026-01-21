@@ -332,8 +332,8 @@ export default function InteractiveMapView({
                 style={[
                   styles.markerContainer,
                   {
-                    left: position.x - 20,
-                    top: position.y - 40,
+                    left: position.x - 24,
+                    top: position.y - 50,
                   },
                 ]}
                 onPress={() => handleMarkerPress(marker)}
@@ -346,19 +346,19 @@ export default function InteractiveMapView({
                   isSelected && styles.markerProviderSelected
                 ]}>
                   <User
-                    size={24}
+                    size={26}
                     color={isSelected ? colors.white : colors.success}
-                    strokeWidth={2.5}
+                    strokeWidth={2.8}
                   />
                   {marker.isVerified && (
                     <View style={styles.verifiedBadge}>
-                      <BadgeCheck size={12} color={colors.white} fill={colors.success} />
+                      <BadgeCheck size={14} color={colors.white} fill={colors.success} strokeWidth={2} />
                     </View>
                   )}
                 </View>
                 {marker.rating !== undefined && marker.rating !== null && (
                   <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
-                    <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
+                    <Star size={11} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} strokeWidth={1.5} />
                     <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
                       {typeof marker.rating === 'number' && !isNaN(marker.rating) ? marker.rating.toFixed(1) : '0.0'}
                     </Text>
@@ -452,9 +452,9 @@ export default function InteractiveMapView({
             <View style={styles.markerInfoHeader}>
               {selectedMarker.type === 'provider' ? (
                 <>
-                  <User size={18} color={colors.success} />
+                  <User size={20} color={colors.success} strokeWidth={2.5} />
                   {selectedMarker.isVerified && (
-                    <BadgeCheck size={16} color={colors.success} fill={colors.success} />
+                    <BadgeCheck size={18} color={colors.success} fill={colors.success} strokeWidth={2} />
                   )}
                 </>
               ) : (
@@ -693,45 +693,70 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   markerProvider: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderColor: colors.success,
     backgroundColor: colors.white,
+    borderWidth: 3,
+    shadowColor: colors.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 10,
   },
   markerProviderSelected: {
     backgroundColor: colors.success,
     borderColor: colors.white,
-    transform: [{ scale: 1.2 }],
+    borderWidth: 3,
+    transform: [{ scale: 1.25 }],
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 15,
   },
   verifiedBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    top: -3,
+    right: -3,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 4,
   },
   markerRatingTag: {
-    marginTop: 4,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 3,
     backgroundColor: colors.white,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
+    borderWidth: 2,
+    borderColor: colors.warning,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 5,
   },
   markerRatingTagSelected: {
     backgroundColor: colors.success,
-    borderColor: colors.success,
+    borderColor: colors.white,
+    borderWidth: 2,
   },
   markerRatingText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     color: colors.text,
+    letterSpacing: 0.3,
   },
   markerRatingTextSelected: {
     color: colors.white,

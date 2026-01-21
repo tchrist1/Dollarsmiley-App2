@@ -129,8 +129,9 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             pointerEvents="auto"
           >
             <MapPin
-              size={18}
-              color={mode === 'listings' ? colors.white : colors.text}
+              size={20}
+              color={mode === 'listings' ? colors.white : colors.primary}
+              strokeWidth={2.5}
             />
             <Text style={[styles.menuText, mode === 'listings' && styles.menuTextActive]}>
               Listings
@@ -145,8 +146,9 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             pointerEvents="auto"
           >
             <User
-              size={18}
-              color={mode === 'providers' ? colors.white : colors.text}
+              size={20}
+              color={mode === 'providers' ? colors.white : colors.success}
+              strokeWidth={2.5}
             />
             <Text style={[styles.menuText, mode === 'providers' && styles.menuTextActive]}>
               Providers
@@ -243,9 +245,9 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           }}
         >
           {expanded ? (
-            <X size={16} color={colors.white} />
+            <X size={18} color={colors.white} strokeWidth={2.5} />
           ) : (
-            <MapPin size={16} color={colors.white} />
+            <MapPin size={18} color={colors.white} strokeWidth={2.5} />
           )}
         </Animated.View>
       </TouchableOpacity>
