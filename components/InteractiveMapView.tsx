@@ -502,7 +502,7 @@ export default function InteractiveMapView({
                     ))}
                     {selectedMarker.categories.length > 3 && (
                       <Text style={styles.providerCategoryMore}>
-                        <Text>+{selectedMarker.categories.length - 3}</Text>
+                        +{selectedMarker.categories.length - 3}
                       </Text>
                     )}
                   </View>
