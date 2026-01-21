@@ -88,8 +88,8 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
   };
 
   // Position at center-right, above the utility FAB
-  // Total height of both FABs + gap = 42 + 15 + 40 = 97
-  // This FAB centers at 50% - 46dp (half of total), placing it perfectly above the lower FAB
+  // Total height of both FABs + gap = 44 + 15 + 42 = 101
+  // This FAB centers at 50% - 46dp, placing it perfectly above the lower FAB
   return (
     <Animated.View
       style={[
@@ -321,9 +321,9 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   fab: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: colors.error + 'D9',
     alignItems: 'center',
     justifyContent: 'center',
