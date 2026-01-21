@@ -91,35 +91,44 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
   // Total height of both FABs + gap = 37 + 10 + 37 = 84
   // This FAB centers at 50% - 42dp (half of total), placing it perfectly above the lower FAB
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          top: '50%',
-          marginTop: -42,
-          right: spacing.md,
-          opacity: fabOpacity || 1,
-        },
-      ]}
-      pointerEvents={fabOpacity && fabOpacity.__getValue() === 0 ? 'none' : 'auto'}
-    >
+    <>
+      {/* Backdrop to close menu when tapping outside */}
       {expanded && (
-        <Animated.View
-          style={[
-            styles.menuContainer,
-            {
-              opacity: scaleAnim,
-              transform: [
-                {
-                  translateY: scaleAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [10, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
+        <Pressable
+          style={styles.backdrop}
+          onPress={toggleExpanded}
+        />
+      )}
+
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            top: '50%',
+            marginTop: -42,
+            right: spacing.md,
+            opacity: fabOpacity || 1,
+          },
+        ]}
+        pointerEvents={fabOpacity && fabOpacity.__getValue() === 0 ? 'none' : 'auto'}
+      >
+        {expanded && (
+          <Animated.View
+            style={[
+              styles.menuContainer,
+              {
+                opacity: scaleAnim,
+                transform: [
+                  {
+                    translateY: scaleAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
           {/* Listings */}
           <TouchableOpacity
             style={[styles.menuItem, mode === 'listings' && styles.menuItemActive]}
@@ -241,12 +250,8 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           )}
         </Animated.View>
       </TouchableOpacity>
-
-      {/* Backdrop to close menu when tapping outside */}
-      {expanded && (
-        <Pressable style={styles.backdrop} onPress={toggleExpanded} />
-      )}
-    </Animated.View>
+      </Animated.View>
+    </>
   );
 }
 
@@ -254,8 +259,17 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     alignItems: 'flex-end',
-    zIndex: 999,
+    zIndex: 1002,
     overflow: 'visible',
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1001,
+    backgroundColor: 'transparent',
   },
   menuContainer: {
     position: 'absolute',
@@ -332,13 +346,5 @@ const styles = StyleSheet.create({
   },
   fabExpanded: {
     backgroundColor: colors.error + 'E0',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: -1000,
-    left: -1000,
-    right: -1000,
-    bottom: -1000,
-    zIndex: -1,
   },
 });
