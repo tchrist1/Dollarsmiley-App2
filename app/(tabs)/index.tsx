@@ -694,13 +694,6 @@ export default function HomeScreen() {
             hasCoords: !!(prof?.latitude && prof?.longitude)
           };
         });
-
-        console.log('[MAP DEBUG] Provider pins generation:', {
-          totalListings: listings.length,
-          totalProviders: providerPins.length,
-          firstPin: providerPins[0],
-          sampleProfiles
-        });
       }
 
       return providerPins;
