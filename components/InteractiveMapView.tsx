@@ -332,8 +332,8 @@ export default function InteractiveMapView({
                 style={[
                   styles.markerContainer,
                   {
-                    left: position.x - 24,
-                    top: position.y - 50,
+                    left: position.x - 20,
+                    top: position.y - 40,
                   },
                 ]}
                 onPress={() => handleMarkerPress(marker)}
@@ -346,21 +346,21 @@ export default function InteractiveMapView({
                   isSelected && styles.markerProviderSelected
                 ]}>
                   <User
-                    size={26}
+                    size={24}
                     color={isSelected ? colors.white : colors.success}
-                    strokeWidth={2.8}
+                    strokeWidth={2.5}
                   />
                   {marker.isVerified && (
                     <View style={styles.verifiedBadge}>
-                      <BadgeCheck size={14} color={colors.white} fill={colors.success} strokeWidth={2} />
+                      <BadgeCheck size={12} color={colors.white} fill={colors.success} />
                     </View>
                   )}
                 </View>
                 {marker.rating !== undefined && marker.rating !== null && (
                   <View style={[styles.markerRatingTag, isSelected && styles.markerRatingTagSelected]}>
-                    <Star size={11} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} strokeWidth={1.5} />
+                    <Star size={10} color={isSelected ? colors.white : colors.warning} fill={isSelected ? colors.white : colors.warning} />
                     <Text style={[styles.markerRatingText, isSelected && styles.markerRatingTextSelected]}>
-                      {typeof marker.rating === 'number' && !isNaN(marker.rating) ? marker.rating.toFixed(1) : '0.0'}
+                      {Number(marker.rating).toFixed(1)}
                     </Text>
                   </View>
                 )}
@@ -452,9 +452,9 @@ export default function InteractiveMapView({
             <View style={styles.markerInfoHeader}>
               {selectedMarker.type === 'provider' ? (
                 <>
-                  <User size={20} color={colors.success} strokeWidth={2.5} />
+                  <User size={18} color={colors.success} />
                   {selectedMarker.isVerified && (
-                    <BadgeCheck size={18} color={colors.success} fill={colors.success} strokeWidth={2} />
+                    <BadgeCheck size={16} color={colors.success} fill={colors.success} />
                   )}
                 </>
               ) : (
@@ -480,13 +480,11 @@ export default function InteractiveMapView({
                   <View style={styles.providerRatingRow}>
                     <View style={styles.providerRatingStars}>
                       <Star size={16} color={colors.warning} fill={colors.warning} />
-                      <Text style={styles.providerRatingValue}>
-                        {typeof selectedMarker.rating === 'number' && !isNaN(selectedMarker.rating) ? selectedMarker.rating.toFixed(1) : '0.0'}
-                      </Text>
+                      <Text style={styles.providerRatingValue}>{Number(selectedMarker.rating).toFixed(1)}</Text>
                     </View>
-                    {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && typeof selectedMarker.reviewCount === 'number' && (
+                    {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
                       <Text style={styles.providerReviewCount}>
-                        ({selectedMarker.reviewCount} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                        ({String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
                       </Text>
                     )}
                   </View>
@@ -495,9 +493,9 @@ export default function InteractiveMapView({
                 {/* Categories */}
                 {selectedMarker.categories && selectedMarker.categories.length > 0 && (
                   <View style={styles.providerCategories}>
-                    {selectedMarker.categories.filter(Boolean).slice(0, 3).map((category, index) => (
+                    {selectedMarker.categories.slice(0, 3).map((category, index) => (
                       <View key={index} style={styles.providerCategoryBadge}>
-                        <Text style={styles.providerCategoryText}>{String(category)}</Text>
+                        <Text style={styles.providerCategoryText}>{String(category || '')}</Text>
                       </View>
                     ))}
                     {selectedMarker.categories.length > 3 && (
@@ -510,16 +508,16 @@ export default function InteractiveMapView({
 
                 {/* Stats Row */}
                 <View style={styles.providerStatsRow}>
-                  {selectedMarker.responseTime && typeof selectedMarker.responseTime === 'string' && (
+                  {selectedMarker.responseTime && (
                     <View style={styles.providerStat}>
                       <Clock size={14} color={colors.textSecondary} />
-                      <Text style={styles.providerStatText}>{selectedMarker.responseTime}</Text>
+                      <Text style={styles.providerStatText}>{String(selectedMarker.responseTime)}</Text>
                     </View>
                   )}
-                  {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && typeof selectedMarker.completionRate === 'number' && !isNaN(selectedMarker.completionRate) && (
+                  {selectedMarker.completionRate !== undefined && selectedMarker.completionRate !== null && (
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
-                      <Text style={styles.providerStatText}>{`${selectedMarker.completionRate}% complete`}</Text>
+                      <Text style={styles.providerStatText}>{String(selectedMarker.completionRate)}% complete</Text>
                     </View>
                   )}
                 </View>
@@ -528,12 +526,12 @@ export default function InteractiveMapView({
                 <View style={styles.providerDistance}>
                   <Navigation size={14} color={colors.primary} />
                   <Text style={styles.providerDistanceText}>
-                    {`${calculateDistance(
+                    {calculateDistance(
                       region.latitude,
                       region.longitude,
                       selectedMarker.latitude,
                       selectedMarker.longitude
-                    )} away`}
+                    )} away
                   </Text>
                 </View>
 
@@ -693,70 +691,45 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   markerProvider: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     borderColor: colors.success,
     backgroundColor: colors.white,
-    borderWidth: 3,
-    shadowColor: colors.success,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 10,
   },
   markerProviderSelected: {
     backgroundColor: colors.success,
     borderColor: colors.white,
-    borderWidth: 3,
-    transform: [{ scale: 1.25 }],
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 15,
+    transform: [{ scale: 1.2 }],
   },
   verifiedBadge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 4,
   },
   markerRatingTag: {
-    marginTop: 6,
+    marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
     backgroundColor: colors.white,
-    paddingHorizontal: spacing.xs + 2,
-    paddingVertical: 3,
-    borderRadius: borderRadius.full,
-    borderWidth: 2,
-    borderColor: colors.warning,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 5,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   markerRatingTagSelected: {
     backgroundColor: colors.success,
-    borderColor: colors.white,
-    borderWidth: 2,
+    borderColor: colors.success,
   },
   markerRatingText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     color: colors.text,
-    letterSpacing: 0.3,
   },
   markerRatingTextSelected: {
     color: colors.white,
