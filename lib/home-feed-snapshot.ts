@@ -9,11 +9,14 @@ import { MarketplaceListing } from '@/types/database';
 
 const SNAPSHOT_PREFIX = 'home_feed_snapshot:';
 const SNAPSHOT_TTL_MS = 5 * 60 * 1000; // 5 minutes client-side TTL
+// PROVIDER PINS FIX: Snapshot version to invalidate stale caches
+const SNAPSHOT_VERSION = 2; // Increment to invalidate all existing snapshots
 
 interface SnapshotData {
   listings: MarketplaceListing[];
   timestamp: number;
   cursor: { created_at: string; id: string } | null;
+  version?: number; // PROVIDER PINS FIX: Version field for cache invalidation
 }
 
 interface SnapshotMinimal {
@@ -89,6 +92,12 @@ export async function getCachedSnapshot(
     const snapshot: SnapshotData = JSON.parse(cached);
     const now = Date.now();
 
+    // PROVIDER PINS FIX: Check version - discard if mismatched
+    if (snapshot.version !== SNAPSHOT_VERSION) {
+      await AsyncStorage.removeItem(key);
+      return null;
+    }
+
     // Check if expired
     if (now - snapshot.timestamp > SNAPSHOT_TTL_MS) {
       // Clean up expired snapshot
@@ -117,7 +126,8 @@ export async function saveSnapshot(
     const snapshot: SnapshotData = {
       listings,
       timestamp: Date.now(),
-      cursor
+      cursor,
+      version: SNAPSHOT_VERSION, // PROVIDER PINS FIX: Include version
     };
 
     await AsyncStorage.setItem(key, JSON.stringify(snapshot));
@@ -217,8 +227,8 @@ export async function prewarmHomeFeed(userId: string | null): Promise<void> {
   try {
     // Check if we already have a recent snapshot
     const cached = await getCachedSnapshot(userId);
-    if (cached && Date.now() - cached.timestamp < 60000) {
-      // Snapshot is less than 1 minute old, no need to refresh
+    if (cached && cached.version === SNAPSHOT_VERSION && Date.now() - cached.timestamp < 60000) {
+      // Snapshot is less than 1 minute old and correct version, no need to refresh
       return;
     }
 

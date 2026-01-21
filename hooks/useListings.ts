@@ -58,6 +58,18 @@ function normalizeServiceListing(service: any): MarketplaceListing {
   const latitude = service.latitude ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude) : null;
   const longitude = service.longitude ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude) : null;
 
+  // PROVIDER PINS FIX: Copy coordinates into nested provider object
+  let provider = service.profiles;
+  if (provider && latitude !== null && longitude !== null) {
+    provider = {
+      ...provider,
+      latitude: latitude,
+      longitude: longitude,
+      // PROVIDER PINS FIX: Ensure user_type is mapped correctly
+      user_type: provider.user_type || null,
+    };
+  }
+
   return {
     id: service.id,
     marketplace_type: service.listing_type || 'Service',
@@ -75,7 +87,7 @@ function normalizeServiceListing(service: any): MarketplaceListing {
     provider_id: service.provider_id,
     status: service.status,
     listing_type: service.listing_type,
-    provider: service.profiles,
+    provider: provider,
     category: service.categories,
     distance_miles: service.distance_miles,
     view_count: service.view_count,
@@ -100,6 +112,18 @@ function normalizeJob(job: any): MarketplaceListing {
   const latitude = job.latitude ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude) : null;
   const longitude = job.longitude ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude) : null;
 
+  // PROVIDER PINS FIX: Copy coordinates into nested customer object
+  let customer = job.profiles;
+  if (customer && latitude !== null && longitude !== null) {
+    customer = {
+      ...customer,
+      latitude: latitude,
+      longitude: longitude,
+      // PROVIDER PINS FIX: Ensure user_type is mapped correctly
+      user_type: customer.user_type || null,
+    };
+  }
+
   return {
     id: job.id,
     marketplace_type: 'Job',
@@ -121,7 +145,7 @@ function normalizeJob(job: any): MarketplaceListing {
     execution_date_start: job.execution_date_start,
     execution_date_end: job.execution_date_end,
     preferred_time: job.preferred_time,
-    customer: job.profiles,
+    customer: customer,
     category: job.categories,
     distance_miles: job.distance_miles,
     view_count: 0,

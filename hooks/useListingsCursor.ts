@@ -373,6 +373,14 @@ export function useListingsCursor({
 // ============================================================================
 
 function normalizeServiceCursor(service: any): MarketplaceListing {
+  // Extract coordinates from service level
+  const latitude = service.latitude !== undefined && service.latitude !== null
+    ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude)
+    : null;
+  const longitude = service.longitude !== undefined && service.longitude !== null
+    ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude)
+    : null;
+
   return {
     id: service.id,
     marketplace_type: 'Service',
@@ -395,10 +403,15 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       full_name: service.provider_full_name,
       avatar_url: service.provider_avatar,
       city: service.provider_city,
-      state: service.provider_state
+      state: service.provider_state,
+      // PROVIDER PINS FIX: Copy coordinates into provider object
+      latitude: latitude,
+      longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
+      user_type: service.provider_user_type || null,
     } : undefined,
-    latitude: service.latitude,
-    longitude: service.longitude,
+    latitude: latitude,
+    longitude: longitude,
   } as any;
 }
 
@@ -419,6 +432,14 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     photos = [job.featured_image_url];
   }
 
+  // Extract coordinates from job level
+  const latitude = job.latitude !== undefined && job.latitude !== null
+    ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude)
+    : null;
+  const longitude = job.longitude !== undefined && job.longitude !== null
+    ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude)
+    : null;
+
   return {
     id: job.id,
     marketplace_type: 'Job',
@@ -433,12 +454,17 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     customer: job.customer_full_name ? {
       id: job.customer_id,
       full_name: job.customer_full_name,
-      avatar_url: job.customer_avatar
+      avatar_url: job.customer_avatar,
+      // PROVIDER PINS FIX: Copy coordinates into customer object
+      latitude: latitude,
+      longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
+      user_type: job.customer_user_type || null,
     } : undefined,
     city: job.city,
     state: job.state,
-    latitude: job.latitude,
-    longitude: job.longitude,
+    latitude: latitude,
+    longitude: longitude,
     deadline: job.deadline
   } as any;
 }
