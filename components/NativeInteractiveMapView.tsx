@@ -673,7 +673,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
                     </View>
                     {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
                       <Text style={styles.providerReviewCount}>
-                        ({typeof selectedMarker.reviewCount === 'number' ? selectedMarker.reviewCount : String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
+                        {`(${typeof selectedMarker.reviewCount === 'number' ? selectedMarker.reviewCount : String(selectedMarker.reviewCount)} ${selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})`}
                       </Text>
                     )}
                   </View>
@@ -704,7 +704,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
                       <Text style={styles.providerStatText}>
-                        {typeof selectedMarker.completionRate === 'number' ? selectedMarker.completionRate : String(selectedMarker.completionRate)}%
+                        {`${typeof selectedMarker.completionRate === 'number' ? selectedMarker.completionRate : String(selectedMarker.completionRate)}%`}
                       </Text>
                     </View>
                   )}

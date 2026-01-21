@@ -102,7 +102,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
             <View style={styles.listingRating}>
               <Star size={14} color={colors.warning} fill={colors.warning} />
               <Text style={styles.listingRatingText}>
-                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
+                {`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`}
               </Text>
             </View>
           )}
