@@ -641,149 +641,44 @@ export default function HomeScreen() {
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
-      if (__DEV__) {
-        console.log('[PROVIDER_PINS_DEBUG] Generating provider pins', {
-          mapMode,
-          totalListings: listings.length,
-          timestamp: Date.now(),
-        });
-
-        // Log first listing structure for debugging
-        if (listings.length > 0) {
-          const firstListing = listings[0];
-          const firstProfile = firstListing.marketplace_type === 'Job' ? firstListing.customer : firstListing.provider;
-          console.log('[PROVIDER_PINS_DEBUG] First listing structure:', {
-            listingId: firstListing.id,
-            marketplaceType: firstListing.marketplace_type,
-            hasProvider: !!firstListing.provider,
-            hasCustomer: !!firstListing.customer,
-            profileKeys: firstProfile ? Object.keys(firstProfile) : null,
-            profileData: firstProfile,
-          });
-        }
-      }
-
       listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
+        if (profile && profile.latitude && profile.longitude) {
+          if (!providersMap.has(profile.id)) {
+            const providerListings = listings.filter(
+              (l) => {
+                const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
+                return lProfile?.id === profile.id;
+              }
+            );
+            const categories = Array.from(
+              new Set(
+                providerListings
+                  .map((l) => l.category?.name)
+                  .filter(Boolean)
+                  .filter((name) => typeof name === 'string')
+              )
+            ).slice(0, 5).map(cat => String(cat));
 
-        // Only include Provider and Hybrid user types (exclude Customer-only)
-        if (!profile || (profile.user_type !== 'Provider' && profile.user_type !== 'Hybrid')) {
-          if (__DEV__ && profile) {
-            console.log('[PROVIDER_PINS_DEBUG] Skipping non-provider:', {
-              profileId: profile.id,
-              userType: profile.user_type,
-              name: profile.full_name,
-              allKeys: Object.keys(profile),
-            });
-          }
-          return;
-        }
-
-        // Skip if already processed
-        if (providersMap.has(profile.id)) {
-          return;
-        }
-
-        // Get all listings for this provider
-        const providerListings = listings.filter(
-          (l) => {
-            const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-            return lProfile?.id === profile.id;
-          }
-        );
-
-        // Find first listing with valid coordinates to use as provider location
-        let providerLat: number | null = profile.latitude || null;
-        let providerLng: number | null = profile.longitude || null;
-
-        if (!providerLat || !providerLng) {
-          for (const pListing of providerListings) {
-            if (
-              pListing.latitude != null &&
-              pListing.longitude != null &&
-              typeof pListing.latitude === 'number' &&
-              typeof pListing.longitude === 'number' &&
-              isFinite(pListing.latitude) &&
-              isFinite(pListing.longitude)
-            ) {
-              providerLat = pListing.latitude;
-              providerLng = pListing.longitude;
-              break;
-            }
-          }
-        }
-
-        // Only add provider if we have valid mappable coordinates
-        if (
-          providerLat != null &&
-          providerLng != null &&
-          typeof providerLat === 'number' &&
-          typeof providerLng === 'number' &&
-          isFinite(providerLat) &&
-          isFinite(providerLng) &&
-          providerLat >= -90 &&
-          providerLat <= 90 &&
-          providerLng >= -180 &&
-          providerLng <= 180
-        ) {
-          const categories = Array.from(
-            new Set(
-              providerListings
-                .map((l) => l.category?.name)
-                .filter(Boolean)
-                .filter((name) => typeof name === 'string')
-            )
-          ).slice(0, 5).map(cat => String(cat));
-
-          const providerMarker = {
-            id: profile.id,
-            latitude: providerLat,
-            longitude: providerLng,
-            title: String(profile.full_name || 'Provider'),
-            subtitle: String((profile as any).business_name || 'Service Provider'),
-            type: 'provider' as const,
-            rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-            isVerified: profile.is_verified,
-            reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-            categories: categories,
-            responseTime: String((profile as any).response_time || 'Within 24 hours'),
-            completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-          };
-
-          providersMap.set(profile.id, providerMarker);
-
-          if (__DEV__) {
-            console.log('[PROVIDER_PINS_DEBUG] Added provider pin:', {
+            providersMap.set(profile.id, {
               id: profile.id,
-              name: profile.full_name,
-              lat: providerLat,
-              lng: providerLng,
-              listingCount: providerListings.length,
+              latitude: profile.latitude,
+              longitude: profile.longitude,
+              title: String(profile.full_name || 'Provider'),
+              subtitle: String((profile as any).business_name || 'Service Provider'),
+              type: 'provider' as const,
+              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
+              isVerified: profile.is_verified,
+              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
+              categories: categories,
+              responseTime: String((profile as any).response_time || 'Within 24 hours'),
+              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
             });
           }
-        } else if (__DEV__) {
-          console.log('[PROVIDER_PINS_DEBUG] Invalid coordinates for provider:', {
-            id: profile.id,
-            name: profile.full_name,
-            profileLat: profile.latitude,
-            profileLng: profile.longitude,
-            derivedLat: providerLat,
-            derivedLng: providerLng,
-            listingCount: providerListings.length,
-          });
         }
       });
 
-      const providerPins = Array.from(providersMap.values());
-
-      if (__DEV__) {
-        console.log('[PROVIDER_PINS_DEBUG] Final provider pins count:', {
-          count: providerPins.length,
-          providers: providerPins.map(p => ({ id: p.id, name: p.title })),
-        });
-      }
-
-      return providerPins;
+      return Array.from(providersMap.values());
     }
 
     // Filter listings based on map mode
@@ -907,9 +802,6 @@ export default function HomeScreen() {
   }, [mapZoomLevel, triggerMapStatusHint]);
 
   const handleMapModeChange = useCallback((mode: MapViewMode) => {
-    if (__DEV__) {
-      console.log('[MAP_MODE_DEBUG] Mode changed to:', mode);
-    }
     setMapMode(mode);
     triggerMapStatusHint();
   }, [triggerMapStatusHint]);
@@ -1295,17 +1187,7 @@ export default function HomeScreen() {
           >
             <InteractiveMapViewPlatform
               ref={mapRef}
-              markers={(() => {
-                const markers = getMapMarkers;
-                if (__DEV__) {
-                  console.log('[MAP_MARKERS_DEBUG] Passing markers to map:', {
-                    mapMode,
-                    markerCount: markers.length,
-                    markerTypes: markers.map(m => m.type),
-                  });
-                }
-                return markers;
-              })()}
+              markers={getMapMarkers}
               onMarkerPress={handleMarkerPress}
               initialRegion={
                 profile?.latitude && profile?.longitude

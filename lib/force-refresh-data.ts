@@ -38,7 +38,6 @@ export function getCacheDebugInfo() {
   const stats = getCacheStats();
 
   console.log('\n=== Cache Debug Info ===\n');
-  console.log('NOTE: Cache auto-invalidates when schema changes (current version: 2)');
   console.log('Home Listings Cache:', {
     exists: stats.homeListings.exists,
     count: stats.homeListings.count,
