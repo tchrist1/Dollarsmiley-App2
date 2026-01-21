@@ -448,7 +448,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         isGesturingRef.current = false;
         onMapGestureEnd?.();
       }
-    }, 300);
+    }, 100);
   };
 
   return (

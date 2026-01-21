@@ -119,12 +119,14 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
               ],
             },
           ]}
+          pointerEvents="box-none"
         >
           {/* Listings */}
           <TouchableOpacity
             style={[styles.menuItem, mode === 'listings' && styles.menuItemActive]}
             onPress={() => handleModeSelect('listings')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <MapPin
               size={18}
@@ -140,6 +142,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             style={[styles.menuItem, mode === 'providers' && styles.menuItemActive]}
             onPress={() => handleModeSelect('providers')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <User
               size={18}
@@ -155,6 +158,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             style={[styles.menuItem, mode === 'services' && styles.menuItemActive]}
             onPress={() => handleModeSelect('services')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <ConcentricIcon
               label="S"
@@ -171,6 +175,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             style={[styles.menuItem, mode === 'jobs_all' && styles.menuItemActive]}
             onPress={() => handleModeSelect('jobs_all')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <ConcentricIcon
               label="J"
@@ -187,6 +192,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             style={[styles.menuItem, mode === 'jobs_quoted' && styles.menuItemActive]}
             onPress={() => handleModeSelect('jobs_quoted')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <ConcentricIcon
               label="QJ"
@@ -203,6 +209,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             style={[styles.menuItem, mode === 'jobs_fixed' && styles.menuItemActive]}
             onPress={() => handleModeSelect('jobs_fixed')}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <ConcentricIcon
               label="FJ"
@@ -221,6 +228,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
         style={[styles.fab, expanded && styles.fabExpanded]}
         onPress={toggleExpanded}
         activeOpacity={0.9}
+        pointerEvents="auto"
       >
         <Animated.View
           style={{

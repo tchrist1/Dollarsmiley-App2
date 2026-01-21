@@ -79,11 +79,13 @@ export default function MapFAB({
               ],
             },
           ]}
+          pointerEvents="box-none"
         >
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleAction(onLayersPress)}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <Layers size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Layers</Text>
@@ -93,6 +95,7 @@ export default function MapFAB({
             style={styles.actionButton}
             onPress={() => handleAction(onZoomIn)}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <Plus size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Zoom In</Text>
@@ -102,6 +105,7 @@ export default function MapFAB({
             style={styles.actionButton}
             onPress={() => handleAction(onZoomOut)}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <Minus size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Zoom Out</Text>
@@ -111,6 +115,7 @@ export default function MapFAB({
             style={styles.actionButton}
             onPress={() => handleAction(onFullscreen)}
             activeOpacity={0.7}
+            pointerEvents="auto"
           >
             <Maximize2 size={20} color={colors.text} />
             <Text style={styles.actionLabel}>Recenter</Text>
@@ -122,6 +127,7 @@ export default function MapFAB({
         style={[styles.fab, expanded && styles.fabExpanded]}
         onPress={toggleExpanded}
         activeOpacity={0.9}
+        pointerEvents="auto"
       >
         <Animated.View
           style={{
