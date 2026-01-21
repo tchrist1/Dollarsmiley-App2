@@ -87,21 +87,27 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
           {item.title}
-        </Text><Text style={styles.listingDescription} numberOfLines={2}>
+        </Text>
+        <Text style={styles.listingDescription} numberOfLines={2}>
           {item.description}
-        </Text><View style={styles.listingMeta}>
+        </Text>
+        <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
-            <MapPin size={14} color={colors.textLight} /><Text style={styles.listingLocationText} numberOfLines={1}>
+            <MapPin size={14} color={colors.textLight} />
+            <Text style={styles.listingLocationText} numberOfLines={1}>
               {item.location || 'Remote'}
             </Text>
-          </View>{profile?.rating_average && profile.rating_average > 0 && (
+          </View>
+          {profile?.rating_average && profile.rating_average > 0 && (
             <View style={styles.listingRating}>
-              <Star size={14} color={colors.warning} fill={colors.warning} /><Text style={styles.listingRatingText}>
+              <Star size={14} color={colors.warning} fill={colors.warning} />
+              <Text style={styles.listingRatingText}>
                 {`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`}
               </Text>
             </View>
           )}
-        </View><View style={styles.listingFooter}>
+        </View>
+        <View style={styles.listingFooter}>
           <View style={styles.listingProvider}>
             {profile?.avatar_url ? (
               <Image source={{ uri: profile.avatar_url }} style={styles.providerAvatar} />
@@ -109,10 +115,12 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               <View style={[styles.providerAvatar, styles.providerAvatarPlaceholder]}>
                 <User size={16} color={colors.textLight} />
               </View>
-            )}<Text style={styles.providerName} numberOfLines={1}>
+            )}
+            <Text style={styles.providerName} numberOfLines={1}>
               {profile?.full_name || 'Anonymous'}
             </Text>
-          </View><Text style={styles.listingPrice}>{priceText}</Text>
+          </View>
+          <Text style={styles.listingPrice}>{priceText}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -185,34 +193,45 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
                 {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
               </Text>
             </View>
-          )}{profile && (
+          )}
+          {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
               {profile.full_name}
             </Text>
-          )}{profile && profile.rating_average > 0 && (
+          )}
+          {profile && profile.rating_average > 0 && (
             <View style={styles.gridRating}>
-              <Star size={10} color={colors.warning} fill={colors.warning} /><Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
+              <Star size={10} color={colors.warning} fill={colors.warning} />
+              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
             </View>
           )}
-        </View><Text style={styles.gridTitle} numberOfLines={2}>
+        </View>
+        <Text style={styles.gridTitle} numberOfLines={2}>
           {item.title}
-        </Text><Text style={styles.gridDescription} numberOfLines={2}>
+        </Text>
+        <Text style={styles.gridDescription} numberOfLines={2}>
           {item.description}
-        </Text>{listing.distance_miles !== undefined && (
+        </Text>
+        {listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
-            <Navigation size={10} color={colors.white} /><Text style={styles.gridDistanceBadgeText}>
+            <Navigation size={10} color={colors.white} />
+            <Text style={styles.gridDistanceBadgeText}>
               {listing.distance_miles < 1
                 ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
                 : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
             </Text>
           </View>
-        )}<View style={styles.gridFooter}>
+        )}
+        <View style={styles.gridFooter}>
           <View style={styles.gridLocation}>
-            <MapPin size={12} color={colors.textLight} /><Text style={styles.gridLocationText} numberOfLines={1}>
+            <MapPin size={12} color={colors.textLight} />
+            <Text style={styles.gridLocationText} numberOfLines={1}>
               {item.location || 'Remote'}
             </Text>
-          </View><View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText}</Text>{priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
+          </View>
+          <View style={styles.gridPrice}>
+            <Text style={styles.gridPriceAmount}>{priceText}</Text>
+            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
           </View>
         </View>
       </View>
