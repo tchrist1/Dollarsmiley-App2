@@ -6,6 +6,8 @@ Display providers as aggregated map pins (one per provider) with a toggle to swi
 ## The Critical Bug
 Provider pins weren't appearing because the `user_type` field was missing from the data normalization layer, preventing the filtering logic from identifying providers.
 
+**Note**: Users can have three types: "Customer", "Provider", or "Hybrid". Provider pins should include both "Provider" AND "Hybrid" users since Hybrid users can also provide services.
+
 ## Data Flow (Must ALL Work Together)
 
 ### 1. Database → RPC Functions
@@ -42,7 +44,7 @@ provider: {
 ```
 
 ### 3. Frontend → Provider Pin Generation
-Filter pins using the `user_type` field:
+Filter pins using the `user_type` field (include both "Provider" and "Hybrid"):
 
 ```typescript
 function generateProviderPins(listings: MarketplaceListing[]) {
@@ -53,8 +55,11 @@ function generateProviderPins(listings: MarketplaceListing[]) {
       ? listing.customer
       : listing.provider;
 
-    // ⚠️ CRITICAL: Must check user_type
-    if (profile?.user_type !== 'Provider') return;
+    // ⚠️ CRITICAL: Must check user_type (Provider OR Hybrid)
+    if (!profile?.user_type ||
+        (profile.user_type !== 'Provider' && profile.user_type !== 'Hybrid')) {
+      return;
+    }
     if (!listing.latitude || !listing.longitude) return;
 
     if (!providerMap.has(profile.id)) {
@@ -64,6 +69,7 @@ function generateProviderPins(listings: MarketplaceListing[]) {
         name: profile.full_name,
         latitude: listing.latitude,
         longitude: listing.longitude,
+        userType: profile.user_type,  // Include for debugging
         // ... other fields
       });
     }
@@ -81,7 +87,7 @@ function generateProviderPins(listings: MarketplaceListing[]) {
 
 3. **Debug each layer**: Test at database, RPC output, normalized data, and UI layers separately.
 
-4. **The `user_type` field is essential**: This differentiates providers from customers. Without it, filtering fails silently.
+4. **The `user_type` field is essential**: Users can be "Customer", "Provider", or "Hybrid" (both roles). Provider pins must include both "Provider" and "Hybrid" types.
 
 ## Quick Test
 
@@ -99,7 +105,7 @@ Expected output:
 [DEBUG] Provider pins: {
   totalListings: 20,
   totalProviders: 15,
-  firstProvider: { id: "...", name: "John Doe", userType: "Provider", ... }
+  firstProvider: { id: "...", name: "John Doe", userType: "Provider" or "Hybrid", ... }
 }
 ```
 
