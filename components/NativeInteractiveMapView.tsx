@@ -429,7 +429,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     );
   }
 
-  const handleRegionWillChange = () => {
+  const handleRegionIsChanging = () => {
     if (!isGesturingRef.current) {
       isGesturingRef.current = true;
       onMapGestureStart?.();
@@ -463,7 +463,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         scaleBarEnabled={false}
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
-        onRegionWillChange={handleRegionWillChange}
+        onRegionIsChanging={handleRegionIsChanging}
         onRegionDidChange={handleRegionDidChange}
         onCameraChanged={(state) => {
           const newZoom = state.properties.zoom;
