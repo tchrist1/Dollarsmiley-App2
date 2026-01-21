@@ -88,15 +88,15 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
   };
 
   // Position at center-right, above the utility FAB
-  // Total height of both FABs + gap = 40 + 10 + 40 = 90
-  // This FAB centers at 50% - 45dp (half of total), placing it perfectly above the lower FAB
+  // Total height of both FABs + gap = 42 + 10 + 40 = 92
+  // This FAB centers at 50% - 46dp (half of total), placing it perfectly above the lower FAB
   return (
     <Animated.View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: -45,
+          marginTop: -46,
           right: spacing.md,
           opacity: fabOpacity || 1,
         },
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     position: 'absolute',
-    bottom: 48,
+    bottom: 50,
     right: 0,
     gap: spacing.xs,
     alignItems: 'flex-end',
@@ -321,17 +321,22 @@ const styles = StyleSheet.create({
     textAlignVertical: 'center',
   },
   fab: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + 'E0',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.error + 'D9',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.lg,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   fabExpanded: {
-    backgroundColor: colors.error + 'E0',
+    backgroundColor: colors.error + 'D9',
   },
   backdrop: {
     position: 'absolute',

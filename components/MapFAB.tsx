@@ -48,15 +48,15 @@ export default function MapFAB({
   };
 
   // Position at center-right, below the menu FAB
-  // Total height of both FABs + gap = 40 + 10 + 40 = 90
-  // Center is at 50% - 45, this FAB is 50dp below that (40 FAB + 10 gap)
+  // Total height of both FABs + gap = 42 + 10 + 40 = 92
+  // Center is at 50% - 46, this FAB is 52dp below that (42 FAB + 10 gap)
   return (
     <Animated.View
       style={[
         styles.container,
         {
           top: '50%',
-          marginTop: 5, // -45 + 40 + 10 = 5
+          marginTop: 6, // -46 + 42 + 10 = 6
           right: spacing.md,
           opacity: fabOpacity || 1,
         },
@@ -191,14 +191,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary + 'E0',
+    backgroundColor: colors.primary + 'D9',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.lg,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 5,
   },
   fabExpanded: {
-    backgroundColor: colors.error + 'E0',
+    backgroundColor: colors.error + 'D9',
   },
   backdrop: {
     position: 'absolute',
