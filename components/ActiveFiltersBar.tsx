@@ -8,6 +8,7 @@ interface ActiveFiltersBarProps {
   filters: FilterOptions;
   onRemoveFilter: (filterType: keyof FilterOptions, value?: any) => void;
   onClearAll: () => void;
+  isApplyingFilters?: boolean; // VISUAL STABILIZATION: Lock UI during filter application
 }
 
 // QUICK WIN 1: Memoize active filters computation
@@ -92,7 +93,8 @@ function buildActiveFiltersList(filters: FilterOptions) {
 export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
   filters,
   onRemoveFilter,
-  onClearAll
+  onClearAll,
+  isApplyingFilters = false,
 }: ActiveFiltersBarProps) {
   // QUICK WIN 1: Memoize expensive computation
   const activeFilters = useMemo(() => buildActiveFiltersList(filters), [filters]);
@@ -106,12 +108,20 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
     return null;
   }
 
+  // VISUAL STABILIZATION: Apply visual lock during filter application
+  const containerStyle = isApplyingFilters
+    ? [styles.container, styles.containerLocked]
+    : styles.container;
+
+  const pointerEvents = isApplyingFilters ? 'none' : 'auto';
+
   return (
-    <View style={styles.container}>
+    <View style={containerStyle} pointerEvents={pointerEvents}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!isApplyingFilters}
       >
         {activeFilters.map((filter, index) => {
           const IconComponent = filter.icon;
@@ -122,6 +132,7 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => handleRemove(filter.type, filter.value)}
+                disabled={isApplyingFilters}
               >
                 <X size={14} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -130,7 +141,11 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
         })}
 
         {activeFilters.length > 1 && (
-          <TouchableOpacity style={styles.clearButton} onPress={onClearAll}>
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={onClearAll}
+            disabled={isApplyingFilters}
+          >
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
         )}
@@ -145,6 +160,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     paddingVertical: spacing.sm,
+  },
+  containerLocked: {
+    opacity: 0.6, // VISUAL STABILIZATION: Reduce opacity during filter application
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
