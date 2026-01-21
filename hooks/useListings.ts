@@ -58,6 +58,23 @@ function normalizeServiceListing(service: any): MarketplaceListing {
   const latitude = service.latitude ? (typeof service.latitude === 'string' ? parseFloat(service.latitude) : service.latitude) : null;
   const longitude = service.longitude ? (typeof service.longitude === 'string' ? parseFloat(service.longitude) : service.longitude) : null;
 
+  // Handle both standard query response (nested profiles object) and RPC response (flat fields)
+  const provider = service.profiles || (service.provider_name ? {
+    id: service.provider_id,
+    full_name: service.provider_name,
+    avatar_url: service.provider_avatar,
+    is_verified: service.provider_verified,
+    user_type: service.provider_user_type,
+    rating_average: service.provider_rating,
+    rating_count: service.provider_rating_count,
+  } : null);
+
+  // Handle both standard query response (nested categories object) and RPC response (flat field)
+  const category = service.categories || (service.category_name ? {
+    id: service.category_id,
+    name: service.category_name,
+  } : null);
+
   return {
     id: service.id,
     marketplace_type: service.listing_type || 'Service',
@@ -75,8 +92,8 @@ function normalizeServiceListing(service: any): MarketplaceListing {
     provider_id: service.provider_id,
     status: service.status,
     listing_type: service.listing_type,
-    provider: service.profiles,
-    category: service.categories,
+    provider,
+    category,
     distance_miles: service.distance_miles,
     view_count: service.view_count,
   };
@@ -100,6 +117,22 @@ function normalizeJob(job: any): MarketplaceListing {
   const latitude = job.latitude ? (typeof job.latitude === 'string' ? parseFloat(job.latitude) : job.latitude) : null;
   const longitude = job.longitude ? (typeof job.longitude === 'string' ? parseFloat(job.longitude) : job.longitude) : null;
 
+  // Handle both standard query response (nested profiles object) and RPC response (flat fields)
+  const customer = job.profiles || (job.customer_name ? {
+    id: job.customer_id,
+    full_name: job.customer_name,
+    avatar_url: job.customer_avatar,
+    user_type: job.customer_user_type,
+    rating_average: job.customer_rating,
+    rating_count: job.customer_rating_count,
+  } : null);
+
+  // Handle both standard query response (nested categories object) and RPC response (flat field)
+  const category = job.categories || (job.category_name ? {
+    id: job.category_id,
+    name: job.category_name,
+  } : null);
+
   return {
     id: job.id,
     marketplace_type: 'Job',
@@ -121,8 +154,8 @@ function normalizeJob(job: any): MarketplaceListing {
     execution_date_start: job.execution_date_start,
     execution_date_end: job.execution_date_end,
     preferred_time: job.preferred_time,
-    customer: job.profiles,
-    category: job.categories,
+    customer,
+    category,
     distance_miles: job.distance_miles,
     view_count: 0,
   };
