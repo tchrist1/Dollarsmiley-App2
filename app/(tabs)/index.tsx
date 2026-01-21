@@ -51,7 +51,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   const listing = item as any;
 
   // Type label logic
-  let typeLabel: { text: string; color: string } = { text: 'SERVICE', color: colors.success };
+  let typeLabel = { text: 'SERVICE', color: colors.success };
   if (isJob) {
     typeLabel = { text: 'JOB', color: colors.primary };
   } else if (listing.listing_type === 'CustomService') {
@@ -62,17 +62,17 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   let priceText = '';
   if (isJob) {
     if (listing.fixed_price) {
-      priceText = String(formatCurrency(listing.fixed_price));
+      priceText = formatCurrency(listing.fixed_price);
     } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${String(formatCurrency(listing.budget_min))} - ${String(formatCurrency(listing.budget_max))}`;
+      priceText = `${formatCurrency(listing.budget_min)} - ${formatCurrency(listing.budget_max)}`;
     } else if (listing.budget_min) {
-      priceText = `From ${String(formatCurrency(listing.budget_min))}`;
+      priceText = `From ${formatCurrency(listing.budget_min)}`;
     } else {
       priceText = 'Budget TBD';
     }
   } else {
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = `${String(formatCurrency(listing.base_price || 0))}/${String(priceType)}`;
+    priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
   }
 
   return (
@@ -82,27 +82,27 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
       onPress={() => onPress(item.id, isJob)}
     >
       <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{String(typeLabel.text || '')}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
       </View>
       <View style={styles.listingContent}>
         <Text style={styles.listingTitle} numberOfLines={2}>
-          {String(item.title || '')}
+          {item.title}
         </Text>
         <Text style={styles.listingDescription} numberOfLines={2}>
-          {String(item.description || '')}
+          {item.description}
         </Text>
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} />
             <Text style={styles.listingLocationText} numberOfLines={1}>
-              {String(item.location || 'Remote')}
+              {item.location || 'Remote'}
             </Text>
           </View>
           {profile?.rating_average && profile.rating_average > 0 && (
             <View style={styles.listingRating}>
               <Star size={14} color={colors.warning} fill={colors.warning} />
               <Text style={styles.listingRatingText}>
-                {String(`${profile.rating_average.toFixed(1)} (${profile.rating_count || 0})`)}
+                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
               </Text>
             </View>
           )}
@@ -117,10 +117,10 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               </View>
             )}
             <Text style={styles.providerName} numberOfLines={1}>
-              {String(profile?.full_name || 'Anonymous')}
+              {profile?.full_name || 'Anonymous'}
             </Text>
           </View>
-          <Text style={styles.listingPrice}>{String(priceText || '$0')}</Text>
+          <Text style={styles.listingPrice}>{priceText}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -133,7 +133,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   const listing = item as any;
 
   // Type label logic
-  let typeLabel: { text: string; color: string } = { text: 'SERVICE', color: colors.success };
+  let typeLabel = { text: 'SERVICE', color: colors.success };
   if (isJob) {
     typeLabel = { text: 'JOB', color: colors.primary };
   } else if (listing.listing_type === 'CustomService') {
@@ -147,13 +147,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   let priceSuffix = '';
   if (isJob) {
     if (listing.fixed_price) {
-      priceText = String(formatCurrency(listing.fixed_price));
+      priceText = formatCurrency(listing.fixed_price);
       priceSuffix = '';
     } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${String(formatCurrency(listing.budget_min))}-${String(formatCurrency(listing.budget_max))}`;
+      priceText = `${formatCurrency(listing.budget_min)}-${formatCurrency(listing.budget_max)}`;
       priceSuffix = '';
     } else if (listing.budget_min) {
-      priceText = String(formatCurrency(listing.budget_min));
+      priceText = formatCurrency(listing.budget_min);
       priceSuffix = '+';
     } else {
       priceText = 'Budget TBD';
@@ -161,8 +161,8 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
     }
   } else {
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = String(formatCurrency(listing.base_price || 0));
-    priceSuffix = `/${String(priceType)}`;
+    priceText = formatCurrency(listing.base_price || 0);
+    priceSuffix = `/${priceType}`;
   }
 
   return (
@@ -176,12 +176,12 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
-            {String(isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️')}
+            {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
           </Text>
         </View>
       )}
       <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{String(typeLabel.text || '')}</Text>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
       </View>
       <View style={styles.gridCardContent}>
         <View style={styles.gridHeader}>
@@ -190,35 +190,35 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           ) : (
             <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
               <Text style={styles.gridAvatarText}>
-                {String(profile?.full_name?.charAt(0).toUpperCase() || 'S')}
+                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
               </Text>
             </View>
           )}
           {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
-              {String(profile.full_name || 'Anonymous')}
+              {profile.full_name}
             </Text>
           )}
           {profile && profile.rating_average > 0 && (
             <View style={styles.gridRating}>
               <Star size={10} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.gridRatingText}>{String(profile.rating_average?.toFixed(1) || 'N/A')}</Text>
+              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
             </View>
           )}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
-          {String(item.title || '')}
+          {item.title}
         </Text>
         <Text style={styles.gridDescription} numberOfLines={2}>
-          {String(item.description || '')}
+          {item.description}
         </Text>
-        {listing.distance_miles !== undefined && listing.distance_miles !== null && (
+        {listing.distance_miles !== undefined && (
           <View style={styles.gridDistanceBadge}>
             <Navigation size={10} color={colors.white} />
             <Text style={styles.gridDistanceBadgeText}>
-              {String(listing.distance_miles < 1
+              {listing.distance_miles < 1
                 ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A')}
+                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
             </Text>
           </View>
         )}
@@ -226,12 +226,12 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />
             <Text style={styles.gridLocationText} numberOfLines={1}>
-              {String(item.location || 'Remote')}
+              {item.location || 'Remote'}
             </Text>
           </View>
           <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{String(priceText || '$0')}</Text>
-            {priceSuffix ? <Text style={styles.gridPriceType}>{String(priceSuffix)}</Text> : null}
+            <Text style={styles.gridPriceAmount}>{priceText}</Text>
+            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
           </View>
         </View>
       </View>
@@ -643,60 +643,42 @@ export default function HomeScreen() {
 
       listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
+        if (profile && profile.latitude && profile.longitude) {
+          if (!providersMap.has(profile.id)) {
+            const providerListings = listings.filter(
+              (l) => {
+                const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
+                return lProfile?.id === profile.id;
+              }
+            );
+            const categories = Array.from(
+              new Set(
+                providerListings
+                  .map((l) => l.category?.name)
+                  .filter(Boolean)
+                  .filter((name) => typeof name === 'string')
+              )
+            ).slice(0, 5).map(cat => String(cat));
 
-        // CRITICAL: Filter by user_type - only show Provider and Hybrid users
-        if (!profile || !profile.latitude || !profile.longitude) return;
-        if (!profile.user_type || (profile.user_type !== 'Provider' && profile.user_type !== 'Hybrid')) return;
-
-        if (!providersMap.has(profile.id)) {
-          const providerListings = listings.filter(
-            (l) => {
-              const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
-              return lProfile?.id === profile.id;
-            }
-          );
-          const categories = Array.from(
-            new Set(
-              providerListings
-                .map((l) => l.category?.name)
-                .filter(Boolean)
-                .filter((name) => typeof name === 'string')
-            )
-          ).slice(0, 5).map(cat => String(cat));
-
-          providersMap.set(profile.id, {
-            id: profile.id,
-            latitude: profile.latitude,
-            longitude: profile.longitude,
-            title: String(profile.full_name || 'Provider'),
-            subtitle: String((profile as any).business_name || 'Service Provider'),
-            type: 'provider' as const,
-            rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
-            isVerified: profile.is_verified,
-            reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
-            categories: categories,
-            responseTime: String((profile as any).response_time || 'Within 24 hours'),
-            completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
-          });
+            providersMap.set(profile.id, {
+              id: profile.id,
+              latitude: profile.latitude,
+              longitude: profile.longitude,
+              title: String(profile.full_name || 'Provider'),
+              subtitle: String((profile as any).business_name || 'Service Provider'),
+              type: 'provider' as const,
+              rating: typeof profile.rating_average === 'number' ? profile.rating_average : 0,
+              isVerified: profile.is_verified,
+              reviewCount: typeof profile.rating_count === 'number' ? profile.rating_count : 0,
+              categories: categories,
+              responseTime: String((profile as any).response_time || 'Within 24 hours'),
+              completionRate: typeof (profile as any).completion_rate === 'number' ? (profile as any).completion_rate : 95,
+            });
+          }
         }
       });
 
-      const providerPins = Array.from(providersMap.values());
-
-      // Debug logging to verify data flow
-      if (__DEV__) {
-        const sampleProfiles = listings.slice(0, 5).map(l => {
-          const prof = l.marketplace_type === 'Job' ? l.customer : l.provider;
-          return {
-            id: prof?.id,
-            name: prof?.full_name,
-            userType: prof?.user_type,
-            hasCoords: !!(prof?.latitude && prof?.longitude)
-          };
-        });
-      }
-
-      return providerPins;
+      return Array.from(providersMap.values());
     }
 
     // Filter listings based on map mode
@@ -885,56 +867,37 @@ export default function HomeScreen() {
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
-    if (!item) return null;
-
     if (item.type === 'row') {
       return (
         <View>
-          {(item.items || []).map((listing: MarketplaceListing) => (
-            listing ? (
-              <View key={listing.id} style={{ marginBottom: spacing.md }}>
-                {renderListingCard({ item: listing })}
-              </View>
-            ) : null
+          {item.items.map((listing: MarketplaceListing) => (
+            <View key={listing.id} style={{ marginBottom: spacing.md }}>
+              {renderListingCard({ item: listing })}
+            </View>
           ))}
         </View>
       );
     }
 
-    return item.data ? renderListingCard({ item: item.data }) : null;
+    return renderListingCard({ item: item.data });
   }, [renderListingCard]);
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
-    if (!item) return null;
-
     if (item.type === 'row') {
       return (
         <View style={styles.gridRow}>
-          {(item.items || []).map((listing: MarketplaceListing) => (
-            listing ? (
-              <View key={listing.id} style={styles.gridItemWrapper}>
-                {renderGridCard({ item: listing })}
-              </View>
-            ) : null
+          {item.items.map((listing: MarketplaceListing) => (
+            <View key={listing.id} style={styles.gridItemWrapper}>
+              {renderGridCard({ item: listing })}
+            </View>
           ))}
         </View>
       );
     }
 
-    return item.data ? renderGridCard({ item: item.data }) : null;
+    return renderGridCard({ item: item.data });
   }, [renderGridCard]);
-
-  // Skeleton loading renderers
-  const renderSkeletonList = useCallback(() => (
-    <SkeletonCard customWidth={undefined} />
-  ), []);
-
-  const renderSkeletonGrid = useCallback(({ index }: { index: number }) => (
-    <View style={index % 2 === 0 ? { marginRight: spacing.sm } : {}}>
-      <SkeletonCard customWidth={(width - spacing.lg * 3) / 2} />
-    </View>
-  ), [width]);
 
   return (
     <View style={styles.container}>
@@ -977,13 +940,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {activeFilterCount > 0 && (
-          <ActiveFiltersBar
-            filters={filters}
-            onRemoveFilter={handleRemoveFilter}
-            onClearAll={handleClearAllFilters}
-          />
-        )}
+        <ActiveFiltersBar
+          filters={filters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
 
         <View style={styles.filterRowContainer}>
           <View style={styles.filterRow}>
@@ -1019,7 +980,7 @@ export default function HomeScreen() {
             <Text style={styles.filterButtonText}>Filters</Text>
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{String(activeFilterCount)}</Text>
+                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -1029,7 +990,7 @@ export default function HomeScreen() {
         {activeFilterCount > 0 && (
           <View style={styles.activeFiltersRow}>
             <Text style={styles.activeFiltersText}>
-              {String(filterIndicatorText || '')}
+              {filterIndicatorText}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -1057,8 +1018,8 @@ export default function HomeScreen() {
                       onPress={() => selectSuggestion(s.suggestion)}
                     >
                       <Search size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{String(s.suggestion || '')}</Text>
-                      <Text style={styles.suggestionCount}>({String(s.search_count || 0)})</Text>
+                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
+                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
                     </TouchableOpacity>
                   ))}
                 </>
@@ -1079,8 +1040,8 @@ export default function HomeScreen() {
                       onPress={() => selectSuggestion(s.suggestion)}
                     >
                       <TrendingUp size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{String(s.suggestion || '')}</Text>
-                      <Text style={styles.suggestionCount}>({String(s.search_count || 0)})</Text>
+                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
+                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
                     </TouchableOpacity>
                   ))}
                 </>
@@ -1102,7 +1063,7 @@ export default function HomeScreen() {
           {viewMode === 'list' ? (
             <FlatList
               data={Array.from({ length: 8 }, (_, i) => i)}
-              renderItem={renderSkeletonList}
+              renderItem={() => <SkeletonCard customWidth={undefined} />}
               keyExtractor={(_, index) => `skeleton-${index}`}
               contentContainerStyle={styles.listingsContainer}
               showsVerticalScrollIndicator={false}
@@ -1110,7 +1071,11 @@ export default function HomeScreen() {
           ) : (
             <FlatList
               data={Array.from({ length: 8 }, (_, i) => i)}
-              renderItem={renderSkeletonGrid}
+              renderItem={({ index }) => (
+                <View style={index % 2 === 0 ? { marginRight: spacing.sm } : {}}>
+                  <SkeletonCard customWidth={(width - spacing.lg * 3) / 2} />
+                </View>
+              )}
               keyExtractor={(_, index) => `skeleton-grid-${index}`}
               contentContainerStyle={styles.gridContainer}
               numColumns={2}

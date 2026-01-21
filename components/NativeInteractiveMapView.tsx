@@ -429,13 +429,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     );
   }
 
-  const handleCameraChanged = (state: any) => {
-    // Handle zoom changes
-    const newZoom = state.properties.zoom;
-    setZoomLevel(newZoom);
-    onZoomChange?.(newZoom);
-
-    // Handle gesture start
+  const handleRegionWillChange = () => {
     if (!isGesturingRef.current) {
       isGesturingRef.current = true;
       onMapGestureStart?.();
@@ -445,7 +439,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     }
   };
 
-  const handleMapIdle = () => {
+  const handleRegionDidChange = () => {
     if (gestureTimeoutRef.current) {
       clearTimeout(gestureTimeoutRef.current);
     }
@@ -469,8 +463,13 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         scaleBarEnabled={false}
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
-        onCameraChanged={handleCameraChanged}
-        onMapIdle={handleMapIdle}
+        onRegionWillChange={handleRegionWillChange}
+        onRegionDidChange={handleRegionDidChange}
+        onCameraChanged={(state) => {
+          const newZoom = state.properties.zoom;
+          setZoomLevel(newZoom);
+          onZoomChange?.(newZoom);
+        }}
       >
         <Mapbox.Camera
           ref={cameraRef}
@@ -673,7 +672,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
                     </View>
                     {selectedMarker.reviewCount !== undefined && selectedMarker.reviewCount !== null && (
                       <Text style={styles.providerReviewCount}>
-                        {`(${typeof selectedMarker.reviewCount === 'number' ? selectedMarker.reviewCount : String(selectedMarker.reviewCount)} ${selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})`}
+                        ({typeof selectedMarker.reviewCount === 'number' ? selectedMarker.reviewCount : String(selectedMarker.reviewCount)} {selectedMarker.reviewCount === 1 ? 'review' : 'reviews'})
                       </Text>
                     )}
                   </View>
@@ -704,7 +703,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
                     <View style={styles.providerStat}>
                       <TrendingUp size={14} color={colors.success} />
                       <Text style={styles.providerStatText}>
-                        {`${typeof selectedMarker.completionRate === 'number' ? selectedMarker.completionRate : String(selectedMarker.completionRate)}%`}
+                        {typeof selectedMarker.completionRate === 'number' ? selectedMarker.completionRate : String(selectedMarker.completionRate)}%
                       </Text>
                     </View>
                   )}

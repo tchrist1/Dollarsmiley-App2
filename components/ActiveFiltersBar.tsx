@@ -46,11 +46,11 @@ function buildActiveFiltersList(filters: FilterOptions) {
   if (filters.priceMin || filters.priceMax) {
     let priceLabel = '';
     if (filters.priceMin && filters.priceMax) {
-      priceLabel = `$${String(filters.priceMin)}-$${String(filters.priceMax)}`;
+      priceLabel = `$${filters.priceMin}-$${filters.priceMax}`;
     } else if (filters.priceMin) {
-      priceLabel = `$${String(filters.priceMin)}+`;
+      priceLabel = `$${filters.priceMin}+`;
     } else if (filters.priceMax) {
-      priceLabel = `Under $${String(filters.priceMax)}`;
+      priceLabel = `Under $${filters.priceMax}`;
     }
     activeFilters.push({
       type: 'priceMin',
@@ -62,15 +62,15 @@ function buildActiveFiltersList(filters: FilterOptions) {
   if (filters.minRating > 0) {
     activeFilters.push({
       type: 'minRating',
-      label: `${String(filters.minRating)}+ Stars`,
+      label: `${filters.minRating}+ Stars`,
       icon: Star,
     });
   }
 
   if (filters.location) {
     const locationLabel = filters.distance
-      ? `${String(filters.location)} (${String(filters.distance)} mi)`
-      : String(filters.location);
+      ? `${filters.location} (${filters.distance} mi)`
+      : filters.location;
     activeFilters.push({
       type: 'location',
       label: locationLabel,
@@ -118,7 +118,7 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
           return (
             <View key={`${filter.type}-${index}`} style={styles.filterChip}>
               <IconComponent size={14} color={colors.primary} />
-              <Text style={styles.filterText}>{String(filter.label)}</Text>
+              <Text style={styles.filterText}>{filter.label}</Text>
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => handleRemove(filter.type, filter.value)}

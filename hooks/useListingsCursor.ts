@@ -395,13 +395,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       full_name: service.provider_full_name,
       avatar_url: service.provider_avatar,
       city: service.provider_city,
-      state: service.provider_state,
-      user_type: service.provider_user_type,
-      rating_average: service.provider_rating_average,
-      rating_count: service.provider_rating_count,
-      id_verified: service.provider_id_verified,
-      latitude: service.latitude,
-      longitude: service.longitude
+      state: service.provider_state
     } : undefined,
     latitude: service.latitude,
     longitude: service.longitude,
@@ -439,13 +433,7 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     customer: job.customer_full_name ? {
       id: job.customer_id,
       full_name: job.customer_full_name,
-      avatar_url: job.customer_avatar,
-      user_type: job.customer_user_type,
-      rating_average: job.customer_rating_average,
-      rating_count: job.customer_rating_count,
-      id_verified: job.customer_id_verified,
-      latitude: job.latitude,
-      longitude: job.longitude
+      avatar_url: job.customer_avatar
     } : undefined,
     city: job.city,
     state: job.state,
