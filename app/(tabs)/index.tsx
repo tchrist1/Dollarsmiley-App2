@@ -917,6 +917,17 @@ export default function HomeScreen() {
     return renderGridCard({ item: item.data });
   }, [renderGridCard]);
 
+  // Skeleton loading renderers
+  const renderSkeletonList = useCallback(() => (
+    <SkeletonCard customWidth={undefined} />
+  ), []);
+
+  const renderSkeletonGrid = useCallback(({ index }: { index: number }) => (
+    <View style={index % 2 === 0 ? { marginRight: spacing.sm } : {}}>
+      <SkeletonCard customWidth={(width - spacing.lg * 3) / 2} />
+    </View>
+  ), [width]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -1081,7 +1092,7 @@ export default function HomeScreen() {
           {viewMode === 'list' ? (
             <FlatList
               data={Array.from({ length: 8 }, (_, i) => i)}
-              renderItem={() => <SkeletonCard customWidth={undefined} />}
+              renderItem={renderSkeletonList}
               keyExtractor={(_, index) => `skeleton-${index}`}
               contentContainerStyle={styles.listingsContainer}
               showsVerticalScrollIndicator={false}
@@ -1089,11 +1100,7 @@ export default function HomeScreen() {
           ) : (
             <FlatList
               data={Array.from({ length: 8 }, (_, i) => i)}
-              renderItem={({ index }) => (
-                <View style={index % 2 === 0 ? { marginRight: spacing.sm } : {}}>
-                  <SkeletonCard customWidth={(width - spacing.lg * 3) / 2} />
-                </View>
-              )}
+              renderItem={renderSkeletonGrid}
               keyExtractor={(_, index) => `skeleton-grid-${index}`}
               contentContainerStyle={styles.gridContainer}
               numColumns={2}
