@@ -429,7 +429,13 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     );
   }
 
-  const handleRegionIsChanging = () => {
+  const handleCameraChanged = (state: any) => {
+    // Handle zoom changes
+    const newZoom = state.properties.zoom;
+    setZoomLevel(newZoom);
+    onZoomChange?.(newZoom);
+
+    // Handle gesture start
     if (!isGesturingRef.current) {
       isGesturingRef.current = true;
       onMapGestureStart?.();
@@ -439,7 +445,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
     }
   };
 
-  const handleRegionDidChange = () => {
+  const handleMapIdle = () => {
     if (gestureTimeoutRef.current) {
       clearTimeout(gestureTimeoutRef.current);
     }
@@ -463,13 +469,8 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         scaleBarEnabled={false}
         compassEnabled={false}
         onDidFinishLoadingMap={() => setMapLoaded(true)}
-        onRegionIsChanging={handleRegionIsChanging}
-        onRegionDidChange={handleRegionDidChange}
-        onCameraChanged={(state) => {
-          const newZoom = state.properties.zoom;
-          setZoomLevel(newZoom);
-          onZoomChange?.(newZoom);
-        }}
+        onCameraChanged={handleCameraChanged}
+        onMapIdle={handleMapIdle}
       >
         <Mapbox.Camera
           ref={cameraRef}
