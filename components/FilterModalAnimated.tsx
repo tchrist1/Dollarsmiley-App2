@@ -387,15 +387,26 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
               logGesture('ModalWrapper', 'onTouchMove', { pageY: e.nativeEvent.pageY });
             }}
           >
-            <Animated.View
-              style={[styles.modalContainer, modalStyle]}
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+              style={styles.modalContent}
               onTouchStart={(e) => {
-                logGesture('ModalContainerAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+                logGesture('ModalContentTouchable', 'onTouchStart', { pageY: e.nativeEvent.pageY });
               }}
               onTouchMove={(e) => {
-                logGesture('ModalContainerAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+                logGesture('ModalContentTouchable', 'onTouchMove', { pageY: e.nativeEvent.pageY });
               }}
             >
+              <Animated.View
+                style={[styles.modalContainer, modalStyle]}
+                onTouchStart={(e) => {
+                  logGesture('ModalContainerAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+                }}
+                onTouchMove={(e) => {
+                  logGesture('ModalContainerAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+                }}
+              >
                 {/* Header */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
                   <Text style={styles.title}>Filters</Text>
@@ -532,6 +543,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                   />
                 </View>
               </Animated.View>
+            </TouchableOpacity>
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -564,13 +576,16 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     justifyContent: 'flex-end',
   },
+  modalContent: {
+    flex: 1,
+  },
   modalContainer: {
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: 'hidden',
     ...shadows.lg,
-    flex: 1,
+    flexShrink: 1,
     maxHeight: '100%',
   },
   header: {
@@ -600,7 +615,9 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    flex: 1,
+    flexShrink: 1,
+    flexGrow: 0,
+    maxHeight: 500,
   },
   scrollContent: {
     padding: spacing.lg,
