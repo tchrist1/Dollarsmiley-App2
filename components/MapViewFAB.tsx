@@ -163,7 +163,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           >
             <ConcentricIcon
               label="SP"
-              color="#8B5CF6"
+              color="#9BE44D"
               isActive={mode === 'providers'}
             />
             <Text style={[styles.menuText, mode === 'providers' && styles.menuTextActive]}>

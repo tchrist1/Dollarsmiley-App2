@@ -347,7 +347,7 @@ export default function InteractiveMapView({
                 ]}>
                   <User
                     size={24}
-                    color={isSelected ? colors.white : colors.success}
+                    color={isSelected ? colors.white : '#9BE44D'}
                     strokeWidth={2.5}
                   />
                   {marker.isVerified && (
@@ -691,11 +691,11 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   markerProvider: {
-    borderColor: colors.success,
+    borderColor: '#9BE44D',
     backgroundColor: colors.white,
   },
   markerProviderSelected: {
-    backgroundColor: colors.success,
+    backgroundColor: '#9BE44D',
     borderColor: colors.white,
     transform: [{ scale: 1.2 }],
   },

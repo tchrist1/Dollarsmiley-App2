@@ -167,6 +167,9 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         letterText = 'S';
       }
 
+      // Determine bubble color
+      const bubbleColor = marker.type === 'provider' ? '#9BE44D' : config.bubbleColor;
+
       return {
         type: 'Feature' as const,
         id: marker.id,
@@ -182,7 +185,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
           price: marker.price,
           isSelected: isSelected,
           isProvider: marker.type === 'provider',
-          bubbleColor: config.bubbleColor,
+          bubbleColor: bubbleColor,
           iconType: marker.listingType || 'Service',
           letterText: letterText,
         },
