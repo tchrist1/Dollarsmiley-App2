@@ -8,7 +8,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MapPin, User, X } from 'lucide-react-native';
+import { MapPin, X } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 
 export type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | 'jobs_fixed' | 'jobs_quoted';
@@ -78,7 +78,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
   const getModeLabel = (selectedMode: MapViewMode): string => {
     switch (selectedMode) {
       case 'listings': return 'Listings';
-      case 'providers': return 'Providers';
+      case 'providers': return 'S Providers';
       case 'services': return 'Services';
       case 'jobs_all': return 'All Jobs';
       case 'jobs_fixed': return 'Fixed-priced Jobs';
@@ -137,22 +137,6 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             </Text>
           </TouchableOpacity>
 
-          {/* Providers */}
-          <TouchableOpacity
-            style={[styles.menuItem, mode === 'providers' && styles.menuItemActive]}
-            onPress={() => handleModeSelect('providers')}
-            activeOpacity={0.7}
-            pointerEvents="auto"
-          >
-            <User
-              size={18}
-              color={mode === 'providers' ? colors.white : colors.text}
-            />
-            <Text style={[styles.menuText, mode === 'providers' && styles.menuTextActive]}>
-              Providers
-            </Text>
-          </TouchableOpacity>
-
           {/* Services */}
           <TouchableOpacity
             style={[styles.menuItem, mode === 'services' && styles.menuItemActive]}
@@ -167,6 +151,23 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
             />
             <Text style={[styles.menuText, mode === 'services' && styles.menuTextActive]}>
               Services
+            </Text>
+          </TouchableOpacity>
+
+          {/* S Providers */}
+          <TouchableOpacity
+            style={[styles.menuItem, mode === 'providers' && styles.menuItemActive]}
+            onPress={() => handleModeSelect('providers')}
+            activeOpacity={0.7}
+            pointerEvents="auto"
+          >
+            <ConcentricIcon
+              label="SP"
+              color="#8B5CF6"
+              isActive={mode === 'providers'}
+            />
+            <Text style={[styles.menuText, mode === 'providers' && styles.menuTextActive]}>
+              S Providers
             </Text>
           </TouchableOpacity>
 
