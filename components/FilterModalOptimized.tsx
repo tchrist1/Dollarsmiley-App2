@@ -378,6 +378,7 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
                     <VerifiedSection
                       verified={draftFilters.verified || false}
                       onToggleVerified={actions.toggleVerified}
+                      style={{ marginBottom: 0 }}
                     />
                   </>
                 )}

@@ -436,6 +436,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                       <VerifiedSection
                         verified={draftFilters.verified || false}
                         onToggleVerified={actions.toggleVerified}
+                        style={{ marginBottom: 0 }}
                       />
                     </>
                   )}
