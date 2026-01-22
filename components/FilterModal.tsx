@@ -101,6 +101,15 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   // DRAFT FILTER STATE - Isolated from parent, only committed on Apply
   const [draftFilters, setDraftFilters] = useState<FilterOptions>(currentFilters);
 
+  // ============================================================================
+  // DIAGNOSTIC: Gesture Responder Tracing (DEV-only)
+  // ============================================================================
+  const logGesture = useCallback((component: string, event: string, detail?: any) => {
+    if (__DEV__) {
+      console.log(`[GESTURE TRACE] ${component} ${event}`, detail || '');
+    }
+  }, []);
+
   // Local state for price inputs with debouncing
   const [localPriceMin, setLocalPriceMin] = useState(currentFilters.priceMin);
   const [localPriceMax, setLocalPriceMax] = useState(currentFilters.priceMax);
@@ -397,6 +406,14 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoidView}
+        onStartShouldSetResponder={(e) => {
+          logGesture('KeyboardAvoidingView', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
+          return false;
+        }}
+        onMoveShouldSetResponder={(e) => {
+          logGesture('KeyboardAvoidingView', 'onMoveShouldSetResponder', { pageY: e.nativeEvent.pageY });
+          return false;
+        }}
       >
         <TouchableOpacity
           style={styles.overlay}
@@ -404,14 +421,58 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
           onPress={() => {
             onClose();
           }}
+          onStartShouldSetResponder={(e) => {
+            logGesture('OverlayTouchable', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
+            return false;
+          }}
+          onMoveShouldSetResponder={(e) => {
+            logGesture('OverlayTouchable', 'onMoveShouldSetResponder', { pageY: e.nativeEvent.pageY });
+            return false;
+          }}
+          onResponderGrant={(e) => {
+            logGesture('OverlayTouchable', 'onResponderGrant', { pageY: e.nativeEvent.pageY });
+          }}
+          onResponderMove={(e) => {
+            logGesture('OverlayTouchable', 'onResponderMove', { pageY: e.nativeEvent.pageY });
+          }}
         >
           <TouchableOpacity
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
             style={styles.modalWrapper}
             pointerEvents="box-none"
+            onStartShouldSetResponder={(e) => {
+              logGesture('ModalWrapperTouchable', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
+              return false;
+            }}
+            onMoveShouldSetResponder={(e) => {
+              logGesture('ModalWrapperTouchable', 'onMoveShouldSetResponder', { pageY: e.nativeEvent.pageY });
+              return false;
+            }}
+            onResponderGrant={(e) => {
+              logGesture('ModalWrapperTouchable', 'onResponderGrant', { pageY: e.nativeEvent.pageY });
+            }}
+            onResponderMove={(e) => {
+              logGesture('ModalWrapperTouchable', 'onResponderMove', { pageY: e.nativeEvent.pageY });
+            }}
           >
-            <View style={styles.modalContainer}>
+            <View
+              style={styles.modalContainer}
+              onStartShouldSetResponder={(e) => {
+                logGesture('ModalContainerView', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
+                return false;
+              }}
+              onMoveShouldSetResponder={(e) => {
+                logGesture('ModalContainerView', 'onMoveShouldSetResponder', { pageY: e.nativeEvent.pageY });
+                return false;
+              }}
+              onResponderGrant={(e) => {
+                logGesture('ModalContainerView', 'onResponderGrant', { pageY: e.nativeEvent.pageY });
+              }}
+              onResponderMove={(e) => {
+                logGesture('ModalContainerView', 'onResponderMove', { pageY: e.nativeEvent.pageY });
+              }}
+            >
               <View style={styles.header}>
                 <Text style={styles.title}>Filters</Text>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -428,6 +489,20 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                 removeClippedSubviews={Platform.OS === 'android'}
                 scrollEventThrottle={16}
                 pointerEvents="auto"
+                onScrollBeginDrag={(e) => {
+                  logGesture('FilterScrollView', 'onScrollBeginDrag', { contentOffsetY: e.nativeEvent.contentOffset.y });
+                }}
+                onTouchStart={(e) => {
+                  logGesture('FilterScrollView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+                }}
+                onStartShouldSetResponder={(e) => {
+                  logGesture('FilterScrollView', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
+                  return false;
+                }}
+                onMoveShouldSetResponder={(e) => {
+                  logGesture('FilterScrollView', 'onMoveShouldSetResponder', { pageY: e.nativeEvent.pageY });
+                  return false;
+                }}
               >
             {/* Listing Type - First - Always show immediately */}
             <View style={styles.section}>
