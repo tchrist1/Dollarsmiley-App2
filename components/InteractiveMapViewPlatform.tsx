@@ -44,8 +44,6 @@ interface InteractiveMapViewPlatformProps {
   onRecenter?: () => void;
   onLayersPress?: () => void;
   onZoomChange?: (zoom: number) => void;
-  onMapGestureStart?: () => void;
-  onMapGestureEnd?: () => void;
 }
 
 const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, InteractiveMapViewPlatformProps>((props, ref) => {
@@ -79,8 +77,6 @@ const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, Inter
       onRecenter={props.onRecenter}
       onLayersPress={props.onLayersPress}
       onZoomChange={props.onZoomChange}
-      onMapGestureStart={props.onMapGestureStart}
-      onMapGestureEnd={props.onMapGestureEnd}
     />
   );
 });

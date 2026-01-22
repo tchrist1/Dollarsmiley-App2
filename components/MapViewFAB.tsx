@@ -16,7 +16,6 @@ export type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | '
 interface MapViewFABProps {
   mode: MapViewMode;
   onModeChange: (mode: MapViewMode) => void;
-  fabOpacity?: Animated.Value;
 }
 
 interface ConcentricIconProps {
@@ -55,18 +54,35 @@ const ConcentricIcon: React.FC<ConcentricIconProps> = ({ label, color, isActive 
   );
 };
 
-export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFABProps) {
+export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.timing(scaleAnim, {
-      toValue,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
+
+    Animated.parallel([
+      Animated.timing(menuAnim, {
+        toValue,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.timing(shakeAnim, {
+          toValue: 1,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: 0,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
     setExpanded(!expanded);
   };
 
@@ -98,7 +114,14 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           top: '50%',
           marginTop: -46,
           right: spacing.md,
-          opacity: fabOpacity || 1,
+          transform: [
+            {
+              translateX: shakeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 3],
+              }),
+            },
+          ],
         },
       ]}
       pointerEvents="box-none"
@@ -108,10 +131,10 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           style={[
             styles.menuContainer,
             {
-              opacity: scaleAnim,
+              opacity: menuAnim,
               transform: [
                 {
-                  translateY: scaleAnim.interpolate({
+                  translateY: menuAnim.interpolate({
                     inputRange: [0, 1],
                     outputRange: [10, 0],
                   }),
@@ -235,7 +258,7 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           style={{
             transform: [
               {
-                rotate: scaleAnim.interpolate({
+                rotate: menuAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ['0deg', '45deg'],
                 }),
@@ -244,9 +267,9 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
           }}
         >
           {expanded ? (
-            <X size={16} color={colors.white} />
+            <X size={16} color="rgba(255, 255, 255, 0.95)" />
           ) : (
-            <MapPin size={16} color={colors.white} />
+            <MapPin size={16} color="rgba(255, 255, 255, 0.95)" />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -338,20 +361,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.88)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
     elevation: 10001,
     zIndex: 10001,
   },
   fabExpanded: {
-    backgroundColor: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.88)',
   },
   backdrop: {
     position: 'absolute',

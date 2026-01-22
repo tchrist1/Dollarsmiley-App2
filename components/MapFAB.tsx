@@ -17,7 +17,6 @@ interface MapFABProps {
   onZoomOut: () => void;
   onFullscreen: () => void;
   onLayersPress: () => void;
-  fabOpacity?: Animated.Value;
 }
 
 export default function MapFAB({
@@ -25,20 +24,36 @@ export default function MapFAB({
   onZoomOut,
   onFullscreen,
   onLayersPress,
-  fabOpacity,
 }: MapFABProps) {
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const menuAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-    Animated.spring(scaleAnim, {
-      toValue,
-      useNativeDriver: true,
-      tension: 50,
-      friction: 7,
-    }).start();
+
+    Animated.parallel([
+      Animated.spring(menuAnim, {
+        toValue,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 7,
+      }),
+      Animated.sequence([
+        Animated.timing(shakeAnim, {
+          toValue: 1,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shakeAnim, {
+          toValue: 0,
+          duration: 75,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+
     setExpanded(!expanded);
   };
 
@@ -58,7 +73,14 @@ export default function MapFAB({
           top: '50%',
           marginTop: 13, // -46 + 44 + 15 = 13
           right: spacing.md,
-          opacity: fabOpacity || 1,
+          transform: [
+            {
+              translateX: shakeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 3],
+              }),
+            },
+          ],
         },
       ]}
       pointerEvents="box-none"
@@ -68,10 +90,10 @@ export default function MapFAB({
           style={[
             styles.actionsContainer,
             {
-              opacity: scaleAnim,
+              opacity: menuAnim,
               transform: [
                 {
-                  translateY: scaleAnim.interpolate({
+                  translateY: menuAnim.interpolate({
                     inputRange: [0, 1],
                     outputRange: [-10, 0],
                   }),
@@ -133,7 +155,7 @@ export default function MapFAB({
           style={{
             transform: [
               {
-                rotate: scaleAnim.interpolate({
+                rotate: menuAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ['0deg', '45deg'],
                 }),
@@ -142,9 +164,9 @@ export default function MapFAB({
           }}
         >
           {expanded ? (
-            <X size={16} color={colors.white} />
+            <X size={16} color="rgba(255, 255, 255, 0.95)" />
           ) : (
-            <MoreVertical size={16} color={colors.white} />
+            <MoreVertical size={16} color="rgba(255, 255, 255, 0.95)" />
           )}
         </Animated.View>
       </TouchableOpacity>
@@ -202,20 +224,20 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.primary,
+    backgroundColor: 'rgba(16, 185, 129, 0.88)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
     elevation: 10000,
     zIndex: 10000,
   },
   fabExpanded: {
-    backgroundColor: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.88)',
   },
   backdrop: {
     position: 'absolute',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 import { router, useLocalSearchParams } from 'expo-router';
@@ -268,7 +268,6 @@ export default function HomeScreen() {
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapRef = useRef<NativeInteractiveMapViewRef>(null);
-  const fabOpacityAnim = useRef(new Animated.Value(1)).current;
   const [filters, setFilters] = useState<FilterOptions>({
     ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
@@ -828,22 +827,6 @@ export default function HomeScreen() {
     mapRef.current?.toggleLayers();
   }, []);
 
-  const handleMapGestureStart = useCallback(() => {
-    Animated.timing(fabOpacityAnim, {
-      toValue: 0,
-      duration: 120,
-      useNativeDriver: true,
-    }).start();
-  }, [fabOpacityAnim]);
-
-  const handleMapGestureEnd = useCallback(() => {
-    Animated.timing(fabOpacityAnim, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [fabOpacityAnim]);
-
   // PRIORITY 4: Memoized keyExtractor functions to prevent re-creation on every render
   const feedKeyExtractor = useCallback((item: any) => item.id, []);
 
@@ -1202,8 +1185,6 @@ export default function HomeScreen() {
               showUserLocation={true}
               enableClustering={true}
               onZoomChange={handleMapZoomChange}
-              onMapGestureStart={handleMapGestureStart}
-              onMapGestureEnd={handleMapGestureEnd}
             />
 
             {viewMode === 'map' && (
@@ -1218,7 +1199,6 @@ export default function HomeScreen() {
                 <MapViewFAB
                   mode={mapMode}
                   onModeChange={handleMapModeChange}
-                  fabOpacity={fabOpacityAnim}
                 />
 
                 <MapFAB
@@ -1226,7 +1206,6 @@ export default function HomeScreen() {
                   onZoomOut={handleMapZoomOut}
                   onFullscreen={handleMapRecenter}
                   onLayersPress={handleMapLayers}
-                  fabOpacity={fabOpacityAnim}
                 />
               </>
             )}
