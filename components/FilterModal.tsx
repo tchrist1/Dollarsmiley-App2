@@ -105,10 +105,18 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   // DIAGNOSTIC: Gesture Responder Tracing (DEV-only)
   // ============================================================================
   const logGesture = useCallback((component: string, event: string, detail?: any) => {
-    if (__DEV__) {
-      console.log(`[GESTURE TRACE] ${component} ${event}`, detail || '');
-    }
+    console.log(`[GESTURE TRACE] ${component} ${event}`, detail || '');
   }, []);
+
+  // DIAGNOSTIC: Mount confirmation
+  useEffect(() => {
+    if (visible) {
+      console.log('[GESTURE TRACE] ========================================');
+      console.log('[GESTURE TRACE] FilterModal MOUNTED - Diagnostics Active');
+      console.log('[GESTURE TRACE] __DEV__ =', __DEV__);
+      console.log('[GESTURE TRACE] ========================================');
+    }
+  }, [visible]);
 
   // Local state for price inputs with debouncing
   const [localPriceMin, setLocalPriceMin] = useState(currentFilters.priceMin);
@@ -421,6 +429,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
           onPress={() => {
             onClose();
           }}
+          onTouchStart={(e) => {
+            logGesture('OverlayTouchable', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+          }}
+          onTouchMove={(e) => {
+            logGesture('OverlayTouchable', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+          }}
           onStartShouldSetResponder={(e) => {
             logGesture('OverlayTouchable', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
             return false;
@@ -441,6 +455,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
             onPress={(e) => e.stopPropagation()}
             style={styles.modalWrapper}
             pointerEvents="box-none"
+            onTouchStart={(e) => {
+              logGesture('ModalWrapperTouchable', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+            }}
+            onTouchMove={(e) => {
+              logGesture('ModalWrapperTouchable', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+            }}
             onStartShouldSetResponder={(e) => {
               logGesture('ModalWrapperTouchable', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
               return false;
@@ -458,6 +478,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
           >
             <View
               style={styles.modalContainer}
+              onTouchStart={(e) => {
+                logGesture('ModalContainerView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+              }}
+              onTouchMove={(e) => {
+                logGesture('ModalContainerView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+              }}
               onStartShouldSetResponder={(e) => {
                 logGesture('ModalContainerView', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
                 return false;
@@ -493,7 +519,13 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                   logGesture('FilterScrollView', 'onScrollBeginDrag', { contentOffsetY: e.nativeEvent.contentOffset.y });
                 }}
                 onTouchStart={(e) => {
-                  logGesture('FilterScrollView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+                  logGesture('FilterScrollView', 'onTouchStart', { pageY: e.nativeEvent.pageY, touches: e.nativeEvent.touches.length });
+                }}
+                onTouchMove={(e) => {
+                  logGesture('FilterScrollView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+                }}
+                onTouchEnd={(e) => {
+                  logGesture('FilterScrollView', 'onTouchEnd', { pageY: e.nativeEvent.pageY });
                 }}
                 onStartShouldSetResponder={(e) => {
                   logGesture('FilterScrollView', 'onStartShouldSetResponder', { pageY: e.nativeEvent.pageY });
