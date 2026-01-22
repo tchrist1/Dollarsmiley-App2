@@ -282,6 +282,8 @@ export default function HomeScreen() {
     error: listingsError,
     fetchMore,
     refresh: refreshListings,
+    isTransitioning,
+    hasHydratedLiveData,
   } = useListings({
     searchQuery,
     filters,
@@ -740,7 +742,7 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData]);
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
@@ -927,6 +929,7 @@ export default function HomeScreen() {
           filters={filters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
+          isTransitioning={isTransitioning}
         />
 
         <View style={styles.filterRowContainer}>

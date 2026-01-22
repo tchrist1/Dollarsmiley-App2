@@ -41,6 +41,8 @@ interface UseListingsCursorReturn {
   error: string | null;
   fetchMore: () => void;
   refresh: () => void;
+  isTransitioning: boolean;
+  hasHydratedLiveData: boolean;
 }
 
 interface Cursor {
@@ -66,6 +68,8 @@ export function useListingsCursor({
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -310,6 +314,7 @@ export function useListingsCursor({
 
         setError(null);
         setInitialLoadComplete(true);
+        setHasHydratedLiveData(true);
       } catch (err: any) {
         if (err.name === 'AbortError') return;
 
@@ -336,8 +341,13 @@ export function useListingsCursor({
 
     const effectiveDebounce = initialLoadComplete ? debounceMs : 50;
 
+    setIsTransitioning(true);
+
     searchTimeout.current = setTimeout(() => {
       fetchListingsCursor(true);
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 100);
     }, effectiveDebounce);
 
     return () => {
@@ -365,6 +375,8 @@ export function useListingsCursor({
     error,
     fetchMore,
     refresh,
+    isTransitioning,
+    hasHydratedLiveData,
   };
 }
 

@@ -8,6 +8,7 @@ interface ActiveFiltersBarProps {
   filters: FilterOptions;
   onRemoveFilter: (filterType: keyof FilterOptions, value?: any) => void;
   onClearAll: () => void;
+  isTransitioning?: boolean;
 }
 
 // QUICK WIN 1: Memoize active filters computation
@@ -92,7 +93,8 @@ function buildActiveFiltersList(filters: FilterOptions) {
 export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
   filters,
   onRemoveFilter,
-  onClearAll
+  onClearAll,
+  isTransitioning = false
 }: ActiveFiltersBarProps) {
   // QUICK WIN 1: Memoize expensive computation
   const activeFilters = useMemo(() => buildActiveFiltersList(filters), [filters]);
@@ -107,16 +109,17 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isTransitioning && styles.containerTransitioning]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        pointerEvents={isTransitioning ? 'none' : 'auto'}
       >
         {activeFilters.map((filter, index) => {
           const IconComponent = filter.icon;
           return (
-            <View key={`${filter.type}-${index}`} style={styles.filterChip}>
+            <View key={`${filter.type}-${index}`} style={[styles.filterChip, isTransitioning && styles.filterChipTransitioning]}>
               <IconComponent size={14} color={colors.primary} />
               <Text style={styles.filterText}>{filter.label}</Text>
               <TouchableOpacity
@@ -146,6 +149,9 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     paddingVertical: spacing.sm,
   },
+  containerTransitioning: {
+    opacity: 0.7,
+  },
   scrollContent: {
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
@@ -161,6 +167,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.full,
     borderWidth: 1,
     borderColor: colors.primary + '30',
+  },
+  filterChipTransitioning: {
+    opacity: 0.6,
   },
   filterText: {
     fontSize: fontSize.sm,
