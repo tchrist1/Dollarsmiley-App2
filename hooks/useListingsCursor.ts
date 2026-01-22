@@ -43,6 +43,7 @@ interface UseListingsCursorReturn {
   refresh: () => void;
   isTransitioning: boolean;
   hasHydratedLiveData: boolean;
+  visualCommitReady: boolean;
 }
 
 interface Cursor {
@@ -70,6 +71,7 @@ export function useListingsCursor({
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
+  const [visualCommitReady, setVisualCommitReady] = useState(true);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -342,11 +344,13 @@ export function useListingsCursor({
     const effectiveDebounce = initialLoadComplete ? debounceMs : 50;
 
     setIsTransitioning(true);
+    setVisualCommitReady(false);
 
     searchTimeout.current = setTimeout(() => {
       fetchListingsCursor(true);
       setTimeout(() => {
         setIsTransitioning(false);
+        setVisualCommitReady(true);
       }, 100);
     }, effectiveDebounce);
 
@@ -377,6 +381,7 @@ export function useListingsCursor({
     refresh,
     isTransitioning,
     hasHydratedLiveData,
+    visualCommitReady,
   };
 }
 
