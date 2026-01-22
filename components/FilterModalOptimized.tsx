@@ -378,7 +378,6 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
                     <VerifiedSection
                       verified={draftFilters.verified || false}
                       onToggleVerified={actions.toggleVerified}
-                      style={{ marginBottom: 0 }}
                     />
                   </>
                 )}
@@ -452,10 +451,7 @@ const styles = StyleSheet.create({
     maxHeight: 600,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: 0,
-    flexGrow: 0,
+    padding: spacing.lg,
   },
   loadingSection: {
     paddingVertical: spacing.xxl,
@@ -469,8 +465,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.white,

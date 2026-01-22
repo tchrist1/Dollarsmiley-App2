@@ -216,8 +216,10 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
     setLocalPriceMax('');
     setUseCurrentLocation(false);
     setSelectedPreset(null);
+    onApply(defaultFilters);
+    onClose();
     endTrack();
-  }, [actions, trackOperation]);
+  }, [actions, onApply, onClose, trackOperation]);
 
   const handlePriceChange = useCallback((type: 'min' | 'max', value: string) => {
     if (type === 'min') {
@@ -436,7 +438,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                       <VerifiedSection
                         verified={draftFilters.verified || false}
                         onToggleVerified={actions.toggleVerified}
-                        style={{ marginBottom: 0 }}
                       />
                     </>
                   )}
@@ -526,13 +527,10 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    flexShrink: 1,
+    flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: 0,
-    flexGrow: 0,
+    padding: spacing.lg,
   },
   loadingSection: {
     paddingVertical: spacing.xxl,
@@ -546,8 +544,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    padding: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.white,

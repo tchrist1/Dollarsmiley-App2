@@ -360,12 +360,11 @@ export const SortSection = memo(({ sortBy, onSortChange }: SortSectionProps) => 
 interface VerifiedSectionProps {
   verified: boolean;
   onToggleVerified: () => void;
-  style?: any;
 }
 
-export const VerifiedSection = memo(({ verified, onToggleVerified, style }: VerifiedSectionProps) => {
+export const VerifiedSection = memo(({ verified, onToggleVerified }: VerifiedSectionProps) => {
   return (
-    <View style={[styles.section, style]}>
+    <View style={styles.section}>
       <TouchableOpacity
         style={styles.verifiedToggle}
         onPress={onToggleVerified}

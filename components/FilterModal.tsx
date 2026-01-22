@@ -751,13 +751,14 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    flexShrink: 1,
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
   },
   scrollContent: {
-    flexGrow: 0,
-    paddingBottom: 0,
+    flexGrow: 1,
+    paddingBottom: spacing.md,
+    minHeight: '100%',
   },
   section: {
     marginBottom: spacing.xl,
