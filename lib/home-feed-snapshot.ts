@@ -114,6 +114,7 @@ export async function getCachedSnapshot(
 
 /**
  * Save snapshot to AsyncStorage
+ * Tier-4: Skip redundant writes if snapshot is still fresh
  */
 export async function saveSnapshot(
   userId: string | null,
@@ -123,6 +124,14 @@ export async function saveSnapshot(
 ): Promise<void> {
   try {
     const key = getSnapshotCacheKey(userId, context);
+
+    // Tier-4: Check if existing snapshot is still fresh (< 1 minute old)
+    const existing = await getCachedSnapshot(userId, context);
+    if (existing && Date.now() - existing.timestamp < 60000) {
+      // Snapshot is fresh, skip redundant write
+      return;
+    }
+
     const snapshot: SnapshotData = {
       listings,
       timestamp: Date.now(),

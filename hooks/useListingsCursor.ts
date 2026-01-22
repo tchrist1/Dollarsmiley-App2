@@ -81,6 +81,9 @@ export function useListingsCursor({
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
+  // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
+  const snapshotLoadedRef = useRef(false);
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -113,6 +116,9 @@ export function useListingsCursor({
         setListings(instantFeed.listings);
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
+
+        // Tier-4: Mark snapshot loaded for optimized refresh
+        snapshotLoadedRef.current = true;
 
         return true;
       }
@@ -289,10 +295,13 @@ export function useListingsCursor({
           }
         }
 
-        // Sort by created_at descending
-        allResults.sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        // Tier-4: Conditional sorting optimization
+        // Only sort on initial fetch; pagination appends maintain cursor order
+        if (reset) {
+          allResults.sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        }
 
         if (!isMountedRef.current) return;
 
@@ -341,13 +350,28 @@ export function useListingsCursor({
       clearTimeout(searchTimeout.current);
     }
 
-    const effectiveDebounce = initialLoadComplete ? debounceMs : 50;
+    // Tier-4: Optimized debounce logic
+    // - Snapshot loaded on initial mount → 0ms delay for background refresh
+    // - Initial load without snapshot → 50ms delay
+    // - User-driven changes after initial load → 300ms debounce
+    let effectiveDebounce = debounceMs; // Default: 300ms
+
+    if (!initialLoadComplete) {
+      // Initial mount
+      effectiveDebounce = snapshotLoadedRef.current ? 0 : 50;
+    }
 
     setIsTransitioning(true);
     setVisualCommitReady(false);
 
     searchTimeout.current = setTimeout(() => {
       fetchListingsCursor(true);
+
+      // Reset snapshot flag after first live fetch
+      if (snapshotLoadedRef.current) {
+        snapshotLoadedRef.current = false;
+      }
+
       setTimeout(() => {
         setIsTransitioning(false);
         setVisualCommitReady(true);

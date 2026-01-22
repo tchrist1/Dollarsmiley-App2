@@ -646,8 +646,14 @@ export default function HomeScreen() {
   // PHASE 1: OPTIMIZED MAP MARKERS - Memoized with reduced dependencies
   // ============================================================================
   // Only recalculate when listings array actually changes (not on every render)
+  // Tier-4: Lazy computation - defer until map view is active
   // ============================================================================
   const rawMapMarkers = useMemo(() => {
+    // Tier-4: Skip expensive computation if map view not active
+    if (viewMode !== 'map') {
+      return [];
+    }
+
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
@@ -751,7 +757,7 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {

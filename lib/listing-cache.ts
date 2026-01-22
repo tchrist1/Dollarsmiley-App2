@@ -43,7 +43,7 @@ let trendingSearchesCache: CacheEntry<TrendingSearch[]> | null = null;
 const CACHE_TTL = {
   HOME_LISTINGS: 3 * 60 * 1000,      // 3 minutes
   CAROUSEL_DATA: 10 * 60 * 1000,     // 10 minutes
-  TRENDING_SEARCHES: 5 * 60 * 1000,  // 5 minutes
+  TRENDING_SEARCHES: 60 * 60 * 1000, // 1 hour (Tier-4: Extended for better caching)
 };
 
 // ============================================================================
