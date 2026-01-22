@@ -59,39 +59,14 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
   const insets = useSafeAreaInsets();
   const [expanded, setExpanded] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0)).current;
-  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
-
-    // Menu fade animation
     Animated.timing(scaleAnim, {
       toValue,
       duration: 150,
       useNativeDriver: true,
     }).start();
-
-    // Subtle shake animation when opening
-    if (!expanded) {
-      Animated.sequence([
-        Animated.timing(shakeAnim, {
-          toValue: 3,
-          duration: 75,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shakeAnim, {
-          toValue: -3,
-          duration: 75,
-          useNativeDriver: true,
-        }),
-        Animated.timing(shakeAnim, {
-          toValue: 0,
-          duration: 75,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-
     setExpanded(!expanded);
   };
 
@@ -250,24 +225,31 @@ export default function MapViewFAB({ mode, onModeChange, fabOpacity }: MapViewFA
       )}
 
       {/* FAB Button */}
-      <Animated.View
-        style={{
-          transform: [{ translateX: shakeAnim }],
-        }}
+      <TouchableOpacity
+        style={[styles.fab, expanded && styles.fabExpanded]}
+        onPress={toggleExpanded}
+        activeOpacity={0.9}
+        pointerEvents="auto"
       >
-        <TouchableOpacity
-          style={[styles.fab, expanded && styles.fabExpanded]}
-          onPress={toggleExpanded}
-          activeOpacity={0.9}
-          pointerEvents="auto"
+        <Animated.View
+          style={{
+            transform: [
+              {
+                rotate: scaleAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '45deg'],
+                }),
+              },
+            ],
+          }}
         >
           {expanded ? (
-            <X size={16} color="rgba(255, 255, 255, 0.95)" />
+            <X size={16} color={colors.white} />
           ) : (
-            <MapPin size={16} color="rgba(255, 255, 255, 0.95)" />
+            <MapPin size={16} color={colors.white} />
           )}
-        </TouchableOpacity>
-      </Animated.View>
+        </Animated.View>
+      </TouchableOpacity>
 
       {/* Backdrop to close menu when tapping outside */}
       {expanded && (
@@ -356,22 +338,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(239, 68, 68, 0.88)',
+    backgroundColor: colors.error,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 10001,
     zIndex: 10001,
   },
   fabExpanded: {
-    backgroundColor: 'rgba(239, 68, 68, 0.92)',
-    shadowOpacity: 0.24,
-    shadowRadius: 16,
+    backgroundColor: colors.error,
   },
   backdrop: {
     position: 'absolute',
