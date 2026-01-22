@@ -528,7 +528,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: 0,
   },
   loadingSection: {
     paddingVertical: spacing.xxl,
@@ -542,7 +544,8 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
     gap: spacing.md,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.white,
