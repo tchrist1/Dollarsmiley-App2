@@ -327,6 +327,13 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
   }, [actions]);
 
   // ============================================================================
+  // CONSTANTS
+  // ============================================================================
+
+  // Footer height calculation for scroll clearance
+  const FOOTER_HEIGHT = 100; // Approximate: padding + button height + border
+
+  // ============================================================================
   // ANIMATED STYLES
   // ============================================================================
 
@@ -387,26 +394,15 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
               logGesture('ModalWrapper', 'onTouchMove', { pageY: e.nativeEvent.pageY });
             }}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={(e) => e.stopPropagation()}
-              style={styles.modalContent}
+            <Animated.View
+              style={[styles.modalContainer, modalStyle]}
               onTouchStart={(e) => {
-                logGesture('ModalContentTouchable', 'onTouchStart', { pageY: e.nativeEvent.pageY });
+                logGesture('ModalContainerAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
               }}
               onTouchMove={(e) => {
-                logGesture('ModalContentTouchable', 'onTouchMove', { pageY: e.nativeEvent.pageY });
+                logGesture('ModalContainerAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
               }}
             >
-              <Animated.View
-                style={[styles.modalContainer, modalStyle]}
-                onTouchStart={(e) => {
-                  logGesture('ModalContainerAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
-                }}
-                onTouchMove={(e) => {
-                  logGesture('ModalContainerAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
-                }}
-              >
                 {/* Header */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
                   <Text style={styles.title}>Filters</Text>
@@ -423,7 +419,10 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                 {/* Content */}
                 <ScrollView
                   style={styles.content}
-                  contentContainerStyle={styles.scrollContent}
+                  contentContainerStyle={[
+                    styles.scrollContent,
+                    { paddingBottom: FOOTER_HEIGHT + (insets.bottom || spacing.md) }
+                  ]}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="on-drag"
@@ -527,8 +526,11 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                   )}
                 </ScrollView>
 
-                {/* Footer */}
-                <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
+                {/* Footer - Fixed at bottom, does not intercept scroll gestures */}
+                <View
+                  style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}
+                  pointerEvents="box-none"
+                >
                   <Button
                     title="Reset"
                     onPress={handleReset}
@@ -543,7 +545,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                   />
                 </View>
               </Animated.View>
-            </TouchableOpacity>
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -576,9 +577,6 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    flex: 1,
-  },
   modalContainer: {
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.xl,
@@ -587,6 +585,7 @@ const styles = StyleSheet.create({
     ...shadows.lg,
     flexShrink: 1,
     maxHeight: '100%',
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -615,9 +614,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    flexShrink: 1,
-    flexGrow: 0,
-    maxHeight: 500,
+    flex: 1,
   },
   scrollContent: {
     padding: spacing.lg,
