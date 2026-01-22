@@ -83,7 +83,7 @@ export const ListingTypeSection = memo(({ selectedType, onSelectType }: ListingT
                 selectedType === type && styles.optionTextSelected,
               ]}
             >
-              {type === 'all' ? 'All' : type === 'CustomService' ? 'Custom Service' : type}
+              {type === 'all' ? 'All' : type === 'Service' ? 'Services' : type === 'CustomService' ? 'Custom' : type === 'Job' ? 'Jobs' : type}
             </Text>
           </TouchableOpacity>
         ))}

@@ -93,13 +93,13 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
 
   const getModeLabel = (selectedMode: MapViewMode): string => {
     switch (selectedMode) {
-      case 'listings': return 'Listings';
+      case 'listings': return 'All';
       case 'providers': return 'S Providers';
       case 'services': return 'Services';
       case 'jobs_all': return 'All Jobs';
       case 'jobs_fixed': return 'Fixed-priced Jobs';
       case 'jobs_quoted': return 'Quoted Jobs';
-      default: return 'Listings';
+      default: return 'All';
     }
   };
 
@@ -144,7 +144,7 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
           ]}
           pointerEvents="box-none"
         >
-          {/* Listings */}
+          {/* All */}
           <TouchableOpacity
             style={[styles.menuItem, mode === 'listings' && styles.menuItemActive]}
             onPress={() => handleModeSelect('listings')}
@@ -156,7 +156,7 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
               color={mode === 'listings' ? colors.white : colors.text}
             />
             <Text style={[styles.menuText, mode === 'listings' && styles.menuTextActive]}>
-              Listings
+              All
             </Text>
           </TouchableOpacity>
 
