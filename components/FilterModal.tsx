@@ -409,6 +409,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
             activeOpacity={1}
             onPress={(e) => e.stopPropagation()}
             style={styles.modalWrapper}
+            pointerEvents="box-none"
           >
             <View style={styles.modalContainer}>
               <View style={styles.header}>
@@ -426,6 +427,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                 keyboardDismissMode="on-drag"
                 removeClippedSubviews={Platform.OS === 'android'}
                 scrollEventThrottle={16}
+                pointerEvents="auto"
               >
             {/* Listing Type - First - Always show immediately */}
             <View style={styles.section}>
@@ -618,12 +620,12 @@ const styles = StyleSheet.create({
     maxHeight: '85%',
   },
   modalContainer: {
+    flex: 1,
     backgroundColor: colors.white,
     borderTopLeftRadius: borderRadius.xl,
     borderTopRightRadius: borderRadius.xl,
     overflow: 'hidden',
     ...shadows.lg,
-    flexShrink: 1,
   },
   header: {
     flexDirection: 'row',
@@ -642,13 +644,14 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
+    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
-    flexGrow: 0,
-    flexShrink: 1,
   },
   scrollContent: {
+    flexGrow: 1,
     paddingBottom: spacing.md,
+    minHeight: '100%',
   },
   section: {
     marginBottom: spacing.xl,
