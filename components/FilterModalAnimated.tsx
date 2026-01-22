@@ -442,7 +442,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                 </ScrollView>
 
                 {/* Footer */}
-                <View style={[styles.footer, { paddingBottom: insets.bottom || spacing.md }]}>
+                <View style={styles.footer}>
                   <Button
                     title="Reset"
                     onPress={handleReset}
