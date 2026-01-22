@@ -248,8 +248,7 @@ export function useListings({
           if (useDistanceFilter) {
             fetchPromises.push(
               (async () => {
-                const listingTypeParam = filters.listingType === 'Service' ? 'Service'
-                  : filters.listingType === 'CustomService' ? 'CustomService'
+                const listingTypeParam = filters.listingType === 'CustomService' ? 'CustomService'
                   : null;
 
                 const { data, error } = await supabase.rpc('find_nearby_service_listings', {
@@ -275,9 +274,7 @@ export function useListings({
               .from('service_listings')
               .select('*, profiles!service_listings_provider_id_fkey(*), categories(*)');
 
-            if (filters.listingType === 'Service') {
-              serviceQuery = serviceQuery.eq('listing_type', 'Service');
-            } else if (filters.listingType === 'CustomService') {
+            if (filters.listingType === 'CustomService') {
               serviceQuery = serviceQuery.eq('listing_type', 'CustomService');
             }
 

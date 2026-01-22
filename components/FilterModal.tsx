@@ -49,7 +49,7 @@ const CategoryChip = memo(({ category, isSelected, onPress }: CategoryChipProps)
   </TouchableOpacity>
 ));
 
-const LISTING_TYPES = ['all', 'Job', 'Service', 'CustomService'] as const;
+const LISTING_TYPES = ['all', 'Job', 'Service'] as const;
 const PRICE_PRESETS = [
   { label: 'Under $100', min: 0, max: 100 },
   { label: '$100 – $500', min: 100, max: 500 },
@@ -398,7 +398,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
             draftFilters.listingType === type && styles.optionTextSelected,
           ]}
         >
-          {type === 'all' ? 'All' : type === 'Service' ? 'Services' : type === 'CustomService' ? 'Custom' : type === 'Job' ? 'Jobs' : type}
+          {type === 'all' ? 'All' : type === 'Service' ? 'Services' : type === 'Job' ? 'Jobs' : type}
         </Text>
       </TouchableOpacity>
     ));
