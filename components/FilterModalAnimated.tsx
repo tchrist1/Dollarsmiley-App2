@@ -216,10 +216,8 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
     setLocalPriceMax('');
     setUseCurrentLocation(false);
     setSelectedPreset(null);
-    onApply(defaultFilters);
-    onClose();
     endTrack();
-  }, [actions, onApply, onClose, trackOperation]);
+  }, [actions, trackOperation]);
 
   const handlePriceChange = useCallback((type: 'min' | 'max', value: string) => {
     if (type === 'min') {
