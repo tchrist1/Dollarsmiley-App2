@@ -275,13 +275,16 @@ export default function HomeScreen() {
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
-    listings,
+    listings: rawListings,
     loading,
     loadingMore,
     hasMore,
     error: listingsError,
     fetchMore,
     refresh: refreshListings,
+    isTransitioning,
+    hasHydratedLiveData,
+    visualCommitReady,
   } = useListings({
     searchQuery,
     filters,
@@ -289,6 +292,14 @@ export default function HomeScreen() {
     pageSize: 20,
     debounceMs: 300,
   });
+
+  const stableListingsRef = useRef<MarketplaceListing[]>([]);
+  const listings = useMemo(() => {
+    if (visualCommitReady) {
+      stableListingsRef.current = rawListings;
+    }
+    return stableListingsRef.current;
+  }, [rawListings, visualCommitReady]);
 
   const {
     searches: trendingSearches,
@@ -636,7 +647,7 @@ export default function HomeScreen() {
   // ============================================================================
   // Only recalculate when listings array actually changes (not on every render)
   // ============================================================================
-  const getMapMarkers = useMemo(() => {
+  const rawMapMarkers = useMemo(() => {
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
@@ -740,7 +751,15 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData]);
+
+  const stableMapMarkersRef = useRef<any[]>([]);
+  const getMapMarkers = useMemo(() => {
+    if (visualCommitReady) {
+      stableMapMarkersRef.current = rawMapMarkers;
+    }
+    return stableMapMarkersRef.current;
+  }, [rawMapMarkers, visualCommitReady]);
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
@@ -927,6 +946,7 @@ export default function HomeScreen() {
           filters={filters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
+          isTransitioning={isTransitioning}
         />
 
         <View style={styles.filterRowContainer}>

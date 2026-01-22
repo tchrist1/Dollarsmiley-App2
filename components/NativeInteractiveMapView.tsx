@@ -260,7 +260,6 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
 
   const handleMarkerPress = (marker: MapMarker) => {
     setSelectedMarker(marker);
-    onMarkerPress?.(marker);
 
     if (cameraRef.current) {
       cameraRef.current.setCamera({
