@@ -327,13 +327,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
   }, [actions]);
 
   // ============================================================================
-  // CONSTANTS
-  // ============================================================================
-
-  // Footer height calculation for scroll clearance
-  const FOOTER_HEIGHT = 100; // Approximate: padding + button height + border
-
-  // ============================================================================
   // ANIMATED STYLES
   // ============================================================================
 
@@ -419,10 +412,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                 {/* Content */}
                 <ScrollView
                   style={styles.content}
-                  contentContainerStyle={[
-                    styles.scrollContent,
-                    { paddingBottom: FOOTER_HEIGHT + (insets.bottom || spacing.md) }
-                  ]}
+                  contentContainerStyle={styles.scrollContent}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
                   keyboardDismissMode="on-drag"
