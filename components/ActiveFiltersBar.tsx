@@ -99,20 +99,12 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
   // QUICK WIN 1: Memoize expensive computation
   const activeFilters = useMemo(() => buildActiveFiltersList(filters), [filters]);
 
-  const stableFiltersRef = React.useRef(activeFilters);
-  const displayFilters = useMemo(() => {
-    if (!isTransitioning) {
-      stableFiltersRef.current = activeFilters;
-    }
-    return stableFiltersRef.current;
-  }, [activeFilters, isTransitioning]);
-
   // Memoize callbacks
   const handleRemove = useCallback((type: keyof FilterOptions, value?: any) => {
     onRemoveFilter(type, value);
   }, [onRemoveFilter]);
 
-  if (displayFilters.length === 0) {
+  if (activeFilters.length === 0) {
     return null;
   }
 
@@ -124,7 +116,7 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
         contentContainerStyle={styles.scrollContent}
         pointerEvents={isTransitioning ? 'none' : 'auto'}
       >
-        {displayFilters.map((filter, index) => {
+        {activeFilters.map((filter, index) => {
           const IconComponent = filter.icon;
           return (
             <View key={`${filter.type}-${index}`} style={[styles.filterChip, isTransitioning && styles.filterChipTransitioning]}>
@@ -140,7 +132,7 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
           );
         })}
 
-        {displayFilters.length > 1 && (
+        {activeFilters.length > 1 && (
           <TouchableOpacity style={styles.clearButton} onPress={onClearAll}>
             <Text style={styles.clearButtonText}>Clear All</Text>
           </TouchableOpacity>
