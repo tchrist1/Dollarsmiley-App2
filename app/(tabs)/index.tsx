@@ -274,14 +274,6 @@ export default function HomeScreen() {
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
-  // ============================================================================
-  // VISUAL STABILIZATION: UI-only flags to soften perceived animation
-  // ============================================================================
-  const [isApplyingFilters, setIsApplyingFilters] = useState(false);
-  const [hasHydratedFromSnapshot, setHasHydratedFromSnapshot] = useState(false);
-  const filterApplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const previousListingsLengthRef = useRef(0);
-
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings,
@@ -342,44 +334,8 @@ export default function HomeScreen() {
       invalidateAllListingCaches(); // PHASE 2: Home listings cache
       invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
       userIdRef.current = currentUserId;
-      // VISUAL STABILIZATION: Reset hydration flag on user change
-      setHasHydratedFromSnapshot(false);
-      previousListingsLengthRef.current = 0;
     }
   }, [profile?.id]);
-
-  // ============================================================================
-  // VISUAL STABILIZATION: Track snapshot → live data transition
-  // ============================================================================
-  useEffect(() => {
-    // Detect when we've transitioned from snapshot to live data
-    const currentLength = listings.length;
-    const previousLength = previousListingsLengthRef.current;
-
-    if (!hasHydratedFromSnapshot && currentLength > 0) {
-      // If listings length changed significantly, we've hydrated from snapshot
-      if (previousLength === 0 || Math.abs(currentLength - previousLength) > 5) {
-        setHasHydratedFromSnapshot(true);
-      }
-    }
-
-    previousListingsLengthRef.current = currentLength;
-  }, [listings.length, hasHydratedFromSnapshot]);
-
-  // ============================================================================
-  // VISUAL STABILIZATION: Unlock filter UI when loading completes
-  // ============================================================================
-  useEffect(() => {
-    if (!loading && !loadingMore && isApplyingFilters) {
-      // Data loaded - unlock UI after a brief buffer
-      if (filterApplyTimeoutRef.current) {
-        clearTimeout(filterApplyTimeoutRef.current);
-      }
-      filterApplyTimeoutRef.current = setTimeout(() => {
-        setIsApplyingFilters(false);
-      }, 100);
-    }
-  }, [loading, loadingMore, isApplyingFilters]);
 
   // ============================================================================
   // OPTIMIZATION: Sync user location to filters for distance-based filtering
@@ -615,21 +571,8 @@ export default function HomeScreen() {
   // the same event handler only cause one re-render
   // ============================================================================
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
-    // VISUAL STABILIZATION: Lock UI during filter application
-    setIsApplyingFilters(true);
-
-    // Clear any existing timeout
-    if (filterApplyTimeoutRef.current) {
-      clearTimeout(filterApplyTimeoutRef.current);
-    }
-
     // React 18 batches these automatically - single re-render
     setFilters(newFilters);
-
-    // Unlock UI after debounce + load completes (600ms = 300ms debounce + 300ms buffer)
-    filterApplyTimeoutRef.current = setTimeout(() => {
-      setIsApplyingFilters(false);
-    }, 600);
   }, []);
 
   // PRIORITY 1 FIX: Memoize filter open handler to prevent function recreation
@@ -693,15 +636,8 @@ export default function HomeScreen() {
   // PHASE 1: OPTIMIZED MAP MARKERS - Memoized with reduced dependencies
   // ============================================================================
   // Only recalculate when listings array actually changes (not on every render)
-  // VISUAL STABILIZATION: Gate updates to prevent double-render during transitions
   // ============================================================================
   const getMapMarkers = useMemo(() => {
-    // VISUAL STABILIZATION: During filter application, keep previous markers stable
-    // This prevents the "double pop" effect when transitioning snapshot → live
-    if (isApplyingFilters && !hasHydratedFromSnapshot) {
-      return [];
-    }
-
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
@@ -805,7 +741,7 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, isApplyingFilters, hasHydratedFromSnapshot]);
+  }, [listings, mapMode, profile?.user_type]);
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
@@ -1008,7 +944,6 @@ export default function HomeScreen() {
           filters={filters}
           onRemoveFilter={handleRemoveFilter}
           onClearAll={handleClearAllFilters}
-          isApplyingFilters={isApplyingFilters}
         />
 
         <View style={styles.filterRowContainer}>

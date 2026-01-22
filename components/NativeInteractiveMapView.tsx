@@ -157,10 +157,10 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
       const config = getMarkerConfig(marker.listingType);
       const isSelected = selectedMarker?.id === marker.id;
 
-      // Determine letter text for marker (provider pins use icon instead)
+      // Determine letter text for marker
       let letterText = 'S'; // Default to Service
       if (marker.type === 'provider') {
-        letterText = ''; // No text for providers - icon only
+        letterText = 'SP';
       } else if (marker.listingType === 'Job') {
         letterText = marker.pricingType === 'fixed_price' ? 'FJ' : 'QJ';
       } else if (marker.listingType === 'Service' || marker.listingType === 'CustomService') {
@@ -524,10 +524,9 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
               circleOpacity: 1,
             }}
           />
-          {/* Letter text (non-provider markers only) */}
+          {/* Letter text */}
           <Mapbox.SymbolLayer
             id="markers-text-layer"
-            filter={['!=', ['get', 'letterText'], '']}
             style={{
               textField: ['get', 'letterText'],
               textSize: 14,
@@ -540,37 +539,6 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
             }}
           />
         </Mapbox.ShapeSource>
-
-        {/* Provider icon overlay (User icons for provider pins) */}
-        {markers
-          .filter((m) => m.type === 'provider' && m.latitude && m.longitude)
-          .map((marker) => {
-            const isSelected = selectedMarker?.id === marker.id;
-            return (
-              <Mapbox.MarkerView
-                key={`provider-icon-${marker.id}`}
-                coordinate={[marker.longitude, marker.latitude]}
-                allowOverlap
-                anchor={{ x: 0.5, y: 0.5 }}
-              >
-                <View
-                  style={{
-                    width: isSelected ? 44 : 36,
-                    height: isSelected ? 44 : 36,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  pointerEvents="none"
-                >
-                  <User
-                    size={isSelected ? 22 : 18}
-                    color={colors.white}
-                    strokeWidth={2.5}
-                  />
-                </View>
-              </Mapbox.MarkerView>
-            );
-          })}
       </Mapbox.MapView>
 
       {!mapLoaded && (
