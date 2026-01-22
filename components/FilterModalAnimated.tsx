@@ -135,13 +135,11 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
   // Animate modal open/close
   useEffect(() => {
     if (visible) {
-      const endTrack = trackOperation('modal_animation_open');
       overlayOpacity.value = withTiming(1, { duration: 200 });
       modalTranslateY.value = withSpring(0, {
         damping: 30,
         stiffness: 300,
       });
-      endTrack();
 
       // Reset states
       setSectionsReady(false);
