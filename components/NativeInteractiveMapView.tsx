@@ -572,7 +572,6 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
             );
           })}
       </Mapbox.MapView>
-      </Mapbox.MapView>
 
       {!mapLoaded && (
         <View style={styles.loadingOverlay}>
