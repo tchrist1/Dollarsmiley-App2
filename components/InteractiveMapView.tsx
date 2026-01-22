@@ -164,7 +164,6 @@ export default function InteractiveMapView({
       latitude: marker.latitude,
       longitude: marker.longitude,
     }));
-    onMarkerPress?.(marker);
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
