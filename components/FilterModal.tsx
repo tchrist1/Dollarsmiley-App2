@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalWrapper: {
-    maxHeight: '85%',
+    maxHeight: '95%',
   },
   modalContainer: {
     flex: 1,
@@ -757,8 +757,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: spacing.md,
-    minHeight: '100%',
+    paddingBottom: spacing.xs,
   },
   section: {
     marginBottom: spacing.xl,
@@ -951,7 +950,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     gap: spacing.md,
     borderTopWidth: 1,
