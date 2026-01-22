@@ -455,6 +455,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: 0,
+    flexGrow: 0,
   },
   loadingSection: {
     paddingVertical: spacing.xxl,

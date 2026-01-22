@@ -526,12 +526,13 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    flex: 1,
+    flexShrink: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: 0,
+    flexGrow: 0,
   },
   loadingSection: {
     paddingVertical: spacing.xxl,
