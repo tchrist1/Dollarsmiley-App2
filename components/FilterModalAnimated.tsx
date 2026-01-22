@@ -103,22 +103,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
 
   const mountInteractionRef = useRef<any>(null);
 
-  // ============================================================================
-  // DIAGNOSTIC: Gesture Responder Tracing
-  // ============================================================================
-  const logGesture = useCallback((component: string, event: string, detail?: any) => {
-    console.log(`[GESTURE TRACE] ${component} ${event}`, detail || '');
-  }, []);
-
-  // DIAGNOSTIC: Mount confirmation
-  useEffect(() => {
-    if (visible) {
-      console.log('[GESTURE TRACE] ========================================');
-      console.log('[GESTURE TRACE] FilterModalAnimated MOUNTED');
-      console.log('[GESTURE TRACE] ========================================');
-    }
-  }, [visible]);
-
   // Fetch categories with session cache
   const fetchCategories = useCallback(async () => {
     const endTrack = trackOperation('fetch_categories');
@@ -355,45 +339,17 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardAvoidView}
       >
-        <Animated.View
-          style={[styles.overlay, overlayStyle]}
-          onTouchStart={(e) => {
-            logGesture('OverlayAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
-          }}
-          onTouchMove={(e) => {
-            logGesture('OverlayAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
-          }}
-        >
+        <Animated.View style={[styles.overlay, overlayStyle]}>
           <TouchableOpacity
             style={styles.overlayTouchable}
             activeOpacity={1}
             onPress={onClose}
-            onTouchStart={(e) => {
-              logGesture('OverlayTouchable', 'onTouchStart', { pageY: e.nativeEvent.pageY });
-            }}
-            onTouchMove={(e) => {
-              logGesture('OverlayTouchable', 'onTouchMove', { pageY: e.nativeEvent.pageY });
-            }}
           />
           <View
             style={styles.modalWrapper}
             pointerEvents="box-none"
-            onTouchStart={(e) => {
-              logGesture('ModalWrapper', 'onTouchStart', { pageY: e.nativeEvent.pageY });
-            }}
-            onTouchMove={(e) => {
-              logGesture('ModalWrapper', 'onTouchMove', { pageY: e.nativeEvent.pageY });
-            }}
           >
-            <Animated.View
-              style={[styles.modalContainer, modalStyle]}
-              onTouchStart={(e) => {
-                logGesture('ModalContainerAnimatedView', 'onTouchStart', { pageY: e.nativeEvent.pageY });
-              }}
-              onTouchMove={(e) => {
-                logGesture('ModalContainerAnimatedView', 'onTouchMove', { pageY: e.nativeEvent.pageY });
-              }}
-            >
+            <Animated.View style={[styles.modalContainer, modalStyle]}>
                 {/* Header */}
                 <View style={[styles.header, { paddingTop: Math.max(insets.top, spacing.lg) }]}>
                   <Text style={styles.title}>Filters</Text>
@@ -416,39 +372,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                   keyboardDismissMode="on-drag"
                   removeClippedSubviews={Platform.OS === 'android'}
                   scrollEventThrottle={16}
-                  onTouchStart={(e) => {
-                    logGesture('FilterScrollView', 'onTouchStart', {
-                      pageY: e.nativeEvent.pageY,
-                      touches: e.nativeEvent.touches.length
-                    });
-                  }}
-                  onTouchMove={(e) => {
-                    logGesture('FilterScrollView', 'onTouchMove', {
-                      pageY: e.nativeEvent.pageY
-                    });
-                  }}
-                  onTouchEnd={(e) => {
-                    logGesture('FilterScrollView', 'onTouchEnd', {
-                      pageY: e.nativeEvent.pageY
-                    });
-                  }}
-                  onScrollBeginDrag={(e) => {
-                    logGesture('FilterScrollView', 'onScrollBeginDrag', {
-                      contentOffsetY: e.nativeEvent.contentOffset.y
-                    });
-                  }}
-                  onStartShouldSetResponder={(e) => {
-                    logGesture('FilterScrollView', 'onStartShouldSetResponder', {
-                      pageY: e.nativeEvent.pageY
-                    });
-                    return false;
-                  }}
-                  onMoveShouldSetResponder={(e) => {
-                    logGesture('FilterScrollView', 'onMoveShouldSetResponder', {
-                      pageY: e.nativeEvent.pageY
-                    });
-                    return false;
-                  }}
                 >
                   {/* Listing Type - Always show immediately */}
                   <ListingTypeSection
