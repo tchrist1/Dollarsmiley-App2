@@ -500,12 +500,11 @@ export default function EditListingScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Service Location</Text>
-          <Text style={styles.helperText}>How will you deliver this service?</Text>
           <View style={styles.serviceTypeSelector}>
             {[
-              { value: 'In-Person', label: 'In-Person', subtext: 'At customer location' },
-              { value: 'Remote', label: 'Remote', subtext: 'Online/virtual' },
-              { value: 'Both', label: 'Both', subtext: 'Either option' },
+              { value: 'In-Person', label: 'In-Person' },
+              { value: 'Remote', label: 'Remote' },
+              { value: 'Both', label: 'Both' },
             ].map((option) => (
               <TouchableOpacity
                 key={option.value}
@@ -522,14 +521,6 @@ export default function EditListingScreen() {
                   ]}
                 >
                   {option.label}
-                </Text>
-                <Text
-                  style={[
-                    styles.serviceTypeButtonSubtext,
-                    serviceType === option.value && styles.serviceTypeButtonSubtextActive,
-                  ]}
-                >
-                  {option.subtext}
                 </Text>
               </TouchableOpacity>
             ))}

@@ -746,7 +746,6 @@ export default function CreateListingScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Service Location</Text>
-          <Text style={styles.helperText}>How will you deliver this service?</Text>
           <View style={styles.serviceTypeContainer}>
             <TouchableOpacity
               style={[
@@ -762,14 +761,6 @@ export default function CreateListingScreen() {
                 ]}
               >
                 In-Person
-              </Text>
-              <Text
-                style={[
-                  styles.serviceTypeSubtext,
-                  serviceType === 'In-Person' && styles.serviceTypeSubtextActive,
-                ]}
-              >
-                At customer location
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -787,14 +778,6 @@ export default function CreateListingScreen() {
               >
                 Remote
               </Text>
-              <Text
-                style={[
-                  styles.serviceTypeSubtext,
-                  serviceType === 'Remote' && styles.serviceTypeSubtextActive,
-                ]}
-              >
-                Online/virtual
-              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -810,14 +793,6 @@ export default function CreateListingScreen() {
                 ]}
               >
                 Both
-              </Text>
-              <Text
-                style={[
-                  styles.serviceTypeSubtext,
-                  serviceType === 'Both' && styles.serviceTypeSubtextActive,
-                ]}
-              >
-                Either option
               </Text>
             </TouchableOpacity>
           </View>
