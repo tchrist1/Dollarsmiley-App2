@@ -210,7 +210,8 @@ export function useListingsCursor({
                 p_min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_min_rating: filters.minRating || null,
-                p_listing_types: listingTypes
+                p_listing_types: listingTypes,
+                p_sort_by: filters.sortBy || 'relevance'
               });
 
               let nextCursor: Cursor | null = null;
@@ -243,7 +244,8 @@ export function useListingsCursor({
                 p_category_id: filters.categories.length === 1 ? filters.categories[0] : null,
                 p_search: searchQuery.trim() || null,
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
-                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null
+                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_sort_by: filters.sortBy || 'relevance'
               });
 
               let nextCursor: Cursor | null = null;
@@ -435,8 +437,8 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     status: service.status,
     provider_id: service.provider_id,
     category_id: service.category_id,
-    average_rating: service.rating || 0,
-    rating_average: service.rating || 0,
+    average_rating: service.average_rating || 0,
+    rating_average: service.average_rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
     provider: service.provider_full_name ? {
@@ -445,6 +447,8 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       avatar_url: service.provider_avatar,
       city: service.provider_city,
       state: service.provider_state,
+      rating_average: service.average_rating || 0,
+      rating_count: service.total_bookings || 0,
       // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,

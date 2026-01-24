@@ -150,9 +150,6 @@ export function invalidateAllListingCaches(): void {
   invalidateHomeListingsCache();
   invalidateCarouselCache();
   invalidateTrendingSearchesCache();
-  if (__DEV__) {
-    console.log('[Cache] All listing caches invalidated');
-  }
 }
 
 export function getCacheStats() {
