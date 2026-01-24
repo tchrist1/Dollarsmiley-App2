@@ -220,6 +220,15 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       if (draftFilters.distance && draftFilters.distance < 0) {
         console.warn('[FilterModal Safety] Invalid distance value');
       }
+      // PHASE 1C: Location state consistency check
+      const hasLocation = !!draftFilters.location?.trim();
+      const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
+      if (hasLocation && !hasCoords) {
+        console.warn('[FilterModal Safety] Location has address but no coordinates - may need geocoding');
+      }
+      if (!hasLocation && hasCoords) {
+        console.warn('[FilterModal Safety] Location has coordinates but no address - potential desync');
+      }
     }
     onApply(draftFilters);
     onClose();
@@ -270,7 +279,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
   const handleUseLocationToggle = useCallback(async () => {
     if (useCurrentLocation) {
       setUseCurrentLocation(false);
-      setDraftFilters(prev => ({ ...prev, location: '' }));
+      setDraftFilters(prev => ({
+        ...prev,
+        location: '',
+        userLatitude: undefined,
+        userLongitude: undefined,
+      }));
       return;
     }
 
@@ -281,7 +295,12 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
       if (status !== 'granted') {
         if (Platform.OS === 'web') {
-          setDraftFilters(prev => ({ ...prev, location: '' }));
+          setDraftFilters(prev => ({
+            ...prev,
+            location: '',
+            userLatitude: undefined,
+            userLongitude: undefined,
+          }));
           setUseCurrentLocation(false);
         } else {
           Alert.alert(
@@ -318,7 +337,13 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
         locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
       }
 
-      setDraftFilters(prev => ({ ...prev, location: locationString }));
+      // PHASE 1C: Atomic location update (address + coordinates together)
+      setDraftFilters(prev => ({
+        ...prev,
+        location: locationString,
+        userLatitude: latitude,
+        userLongitude: longitude,
+      }));
       setUseCurrentLocation(true);
     } catch (error) {
       if (__DEV__) {
@@ -493,13 +518,31 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                   <Text style={styles.sectionTitle}>Location</Text>
                   <MapboxAutocompleteInput
                     value={draftFilters.location}
-                    onChangeText={(text) => setDraftFilters(prev => ({ ...prev, location: text }))}
+                    onChangeText={(text) => setDraftFilters(prev => ({
+                      ...prev,
+                      location: text,
+                      userLatitude: undefined,
+                      userLongitude: undefined,
+                    }))}
                     placeholder="Enter city, neighborhood, or zip"
                     searchTypes={['place', 'locality', 'postcode', 'neighborhood']}
                     onPlaceSelect={(place) => {
+                      // PHASE 1C: Atomic location update (address + coordinates together)
+                      const locationName = place.name || place.place_formatted || '';
+                      let latitude: number | undefined = undefined;
+                      let longitude: number | undefined = undefined;
+
+                      if (place.geometry?.coordinates) {
+                        const [lng, lat] = place.geometry.coordinates;
+                        latitude = lat;
+                        longitude = lng;
+                      }
+
                       setDraftFilters(prev => ({
                         ...prev,
-                        location: place.name || place.place_formatted
+                        location: locationName,
+                        userLatitude: latitude,
+                        userLongitude: longitude,
                       }));
                     }}
                   />

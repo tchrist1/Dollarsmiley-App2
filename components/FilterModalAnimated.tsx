@@ -201,6 +201,15 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       if (draftFilters.distance && draftFilters.distance < 0) {
         console.warn('[FilterModalAnimated Safety] Invalid distance value');
       }
+      // PHASE 1C: Location state consistency check
+      const hasLocation = !!draftFilters.location?.trim();
+      const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
+      if (hasLocation && !hasCoords) {
+        console.warn('[FilterModalAnimated Safety] Location has address but no coordinates - may need geocoding');
+      }
+      if (!hasLocation && hasCoords) {
+        console.warn('[FilterModalAnimated Safety] Location has coordinates but no address - potential desync');
+      }
     }
 
     // Show success animation
@@ -252,6 +261,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
     if (useCurrentLocation) {
       setUseCurrentLocation(false);
       actions.setLocation('');
+      actions.setUserCoordinates(undefined, undefined);
       return;
     }
 
@@ -263,6 +273,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       if (status !== 'granted') {
         if (Platform.OS === 'web') {
           actions.setLocation('');
+          actions.setUserCoordinates(undefined, undefined);
           setUseCurrentLocation(false);
         } else {
           Alert.alert(
@@ -294,6 +305,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
         locationString = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
       }
 
+      // PHASE 1C: Atomic location update (address + coordinates together)
       actions.setLocation(locationString);
       actions.setUserCoordinates(latitude, longitude);
       setUseCurrentLocation(true);
@@ -313,10 +325,14 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
   const handleLocationSelect = useCallback((place: any) => {
     if (place.name || place.place_formatted) {
       const locationName = place.name || place.place_formatted || '';
-      actions.setLocation(locationName);
+      // PHASE 1C: Atomic location update (address + coordinates together)
       if (place.geometry?.coordinates) {
         const [lng, lat] = place.geometry.coordinates;
+        actions.setLocation(locationName);
         actions.setUserCoordinates(lat, lng);
+      } else {
+        actions.setLocation(locationName);
+        actions.setUserCoordinates(undefined, undefined);
       }
     }
   }, [actions]);

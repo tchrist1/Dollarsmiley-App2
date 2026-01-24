@@ -24,7 +24,7 @@ type FilterAction =
   | { type: 'SET_DISTANCE'; payload: number }
   | { type: 'SET_SORT_BY'; payload: FilterOptions['sortBy'] }
   | { type: 'TOGGLE_VERIFIED' }
-  | { type: 'SET_USER_COORDINATES'; payload: { latitude: number; longitude: number } }
+  | { type: 'SET_USER_COORDINATES'; payload: { latitude: number | undefined; longitude: number | undefined } }
   | { type: 'RESET_FILTERS'; payload?: FilterOptions }
   | { type: 'SET_ALL_FILTERS'; payload: FilterOptions };
 
@@ -112,7 +112,7 @@ export interface UseFilterReducerReturn {
     setDistance: (distance: number) => void;
     setSortBy: (sortBy: FilterOptions['sortBy']) => void;
     toggleVerified: () => void;
-    setUserCoordinates: (latitude: number, longitude: number) => void;
+    setUserCoordinates: (latitude: number | undefined, longitude: number | undefined) => void;
     resetFilters: (initialFilters?: FilterOptions) => void;
     setAllFilters: (filters: FilterOptions) => void;
   };
@@ -161,7 +161,7 @@ export function useFilterReducer(initialFilters: FilterOptions = defaultFilters)
     toggleVerified: () =>
       dispatch({ type: 'TOGGLE_VERIFIED' }),
 
-    setUserCoordinates: (latitude: number, longitude: number) =>
+    setUserCoordinates: (latitude: number | undefined, longitude: number | undefined) =>
       dispatch({ type: 'SET_USER_COORDINATES', payload: { latitude, longitude } }),
 
     resetFilters: (initialFilters?: FilterOptions) =>
