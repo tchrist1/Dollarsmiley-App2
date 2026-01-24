@@ -19,6 +19,8 @@ interface InteractiveMapViewPlatformProps {
   onRecenter?: () => void;
   onLayersPress?: () => void;
   onZoomChange?: (zoom: number) => void;
+  filterLocation?: { latitude: number; longitude: number };
+  filterDistance?: number;
 }
 
 const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, InteractiveMapViewPlatformProps>((props, ref) => {
@@ -35,6 +37,8 @@ const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, Inter
           enableClustering={props.enableClustering}
           clusterRadius={props.clusterRadius}
           onZoomChange={props.onZoomChange}
+          filterLocation={props.filterLocation}
+          filterDistance={props.filterDistance}
         />
       );
     }
@@ -53,6 +57,8 @@ const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, Inter
         onRecenter={props.onRecenter}
         onLayersPress={props.onLayersPress}
         onZoomChange={props.onZoomChange}
+        filterLocation={props.filterLocation}
+        filterDistance={props.filterDistance}
       />
     );
   } catch (error) {

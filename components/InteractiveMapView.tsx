@@ -55,6 +55,8 @@ interface InteractiveMapViewProps {
   enableClustering?: boolean;
   clusterRadius?: number;
   onZoomChange?: (zoom: number) => void;
+  filterLocation?: { latitude: number; longitude: number };
+  filterDistance?: number;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -68,6 +70,8 @@ export default function InteractiveMapView({
   onSwitchToList,
   enableClustering = true,
   clusterRadius = 60,
+  filterLocation,
+  filterDistance,
 }: InteractiveMapViewProps) {
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null);
@@ -276,6 +280,30 @@ export default function InteractiveMapView({
   const visibleMarkers = useMemo(() => markers.filter(isMarkerInView), [markers, region]);
   const clusteredItems = useMemo(() => clusterMarkers(visibleMarkers), [visibleMarkers, enableClustering, clusterRadius, region.latitudeDelta]);
 
+  const radiusOverlay = useMemo(() => {
+    if (!filterLocation || !filterDistance || !mapContainerRef.current) {
+      return null;
+    }
+
+    const position = getMarkerPosition({
+      id: 'radius-center',
+      latitude: filterLocation.latitude,
+      longitude: filterLocation.longitude,
+      title: '',
+    });
+
+    const radiusInDegrees = filterDistance / 69;
+    const pixelsPerDegree = width / region.longitudeDelta;
+    const radiusInPixels = radiusInDegrees * pixelsPerDegree;
+
+    return {
+      left: position.x - radiusInPixels,
+      top: position.y - radiusInPixels,
+      width: radiusInPixels * 2,
+      height: radiusInPixels * 2,
+    };
+  }, [filterLocation, filterDistance, region, width]);
+
   return (
     <View style={[styles.container, style]}>
       {/* Map Canvas */}
@@ -290,6 +318,21 @@ export default function InteractiveMapView({
           <View style={styles.crosshairVertical} />
           <View style={styles.crosshairHorizontal} />
         </View>
+
+        {radiusOverlay && (
+          <View
+            style={[
+              styles.radiusOverlay,
+              {
+                left: radiusOverlay.left,
+                top: radiusOverlay.top,
+                width: radiusOverlay.width,
+                height: radiusOverlay.height,
+              },
+            ]}
+            pointerEvents="none"
+          />
+        )}
 
         {/* Markers and Clusters */}
         {clusteredItems.map((item) => {
@@ -641,6 +684,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 1,
     backgroundColor: colors.text,
+  },
+  radiusOverlay: {
+    position: 'absolute',
+    borderRadius: 99999,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    opacity: 0.12,
+    zIndex: 50,
   },
   markerContainer: {
     position: 'absolute',

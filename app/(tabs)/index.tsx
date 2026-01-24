@@ -1218,6 +1218,12 @@ export default function HomeScreen() {
               showUserLocation={true}
               enableClustering={true}
               onZoomChange={handleMapZoomChange}
+              filterLocation={
+                filters.userLatitude !== undefined && filters.userLongitude !== undefined
+                  ? { latitude: filters.userLatitude, longitude: filters.userLongitude }
+                  : undefined
+              }
+              filterDistance={filters.distance}
             />
 
             {viewMode === 'map' && (

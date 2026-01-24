@@ -74,6 +74,8 @@ interface NativeInteractiveMapViewProps {
   onZoomChange?: (zoom: number) => void;
   onMapGestureStart?: () => void;
   onMapGestureEnd?: () => void;
+  filterLocation?: { latitude: number; longitude: number };
+  filterDistance?: number;
 }
 
 export interface NativeInteractiveMapViewRef {
@@ -106,6 +108,8 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
   onZoomChange,
   onMapGestureStart,
   onMapGestureEnd,
+  filterLocation,
+  filterDistance,
 }, ref) => {
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<Mapbox.Camera>(null);
@@ -197,6 +201,41 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
       features,
     };
   }, [markers, selectedMarker]);
+
+  const radiusOverlayFeature = React.useMemo(() => {
+    if (!filterLocation || !filterDistance) {
+      return null;
+    }
+
+    const centerLng = filterLocation.longitude;
+    const centerLat = filterLocation.latitude;
+    const radiusInMeters = filterDistance * 1609.34;
+    const points = 64;
+    const coordinates: number[][] = [];
+
+    for (let i = 0; i <= points; i++) {
+      const angle = (i * 360) / points;
+      const radian = (angle * Math.PI) / 180;
+      const latOffset = (radiusInMeters / 111320) * Math.cos(radian);
+      const lngOffset = (radiusInMeters / (111320 * Math.cos((centerLat * Math.PI) / 180))) * Math.sin(radian);
+
+      coordinates.push([centerLng + lngOffset, centerLat + latOffset]);
+    }
+
+    return {
+      type: 'FeatureCollection' as const,
+      features: [
+        {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Polygon' as const,
+            coordinates: [coordinates],
+          },
+          properties: {},
+        },
+      ],
+    };
+  }, [filterLocation, filterDistance]);
 
   const centerCoordinate = initialRegion
     ? [initialRegion.longitude, initialRegion.latitude]
@@ -486,6 +525,29 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
             showsUserHeadingIndicator={true}
             minDisplacement={10}
           />
+        )}
+
+        {radiusOverlayFeature && (
+          <Mapbox.ShapeSource
+            id="radius-overlay-source"
+            shape={radiusOverlayFeature}
+          >
+            <Mapbox.FillLayer
+              id="radius-overlay-fill"
+              style={{
+                fillColor: colors.primary,
+                fillOpacity: 0.08,
+              }}
+            />
+            <Mapbox.LineLayer
+              id="radius-overlay-line"
+              style={{
+                lineColor: colors.primary,
+                lineWidth: 2,
+                lineOpacity: 0.4,
+              }}
+            />
+          </Mapbox.ShapeSource>
         )}
 
         {/* Native marker rendering with reliable tap detection */}
