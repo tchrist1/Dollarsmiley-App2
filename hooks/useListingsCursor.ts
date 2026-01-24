@@ -487,6 +487,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     } : undefined,
     latitude: latitude,
     longitude: longitude,
+    distance_miles: service.distance_miles || null,
   } as any;
 }
 
@@ -541,6 +542,7 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     state: job.state,
     latitude: latitude,
     longitude: longitude,
-    deadline: job.deadline
+    deadline: job.deadline,
+    distance_miles: job.distance_miles || null,
   } as any;
 }

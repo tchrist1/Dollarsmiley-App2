@@ -100,6 +100,14 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
             <Text style={styles.listingLocationText} numberOfLines={1}>
               {getServiceLocationDisplay(item.service_type, profile)}
             </Text>
+            {item.distance_miles != null && (
+              <View style={styles.distanceBadge}>
+                <Navigation size={10} color={colors.textLight} />
+                <Text style={styles.distanceBadgeText}>
+                  {item.distance_miles.toFixed(1)} mi
+                </Text>
+              </View>
+            )}
           </View>
           {profile?.rating_average && profile.rating_average > 0 && (
             <View style={styles.listingRating}>
@@ -1431,6 +1439,21 @@ const styles = StyleSheet.create({
   listingLocationText: {
     fontSize: fontSize.sm,
     color: colors.textSecondary,
+  },
+  distanceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.border,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  distanceBadgeText: {
+    fontSize: 10,
+    color: colors.textLight,
+    fontWeight: '500',
   },
   listingRating: {
     flexDirection: 'row',
