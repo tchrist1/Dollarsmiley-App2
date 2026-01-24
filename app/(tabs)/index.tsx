@@ -25,8 +25,7 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
-import { invalidateAllCaches } from '@/lib/session-cache';
-import { invalidateAllListingCaches } from '@/lib/listing-cache';
+import { clearAllCaches } from '@/lib/force-refresh-data';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -341,8 +340,7 @@ export default function HomeScreen() {
 
     // Invalidate cache if user changed (logout or account switch)
     if (userIdRef.current !== currentUserId) {
-      invalidateAllListingCaches(); // PHASE 2: Home listings cache
-      invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
+      clearAllCaches(currentUserId); // Clear all caches including AsyncStorage
       userIdRef.current = currentUserId;
     }
   }, [profile?.id]);
