@@ -646,8 +646,10 @@ export default function HomeScreen() {
     setFilters({
       ...defaultFilters,
       listingType: filters.listingType,
+      userLatitude: filters.userLatitude,
+      userLongitude: filters.userLongitude,
     });
-  }, [filters.listingType]);
+  }, [filters.listingType, filters.userLatitude, filters.userLongitude]);
 
   // ============================================================================
   // PHASE 1: OPTIMIZED MAP MARKERS - Memoized with reduced dependencies
@@ -1011,7 +1013,11 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                setFilters(defaultFilters);
+                setFilters({
+                  ...defaultFilters,
+                  userLatitude: filters.userLatitude,
+                  userLongitude: filters.userLongitude,
+                });
               }}
             >
               <Text style={styles.clearFiltersText}>Clear all</Text>
@@ -1249,7 +1255,11 @@ export default function HomeScreen() {
             <TouchableOpacity
               onPress={() => {
                 setSearchQuery('');
-                setFilters(defaultFilters);
+                setFilters({
+                  ...defaultFilters,
+                  userLatitude: filters.userLatitude,
+                  userLongitude: filters.userLongitude,
+                });
               }}
               style={styles.resetButton}
             >
