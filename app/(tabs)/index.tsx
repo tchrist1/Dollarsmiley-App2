@@ -193,6 +193,16 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
         <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
       </View>
+      {listing.distance_miles != null && (
+        <View style={styles.gridDistanceBadge}>
+          <Navigation size={10} color={colors.white} />
+          <Text style={styles.gridDistanceBadgeText}>
+            {listing.distance_miles < 1
+              ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
+              : `${listing.distance_miles.toFixed(1)} mi`}
+          </Text>
+        </View>
+      )}
       <View style={styles.gridCardContent}>
         <View style={styles.gridHeader}>
           <CachedAvatar
@@ -219,16 +229,6 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
         <Text style={styles.gridDescription} numberOfLines={2}>
           {item.description}
         </Text>
-        {listing.distance_miles != null && (
-          <View style={styles.gridDistanceBadge}>
-            <Navigation size={10} color={colors.white} />
-            <Text style={styles.gridDistanceBadgeText}>
-              {listing.distance_miles < 1
-                ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                : `${listing.distance_miles.toFixed(1)} mi`}
-            </Text>
-          </View>
-        )}
         <View style={styles.gridFooter}>
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />
@@ -1818,7 +1818,7 @@ const styles = StyleSheet.create({
   gridDistanceBadge: {
     position: 'absolute',
     top: spacing.sm,
-    right: spacing.sm,
+    left: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -1827,6 +1827,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
     ...shadows.md,
+    zIndex: 1,
   },
   gridDistanceBadgeText: {
     fontSize: fontSize.xs,
