@@ -1123,7 +1123,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#006634',
   },
   searchBarWrapper: {
@@ -1461,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   carouselTitle: {
     fontSize: 18,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#222222',
   },
   seeAllText: {
@@ -1556,12 +1556,12 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselTitle: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: colors.text,
   },
   embeddedSeeAllText: {
     fontSize: 15,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: colors.primary,
   },
   embeddedCarouselList: {
@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselCardTitle: {
     fontSize: 15,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: colors.text,
     marginBottom: spacing.xs,
     lineHeight: 20,
@@ -1638,7 +1638,7 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselCardPrice: {
     fontSize: 18,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: colors.primary,
   },
   embeddedCarouselCardRating: {
@@ -1653,7 +1653,7 @@ const styles = StyleSheet.create({
   embeddedCarouselCardRatingText: {
     fontSize: 12,
     color: colors.text,
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
   viewContainer: {
     ...StyleSheet.absoluteFillObject,
