@@ -30,6 +30,11 @@ import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
 import { getServiceLocationDisplay } from '@/lib/service-location-utils';
+import { HomeHeader } from '@/components/HomeHeader';
+import { HomeSuggestions } from '@/components/HomeSuggestions';
+import { HomeListViewWrapper } from '@/components/HomeListViewWrapper';
+import { HomeGridViewWrapper } from '@/components/HomeGridViewWrapper';
+import { HomeMapViewWrapper } from '@/components/HomeMapViewWrapper';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -940,162 +945,60 @@ export default function HomeScreen() {
     return renderGridCard({ item: item.data });
   }, [renderGridCard]);
 
+  const handleClearFiltersAndSearch = useCallback(() => {
+    setSearchQuery('');
+    setFilters({
+      ...defaultFilters,
+      userLatitude: filters.userLatitude,
+      userLongitude: filters.userLongitude,
+    });
+  }, [filters.userLatitude, filters.userLongitude]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery('');
+    setShowSuggestions(false);
+  }, []);
+
+  const handleSearchFocus = useCallback(() => {
+    setShowSuggestions(searchQuery.length > 0 || trendingSearches.length > 0);
+  }, [searchQuery.length, trendingSearches.length]);
+
+  const handleViewModeChange = useCallback((mode: 'list' | 'grid' | 'map') => {
+    setViewMode(mode);
+  }, []);
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Discover Services</Text>
-        </View>
+      <HomeHeader
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSearchFocus={handleSearchFocus}
+        onClearSearch={handleClearSearch}
+        onVoiceResults={handleVoiceResults}
+        onVoiceError={handleVoiceError}
+        onImageResults={handleImageResults}
+        onImageError={handleImageError}
+        filters={filters}
+        onRemoveFilter={handleRemoveFilter}
+        onClearAllFilters={handleClearAllFilters}
+        isTransitioning={isTransitioning}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        onOpenFilters={handleOpenFilters}
+        activeFilterCount={activeFilterCount}
+        filterIndicatorText={filterIndicatorText}
+        onClearFiltersAndSearch={handleClearFiltersAndSearch}
+        styles={styles}
+      />
 
-        <View style={styles.searchBarWrapper}>
-          <View style={styles.searchContainer}>
-            <Search size={20} color={colors.textSecondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search for event-party services and jobs near you"
-              placeholderTextColor="#7A7A7A"
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              onFocus={() => setShowSuggestions(searchQuery.length > 0 || trendingSearches.length > 0)}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                style={styles.clearSearch}
-                onPress={() => {
-                  setSearchQuery('');
-                  setShowSuggestions(false);
-                }}
-              >
-                <X size={18} color={colors.textLight} />
-              </TouchableOpacity>
-            )}
-            <VoiceSearchButton
-              searchType="providers"
-              onResults={handleVoiceResults}
-              onError={handleVoiceError}
-            />
-            <ImageSearchButton
-              onResults={handleImageResults}
-              onError={handleImageError}
-            />
-          </View>
-        </View>
-
-        <ActiveFiltersBar
-          filters={filters}
-          onRemoveFilter={handleRemoveFilter}
-          onClearAll={handleClearAllFilters}
-          isTransitioning={isTransitioning}
-        />
-
-        <View style={styles.filterRowContainer}>
-          <View style={styles.filterRow}>
-            <View style={styles.viewToggle}>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'list' && styles.viewToggleButtonActive]}
-              onPress={() => setViewMode('list')}
-              activeOpacity={0.7}
-            >
-              <List size={18} color={viewMode === 'list' ? colors.white : colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'grid' && styles.viewToggleButtonActive]}
-              onPress={() => setViewMode('grid')}
-              activeOpacity={0.7}
-            >
-              <LayoutGrid size={18} color={viewMode === 'grid' ? colors.white : colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.viewToggleButton, viewMode === 'map' && styles.viewToggleButtonActive]}
-              onPress={() => setViewMode('map')}
-              activeOpacity={0.7}
-            >
-              <MapPin size={18} color={viewMode === 'map' ? colors.white : colors.text} />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={handleOpenFilters}
-            activeOpacity={0.7}
-          >
-            <SlidersHorizontal size={20} color={colors.primary} />
-            <Text style={styles.filterButtonText}>Filters</Text>
-            {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          </View>
-        </View>
-
-        {activeFilterCount > 0 && (
-          <View style={styles.activeFiltersRow}>
-            <Text style={styles.activeFiltersText}>
-              {filterIndicatorText}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                setSearchQuery('');
-                setFilters({
-                  ...defaultFilters,
-                  userLatitude: filters.userLatitude,
-                  userLongitude: filters.userLongitude,
-                });
-              }}
-            >
-              <Text style={styles.clearFiltersText}>Clear all</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {showSuggestions && (searchQuery.length > 0 || trendingSearches.length > 0) && (
-        <View style={styles.suggestionsContainer}>
-          {searchQuery.length > 0 ? (
-            <>
-              {suggestions.length > 0 && (
-                <>
-                  <Text style={styles.suggestionsTitle}>Suggestions</Text>
-                  {suggestions.map((s, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.suggestionItem}
-                      onPress={() => selectSuggestion(s.suggestion)}
-                    >
-                      <Search size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
-                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              {trendingSearches.length > 0 && (
-                <>
-                  <View style={styles.trendingHeader}>
-                    <TrendingUp size={16} color={colors.primary} />
-                    <Text style={styles.suggestionsTitle}>Trending Searches</Text>
-                  </View>
-                  {trendingSearches.map((s, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.suggestionItem}
-                      onPress={() => selectSuggestion(s.suggestion)}
-                    >
-                      <TrendingUp size={16} color={colors.textLight} />
-                      <Text style={styles.suggestionText}>{s.suggestion}</Text>
-                      <Text style={styles.suggestionCount}>({s.search_count})</Text>
-                    </TouchableOpacity>
-                  ))}
-                </>
-              )}
-            </>
-          )}
-        </View>
-      )}
+      <HomeSuggestions
+        showSuggestions={showSuggestions}
+        searchQuery={searchQuery}
+        suggestions={suggestions}
+        trendingSearches={trendingSearches}
+        onSelectSuggestion={selectSuggestion}
+        styles={styles}
+      />
 
       {loading && listings.length > 0 && (
         <View style={styles.backgroundRefreshIndicator}>
@@ -1138,141 +1041,62 @@ export default function HomeScreen() {
         </View>
       ) : listings.length > 0 ? (
         <View style={{ flex: 1 }}>
-          {/* List View - kept mounted, visibility toggled */}
-          <View
-            style={[
-              styles.viewContainer,
-              viewMode !== 'list' && styles.viewContainerHidden
-            ]}
-            pointerEvents={viewMode === 'list' ? 'auto' : 'none'}
-          >
-            <FlatList
-              data={feedData}
-              renderItem={renderFeedItemList}
-              keyExtractor={feedKeyExtractor}
-              contentContainerStyle={styles.listingsContainer}
-              showsVerticalScrollIndicator={false}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}
-              // TIER 3: Optimized for above-the-fold priority loading
-              initialNumToRender={6}
-              maxToRenderPerBatch={3}
-              updateCellsBatchingPeriod={100}
-              windowSize={5}
-              removeClippedSubviews={true}
-              maintainVisibleContentPosition={{
-                minIndexForVisible: 0,
-                autoscrollToTopThreshold: 10,
-              }}
-              ListFooterComponent={
-                loadingMore ? (
-                  <View style={styles.loadingMoreContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingMoreText}>Loading more...</Text>
-                  </View>
-                ) : !hasMore && listings.length > 0 ? (
-                  <View style={styles.endReachedContainer}>
-                    <Text style={styles.endReachedText}>You've reached the end</Text>
-                  </View>
-                ) : null
-              }
-            />
-          </View>
+          <HomeListViewWrapper
+            viewMode={viewMode}
+            feedData={feedData}
+            renderFeedItemList={renderFeedItemList}
+            feedKeyExtractor={feedKeyExtractor}
+            onLoadMore={handleLoadMore}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            listings={listings}
+            styles={styles}
+          />
 
-          {/* Grid View - kept mounted, visibility toggled */}
-          <View
-            style={[
-              styles.viewContainer,
-              viewMode !== 'grid' && styles.viewContainerHidden
-            ]}
-            pointerEvents={viewMode === 'grid' ? 'auto' : 'none'}
-          >
-            <FlatList
-              data={feedData}
-              renderItem={renderFeedItemGrid}
-              keyExtractor={feedKeyExtractor}
-              contentContainerStyle={styles.gridContainer}
-              showsVerticalScrollIndicator={false}
-              onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}
-              // TIER 3: Optimized for above-the-fold priority loading
-              initialNumToRender={8}
-              maxToRenderPerBatch={4}
-              updateCellsBatchingPeriod={100}
-              windowSize={5}
-              removeClippedSubviews={true}
-              ListFooterComponent={
-                loadingMore ? (
-                  <View style={styles.loadingMoreContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingMoreText}>Loading more...</Text>
-                  </View>
-                ) : !hasMore && listings.length > 0 ? (
-                  <View style={styles.endReachedContainer}>
-                    <Text style={styles.endReachedText}>You've reached the end</Text>
-                  </View>
-                ) : null
-              }
-            />
-          </View>
+          <HomeGridViewWrapper
+            viewMode={viewMode}
+            feedData={feedData}
+            renderFeedItemGrid={renderFeedItemGrid}
+            feedKeyExtractor={feedKeyExtractor}
+            onLoadMore={handleLoadMore}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            listings={listings}
+            styles={styles}
+          />
 
-          {/* Map View - kept mounted, visibility toggled */}
-          <View
-            style={[
-              styles.viewContainer,
-              styles.mapViewContainer,
-              viewMode !== 'map' && styles.viewContainerHidden
-            ]}
-            pointerEvents={viewMode === 'map' ? 'auto' : 'none'}
-          >
-            <InteractiveMapViewPlatform
-              ref={mapRef}
-              markers={getMapMarkers}
-              onMarkerPress={handleMarkerPress}
-              initialRegion={
-                profile?.latitude && profile?.longitude
-                  ? {
-                      latitude: profile.latitude,
-                      longitude: profile.longitude,
-                      latitudeDelta: 0.1,
-                      longitudeDelta: 0.1,
-                    }
-                  : undefined
-              }
-              showUserLocation={true}
-              enableClustering={true}
-              onZoomChange={handleMapZoomChange}
-              filterLocation={
-                filters.userLatitude !== undefined && filters.userLongitude !== undefined
-                  ? { latitude: filters.userLatitude, longitude: filters.userLongitude }
-                  : undefined
-              }
-              filterDistance={filters.distance}
-            />
-
-            {viewMode === 'map' && (
-              <>
-                <MapStatusHint
-                  locationCount={getMapMarkers.length}
-                  zoomLevel={mapZoomLevel}
-                  visible={showMapStatusHint}
-                  mode={mapMode}
-                />
-
-                <MapViewFAB
-                  mode={mapMode}
-                  onModeChange={handleMapModeChange}
-                />
-
-                <MapFAB
-                  onZoomIn={handleMapZoomIn}
-                  onZoomOut={handleMapZoomOut}
-                  onFullscreen={handleMapRecenter}
-                  onLayersPress={handleMapLayers}
-                />
-              </>
-            )}
-          </View>
+          <HomeMapViewWrapper
+            viewMode={viewMode}
+            mapRef={mapRef}
+            mapMarkers={getMapMarkers}
+            onMarkerPress={handleMarkerPress}
+            initialRegion={
+              profile?.latitude && profile?.longitude
+                ? {
+                    latitude: profile.latitude,
+                    longitude: profile.longitude,
+                    latitudeDelta: 0.1,
+                    longitudeDelta: 0.1,
+                  }
+                : undefined
+            }
+            onZoomChange={handleMapZoomChange}
+            filterLocation={
+              filters.userLatitude !== undefined && filters.userLongitude !== undefined
+                ? { latitude: filters.userLatitude, longitude: filters.userLongitude }
+                : undefined
+            }
+            filterDistance={filters.distance}
+            showMapStatusHint={showMapStatusHint}
+            mapZoomLevel={mapZoomLevel}
+            mapMode={mapMode}
+            onMapModeChange={handleMapModeChange}
+            onMapZoomIn={handleMapZoomIn}
+            onMapZoomOut={handleMapZoomOut}
+            onMapRecenter={handleMapRecenter}
+            onMapLayers={handleMapLayers}
+            styles={styles}
+          />
         </View>
       ) : (
         <View style={styles.centerContent}>
