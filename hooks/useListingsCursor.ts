@@ -212,7 +212,10 @@ export function useListingsCursor({
                 p_min_rating: filters.minRating || null,
                 p_listing_types: listingTypes,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude || null,
+                p_user_lng: filters.userLongitude || null,
+                p_distance: filters.distance || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -247,7 +250,10 @@ export function useListingsCursor({
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude || null,
+                p_user_lng: filters.userLongitude || null,
+                p_distance: filters.distance || null
               });
 
               let nextCursor: Cursor | null = null;
