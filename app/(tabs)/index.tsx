@@ -219,13 +219,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
         <Text style={styles.gridDescription} numberOfLines={2}>
           {item.description}
         </Text>
-        {listing.distance_miles !== undefined && (
+        {listing.distance_miles != null && (
           <View style={styles.gridDistanceBadge}>
             <Navigation size={10} color={colors.white} />
             <Text style={styles.gridDistanceBadgeText}>
               {listing.distance_miles < 1
                 ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-                : listing.distance_miles ? `${listing.distance_miles.toFixed(1)} mi` : 'N/A'}
+                : `${listing.distance_miles.toFixed(1)} mi`}
             </Text>
           </View>
         )}

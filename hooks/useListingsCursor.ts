@@ -472,13 +472,13 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
     service_type: service.service_type || 'In-Person',
-    provider: service.provider_full_name ? {
+    provider: service.provider_id ? {
       id: service.provider_id,
-      full_name: service.provider_full_name,
-      avatar_url: service.provider_avatar,
-      city: service.provider_city,
-      state: service.provider_state,
-      location: service.provider_location,
+      full_name: service.provider_full_name || null,
+      avatar_url: service.provider_avatar || null,
+      city: service.provider_city || null,
+      state: service.provider_state || null,
+      location: service.provider_location || null,
       // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,
@@ -487,7 +487,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     } : undefined,
     latitude: latitude,
     longitude: longitude,
-    distance_miles: service.distance_miles || null,
+    distance_miles: service.distance_miles !== undefined && service.distance_miles !== null ? service.distance_miles : null,
   } as any;
 }
 
@@ -527,11 +527,11 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     status: job.status,
     customer_id: job.customer_id,
     category_id: job.category_id,
-    customer: job.customer_full_name ? {
+    customer: job.customer_id ? {
       id: job.customer_id,
-      full_name: job.customer_full_name,
-      avatar_url: job.customer_avatar,
-      location: job.customer_location,
+      full_name: job.customer_full_name || null,
+      avatar_url: job.customer_avatar || null,
+      location: job.customer_location || null,
       // PROVIDER PINS FIX: Copy coordinates into customer object
       latitude: latitude,
       longitude: longitude,
@@ -543,6 +543,6 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     latitude: latitude,
     longitude: longitude,
     deadline: job.deadline,
-    distance_miles: job.distance_miles || null,
+    distance_miles: job.distance_miles !== undefined && job.distance_miles !== null ? job.distance_miles : null,
   } as any;
 }
