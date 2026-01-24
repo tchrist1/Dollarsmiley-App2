@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { MarketplaceListing } from '@/types/database';
-import { RealtimeChannel } from '@supabase/supabase-js';
 
 // ============================================================================
 // HOME FEED SNAPSHOT SYSTEM
@@ -281,72 +280,5 @@ export async function getInstantHomeFeed(
     return null;
   } catch (err) {
     return null;
-  }
-}
-
-// ============================================================================
-// PHASE 3B: SMART SNAPSHOT INVALIDATION
-// Real-time driven cache invalidation
-// ============================================================================
-
-let realtimeChannel: RealtimeChannel | null = null;
-
-/**
- * Setup realtime subscription to invalidate snapshots when new listings are created
- * This ensures cached data stays fresh without manual version bumping
- *
- * SAFETY:
- * - Silent failure if realtime unavailable
- * - No behavior changes to existing flows
- * - Optional enhancement only
- */
-export function setupSmartSnapshotInvalidation(userId: string | null): void {
-  try {
-    if (realtimeChannel) {
-      return;
-    }
-
-    realtimeChannel = supabase
-      .channel('snapshot-invalidation')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'service_listings',
-        },
-        async () => {
-          await invalidateAllSnapshots(userId);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'jobs',
-        },
-        async () => {
-          await invalidateAllSnapshots(userId);
-        }
-      )
-      .subscribe();
-  } catch (err) {
-    // Silent failure - realtime is optional enhancement
-  }
-}
-
-/**
- * Cleanup realtime subscription
- * Call this on unmount or logout
- */
-export async function cleanupSmartSnapshotInvalidation(): Promise<void> {
-  try {
-    if (realtimeChannel) {
-      await supabase.removeChannel(realtimeChannel);
-      realtimeChannel = null;
-    }
-  } catch (err) {
-    // Silent failure
   }
 }

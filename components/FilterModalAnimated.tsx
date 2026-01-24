@@ -76,7 +76,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
 }: FilterModalAnimatedProps) {
   const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<Category[]>([]);
-  const categoriesLoadedRef = useRef(false);
 
   // Performance tracking
   const { trackOperation, measureAsync } = useFilterPerformance('FilterModal');
@@ -97,22 +96,19 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
   const [sectionsReady, setSectionsReady] = useState(false);
   const [applySuccess, setApplySuccess] = useState(false);
 
-  // Animation values - stable references
+  // Animation values
   const overlayOpacity = useSharedValue(0);
   const modalTranslateY = useSharedValue(1000);
   const successScale = useSharedValue(0);
 
   const mountInteractionRef = useRef<any>(null);
 
-  // Fetch categories with session cache - only once
+  // Fetch categories with session cache
   const fetchCategories = useCallback(async () => {
-    if (categoriesLoadedRef.current) return;
-
     const endTrack = trackOperation('fetch_categories');
     const cached = getCachedCategories(null);
     if (cached) {
       setCategories(cached as Category[]);
-      categoriesLoadedRef.current = true;
       endTrack();
       return;
     }
@@ -126,16 +122,15 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
     if (data) {
       setCategories(data as Category[]);
       setCachedCategories(data, null);
-      categoriesLoadedRef.current = true;
     }
     endTrack();
   }, [trackOperation]);
 
   useEffect(() => {
-    if (visible && !categoriesLoadedRef.current) {
+    if (visible && categories.length === 0) {
       fetchCategories();
     }
-  }, [visible, fetchCategories]);
+  }, [visible, categories.length, fetchCategories]);
 
   // Animate modal open/close
   useEffect(() => {

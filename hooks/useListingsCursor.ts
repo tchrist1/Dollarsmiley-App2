@@ -19,7 +19,6 @@ import {
   snapshotToMarketplaceListing,
   fetchHomeFeedSnapshot
 } from '@/lib/home-feed-snapshot';
-import { coalesceRequest, getListingsRequestKey } from '@/lib/request-coalescing';
 
 // ============================================================================
 // TYPES
@@ -202,42 +201,22 @@ export function useListingsCursor({
                 : filters.listingType === 'CustomService' ? ['CustomService']
                 : ['Service', 'CustomService'];
 
-              const requestKey = getListingsRequestKey({
-                type: 'services',
-                searchQuery,
-                categories: filters.categories,
-                location: filters.location,
-                priceMin: filters.priceMin,
-                priceMax: filters.priceMax,
-                minRating: filters.minRating,
-                distance: filters.distance,
-                sortBy: filters.sortBy,
-                verified: filters.verified,
-                listingType: filters.listingType,
-                userLatitude: filters.userLatitude,
-                userLongitude: filters.userLongitude,
-                cursor: currentCursor,
+              const { data, error } = await supabase.rpc('get_services_cursor_paginated', {
+                p_cursor_created_at: currentCursor?.created_at || null,
+                p_cursor_id: currentCursor?.id || null,
+                p_limit: pageSize,
+                p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                p_search: searchQuery.trim() || null,
+                p_min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_min_rating: filters.minRating || null,
+                p_listing_types: listingTypes,
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude !== undefined && filters.userLatitude !== null ? filters.userLatitude : null,
+                p_user_lng: filters.userLongitude !== undefined && filters.userLongitude !== null ? filters.userLongitude : null,
+                p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null
               });
-
-              const { data, error } = await coalesceRequest(
-                requestKey,
-                () => supabase.rpc('get_services_cursor_paginated', {
-                  p_cursor_created_at: currentCursor?.created_at || null,
-                  p_cursor_id: currentCursor?.id || null,
-                  p_limit: pageSize,
-                  p_category_ids: filters.categories.length > 0 ? filters.categories : null,
-                  p_search: searchQuery.trim() || null,
-                  p_min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
-                  p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
-                  p_min_rating: filters.minRating || null,
-                  p_listing_types: listingTypes,
-                  p_sort_by: filters.sortBy || 'relevance',
-                  p_verified: filters.verified || null,
-                  p_user_lat: filters.userLatitude !== undefined && filters.userLatitude !== null ? filters.userLatitude : null,
-                  p_user_lng: filters.userLongitude !== undefined && filters.userLongitude !== null ? filters.userLongitude : null,
-                  p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null
-                })
-              );
 
               let nextCursor: Cursor | null = null;
               if (data && data.length > 0) {
@@ -262,39 +241,20 @@ export function useListingsCursor({
             (async () => {
               const currentCursor = reset ? null : jobCursor;
 
-              const requestKey = getListingsRequestKey({
-                type: 'jobs',
-                searchQuery,
-                categories: filters.categories,
-                location: filters.location,
-                priceMin: filters.priceMin,
-                priceMax: filters.priceMax,
-                distance: filters.distance,
-                sortBy: filters.sortBy,
-                verified: filters.verified,
-                listingType: filters.listingType,
-                userLatitude: filters.userLatitude,
-                userLongitude: filters.userLongitude,
-                cursor: currentCursor,
+              const { data, error } = await supabase.rpc('get_jobs_cursor_paginated', {
+                p_cursor_created_at: currentCursor?.created_at || null,
+                p_cursor_id: currentCursor?.id || null,
+                p_limit: pageSize,
+                p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                p_search: searchQuery.trim() || null,
+                p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude !== undefined && filters.userLatitude !== null ? filters.userLatitude : null,
+                p_user_lng: filters.userLongitude !== undefined && filters.userLongitude !== null ? filters.userLongitude : null,
+                p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null
               });
-
-              const { data, error } = await coalesceRequest(
-                requestKey,
-                () => supabase.rpc('get_jobs_cursor_paginated', {
-                  p_cursor_created_at: currentCursor?.created_at || null,
-                  p_cursor_id: currentCursor?.id || null,
-                  p_limit: pageSize,
-                  p_category_ids: filters.categories.length > 0 ? filters.categories : null,
-                  p_search: searchQuery.trim() || null,
-                  p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
-                  p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
-                  p_sort_by: filters.sortBy || 'relevance',
-                  p_verified: filters.verified || null,
-                  p_user_lat: filters.userLatitude !== undefined && filters.userLatitude !== null ? filters.userLatitude : null,
-                  p_user_lng: filters.userLongitude !== undefined && filters.userLongitude !== null ? filters.userLongitude : null,
-                  p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null
-                })
-              );
 
               let nextCursor: Cursor | null = null;
               if (data && data.length > 0) {
@@ -500,15 +460,15 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     title: service.title,
     description: service.description || '',
     price: service.price,
-    base_price: service.price,
+    base_price: service.price, // Map to base_price for UI compatibility
     image_url: service.image_url,
     featured_image_url: service.image_url,
     created_at: service.created_at,
     status: service.status,
     provider_id: service.provider_id,
     category_id: service.category_id,
-    average_rating: service.average_rating || 0,
-    rating_average: service.average_rating || 0,
+    average_rating: service.rating || 0,
+    rating_average: service.rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
     service_type: service.service_type || 'In-Person',
@@ -519,11 +479,11 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       city: service.provider_city || null,
       state: service.provider_state || null,
       location: service.provider_location || null,
+      // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
       user_type: service.provider_user_type || null,
-      rating_average: service.provider_rating_average || 0,
-      rating_count: service.provider_rating_count || 0,
     } : undefined,
     latitude: latitude,
     longitude: longitude,
@@ -561,11 +521,7 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     marketplace_type: 'Job',
     title: job.title,
     description: job.description || '',
-    budget: job.fixed_price || job.budget_min || job.budget_max || 0,
-    fixed_price: job.fixed_price,
-    budget_min: job.budget_min,
-    budget_max: job.budget_max,
-    pricing_type: job.pricing_type,
+    budget: job.budget,
     photos,
     created_at: job.created_at,
     status: job.status,
@@ -576,16 +532,17 @@ function normalizeJobCursor(job: any): MarketplaceListing {
       full_name: job.customer_full_name || null,
       avatar_url: job.customer_avatar || null,
       location: job.customer_location || null,
+      // PROVIDER PINS FIX: Copy coordinates into customer object
       latitude: latitude,
       longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
       user_type: job.customer_user_type || null,
-      rating_average: job.customer_rating_average || 0,
-      rating_count: job.customer_rating_count || 0,
     } : undefined,
     city: job.city,
     state: job.state,
     latitude: latitude,
     longitude: longitude,
+    deadline: job.deadline,
     distance_miles: job.distance_miles !== undefined && job.distance_miles !== null ? job.distance_miles : null,
   } as any;
 }
