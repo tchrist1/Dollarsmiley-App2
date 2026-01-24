@@ -212,10 +212,7 @@ export function useListingsCursor({
                 p_min_rating: filters.minRating || null,
                 p_listing_types: listingTypes,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null,
-                p_user_lat: filters.userLatitude || null,
-                p_user_lng: filters.userLongitude || null,
-                p_distance: filters.distance || null
+                p_verified: filters.verified || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -250,10 +247,7 @@ export function useListingsCursor({
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null,
-                p_user_lat: filters.userLatitude || null,
-                p_user_lng: filters.userLongitude || null,
-                p_distance: filters.distance || null
+                p_verified: filters.verified || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -460,15 +454,15 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     title: service.title,
     description: service.description || '',
     price: service.price,
-    base_price: service.price,
+    base_price: service.price, // Map to base_price for UI compatibility
     image_url: service.image_url,
     featured_image_url: service.image_url,
     created_at: service.created_at,
     status: service.status,
     provider_id: service.provider_id,
     category_id: service.category_id,
-    average_rating: service.average_rating || 0,
-    rating_average: service.average_rating || 0,
+    average_rating: service.rating || 0,
+    rating_average: service.rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
     service_type: service.service_type || 'In-Person',
@@ -479,17 +473,14 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       city: service.provider_city,
       state: service.provider_state,
       location: service.provider_location,
+      // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
       user_type: service.provider_user_type || null,
-      rating_average: service.provider_rating_average || 0,
-      rating_count: service.provider_rating_count || 0,
     } : undefined,
     latitude: latitude,
     longitude: longitude,
-    distance_miles: service.distance_miles !== undefined && service.distance_miles !== null
-      ? (typeof service.distance_miles === 'string' ? parseFloat(service.distance_miles) : service.distance_miles)
-      : undefined,
   } as any;
 }
 
@@ -523,10 +514,7 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     marketplace_type: 'Job',
     title: job.title,
     description: job.description || '',
-    fixed_price: job.fixed_price,
-    budget_min: job.budget_min,
-    budget_max: job.budget_max,
-    pricing_type: job.pricing_type,
+    budget: job.budget,
     photos,
     created_at: job.created_at,
     status: job.status,
@@ -537,19 +525,16 @@ function normalizeJobCursor(job: any): MarketplaceListing {
       full_name: job.customer_full_name,
       avatar_url: job.customer_avatar,
       location: job.customer_location,
+      // PROVIDER PINS FIX: Copy coordinates into customer object
       latitude: latitude,
       longitude: longitude,
+      // PROVIDER PINS FIX: Map user_type correctly
       user_type: job.customer_user_type || null,
-      rating_average: job.customer_rating_average || 0,
-      rating_count: job.customer_rating_count || 0,
     } : undefined,
     city: job.city,
     state: job.state,
     latitude: latitude,
     longitude: longitude,
-    deadline: job.deadline,
-    distance_miles: job.distance_miles !== undefined && job.distance_miles !== null
-      ? (typeof job.distance_miles === 'string' ? parseFloat(job.distance_miles) : job.distance_miles)
-      : undefined,
+    deadline: job.deadline
   } as any;
 }
