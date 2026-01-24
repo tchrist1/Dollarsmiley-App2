@@ -8,6 +8,7 @@ import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock,
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
+import CachedAvatar from '@/components/CachedAvatar';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 // WEEK 3: Using optimized FilterModal with 90% performance improvement
 import { FilterOptions, defaultFilters } from '@/components/FilterModal';
@@ -109,13 +110,12 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
         </View>
         <View style={styles.listingFooter}>
           <View style={styles.listingProvider}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.providerAvatar} />
-            ) : (
-              <View style={[styles.providerAvatar, styles.providerAvatarPlaceholder]}>
-                <User size={16} color={colors.textLight} />
-              </View>
-            )}
+            <CachedAvatar
+              uri={profile?.avatar_url}
+              size={32}
+              fallbackIconSize={16}
+              style={styles.providerAvatar}
+            />
             <Text style={styles.providerName} numberOfLines={1}>
               {profile?.full_name || 'Anonymous'}
             </Text>
@@ -185,15 +185,12 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       </View>
       <View style={styles.gridCardContent}>
         <View style={styles.gridHeader}>
-          {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.gridAvatar} />
-          ) : (
-            <View style={[styles.gridAvatar, styles.gridAvatarPlaceholder]}>
-              <Text style={styles.gridAvatarText}>
-                {profile?.full_name?.charAt(0).toUpperCase() || 'S'}
-              </Text>
-            </View>
-          )}
+          <CachedAvatar
+            uri={profile?.avatar_url}
+            size={28}
+            fallbackIconSize={14}
+            style={styles.gridAvatar}
+          />
           {profile && (
             <Text style={styles.gridAccountName} numberOfLines={1}>
               {profile.full_name}
