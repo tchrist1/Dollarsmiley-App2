@@ -211,7 +211,8 @@ export function useListingsCursor({
                 p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_min_rating: filters.minRating || null,
                 p_listing_types: listingTypes,
-                p_sort_by: filters.sortBy || 'relevance'
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -245,7 +246,8 @@ export function useListingsCursor({
                 p_search: searchQuery.trim() || null,
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
-                p_sort_by: filters.sortBy || 'relevance'
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null
               });
 
               let nextCursor: Cursor | null = null;
