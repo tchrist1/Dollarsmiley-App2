@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Image, ImageProps, View, StyleSheet } from 'react-native';
 import { User } from 'lucide-react-native';
 
@@ -19,12 +19,7 @@ export default function CachedAvatar({
 }: CachedAvatarProps) {
   const [imageError, setImageError] = useState(false);
 
-  const cacheBustedUri = useMemo(() => {
-    if (!uri) return null;
-    return uri.includes('?') ? uri : `${uri}?t=${Date.now()}`;
-  }, [uri]);
-
-  if (!cacheBustedUri || imageError) {
+  if (!uri || imageError) {
     return (
       <View
         style={[
@@ -46,7 +41,10 @@ export default function CachedAvatar({
   return (
     <Image
       {...props}
-      source={{ uri: cacheBustedUri }}
+      source={{
+        uri,
+        cache: 'force-cache'
+      }}
       style={[
         {
           width: size,
@@ -56,6 +54,8 @@ export default function CachedAvatar({
         style,
       ]}
       onError={() => setImageError(true)}
+      // Prevent re-downloading on re-mount
+      resizeMode="cover"
     />
   );
 }
