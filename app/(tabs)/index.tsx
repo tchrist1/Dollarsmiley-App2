@@ -30,6 +30,7 @@ import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
 import { getServiceLocationDisplay } from '@/lib/service-location-utils';
+import { subscribeToListingChanges } from '@/lib/home-feed-snapshot';
 import { HomeHeader } from '@/components/HomeHeader';
 import { HomeSuggestions } from '@/components/HomeSuggestions';
 import { HomeListViewWrapper } from '@/components/HomeListViewWrapper';
@@ -366,6 +367,15 @@ export default function HomeScreen() {
       invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
       userIdRef.current = currentUserId;
     }
+  }, [profile?.id]);
+
+  // ============================================================================
+  // PHASE 3B: REALTIME SNAPSHOT INVALIDATION
+  // Automatically invalidate snapshots when new listings are created or updated
+  // ============================================================================
+  useEffect(() => {
+    const unsubscribe = subscribeToListingChanges(profile?.id || null);
+    return unsubscribe;
   }, [profile?.id]);
 
   // ============================================================================
