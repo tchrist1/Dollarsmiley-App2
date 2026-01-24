@@ -138,9 +138,10 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     // Cache miss - fetch from network
     const { data } = await supabase
       .from('categories')
-      .select('*')
+      .select('id, name, parent_id, sort_order, is_active')
       .eq('is_active', true)
-      .order('sort_order');
+      .order('sort_order')
+      .limit(100);
 
     if (data) {
       setCategories(data);
@@ -209,29 +210,38 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
+    // Non-blocking validation (DEV-only)
     if (__DEV__) {
-      if (draftFilters.priceMin && draftFilters.priceMax) {
-        const min = parseFloat(draftFilters.priceMin);
-        const max = parseFloat(draftFilters.priceMax);
-        if (min > max) {
-          console.warn('[FilterModal Safety] Invalid price range: min > max');
+      requestAnimationFrame(() => {
+        if (draftFilters.priceMin && draftFilters.priceMax) {
+          const min = parseFloat(draftFilters.priceMin);
+          const max = parseFloat(draftFilters.priceMax);
+          if (min > max) {
+            console.warn('[FilterModal Safety] Invalid price range: min > max');
+          }
         }
-      }
-      if (draftFilters.distance && draftFilters.distance < 0) {
-        console.warn('[FilterModal Safety] Invalid distance value');
-      }
-      // PHASE 1C: Location state consistency check
-      const hasLocation = !!draftFilters.location?.trim();
-      const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
-      if (hasLocation && !hasCoords) {
-        console.warn('[FilterModal Safety] Location has address but no coordinates - may need geocoding');
-      }
-      if (!hasLocation && hasCoords) {
-        console.warn('[FilterModal Safety] Location has coordinates but no address - potential desync');
-      }
+        if (draftFilters.distance && draftFilters.distance < 0) {
+          console.warn('[FilterModal Safety] Invalid distance value');
+        }
+        // PHASE 1C: Location state consistency check
+        const hasLocation = !!draftFilters.location?.trim();
+        const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
+        if (hasLocation && !hasCoords) {
+          console.warn('[FilterModal Safety] Location has address but no coordinates - may need geocoding');
+        }
+        if (!hasLocation && hasCoords) {
+          console.warn('[FilterModal Safety] Location has coordinates but no address - potential desync');
+        }
+      });
     }
-    onApply(draftFilters);
+
+    // Close modal immediately
     onClose();
+
+    // Apply filters in background (non-blocking)
+    requestAnimationFrame(() => {
+      onApply(draftFilters);
+    });
   }, [draftFilters, onApply, onClose]);
 
   // Update draftFilters when debounced price values change

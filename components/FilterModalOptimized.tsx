@@ -101,9 +101,10 @@ export const FilterModalOptimized = memo(function FilterModalOptimized({
 
     const { data } = await supabase
       .from('categories')
-      .select('*')
+      .select('id, name, parent_id, sort_order, is_active')
       .eq('is_active', true)
-      .order('sort_order');
+      .order('sort_order')
+      .limit(100);
 
     if (data) {
       setCategories(data as Category[]);

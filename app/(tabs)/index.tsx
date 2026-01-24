@@ -927,7 +927,7 @@ export default function HomeScreen() {
       return (
         <View>
           {item.items.map((listing: MarketplaceListing) => (
-            <View key={listing.id} style={{ marginBottom: spacing.md }}>
+            <View key={listing.id} style={styles.listItemContainer}>
               {renderListingCard({ item: listing })}
             </View>
           ))}
@@ -1277,6 +1277,9 @@ const styles = StyleSheet.create({
   listingsContainer: {
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  listItemContainer: {
+    marginBottom: spacing.md,
   },
   listingCard: {
     position: 'relative',

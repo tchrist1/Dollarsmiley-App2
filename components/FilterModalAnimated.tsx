@@ -115,9 +115,10 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
 
     const { data } = await supabase
       .from('categories')
-      .select('*')
+      .select('id, name, parent_id, sort_order, is_active')
       .eq('is_active', true)
-      .order('sort_order');
+      .order('sort_order')
+      .limit(100);
 
     if (data) {
       setCategories(data as Category[]);
@@ -190,43 +191,39 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
     });
 
+    // Non-blocking validation (DEV-only)
     if (__DEV__) {
-      if (draftFilters.priceMin && draftFilters.priceMax) {
-        const min = parseFloat(draftFilters.priceMin);
-        const max = parseFloat(draftFilters.priceMax);
-        if (min > max) {
-          console.warn('[FilterModalAnimated Safety] Invalid price range: min > max');
+      requestAnimationFrame(() => {
+        if (draftFilters.priceMin && draftFilters.priceMax) {
+          const min = parseFloat(draftFilters.priceMin);
+          const max = parseFloat(draftFilters.priceMax);
+          if (min > max) {
+            console.warn('[FilterModalAnimated Safety] Invalid price range: min > max');
+          }
         }
-      }
-      if (draftFilters.distance && draftFilters.distance < 0) {
-        console.warn('[FilterModalAnimated Safety] Invalid distance value');
-      }
-      // PHASE 1C: Location state consistency check
-      const hasLocation = !!draftFilters.location?.trim();
-      const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
-      if (hasLocation && !hasCoords) {
-        console.warn('[FilterModalAnimated Safety] Location has address but no coordinates - may need geocoding');
-      }
-      if (!hasLocation && hasCoords) {
-        console.warn('[FilterModalAnimated Safety] Location has coordinates but no address - potential desync');
-      }
+        if (draftFilters.distance && draftFilters.distance < 0) {
+          console.warn('[FilterModalAnimated Safety] Invalid distance value');
+        }
+        // PHASE 1C: Location state consistency check
+        const hasLocation = !!draftFilters.location?.trim();
+        const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
+        if (hasLocation && !hasCoords) {
+          console.warn('[FilterModalAnimated Safety] Location has address but no coordinates - may need geocoding');
+        }
+        if (!hasLocation && hasCoords) {
+          console.warn('[FilterModalAnimated Safety] Location has coordinates but no address - potential desync');
+        }
+      });
     }
 
-    // Show success animation
-    setApplySuccess(true);
-    successScale.value = withSpring(1, {
-      damping: 15,
-      stiffness: 200,
-    });
+    // Close modal immediately
+    onClose();
 
-    // Close modal after brief success animation
-    setTimeout(() => {
-      onClose();
-      requestAnimationFrame(() => {
-        onApply(draftFilters);
-        endTrack();
-      });
-    }, 300);
+    // Apply filters in background (non-blocking)
+    requestAnimationFrame(() => {
+      onApply(draftFilters);
+      endTrack();
+    });
   }, [draftFilters, onApply, onClose, trackOperation]);
 
   const handleReset = useCallback(() => {
