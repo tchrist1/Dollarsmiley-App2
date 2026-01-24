@@ -524,6 +524,7 @@ function normalizeJobCursor(job: any): MarketplaceListing {
       id: job.customer_id,
       full_name: job.customer_full_name,
       avatar_url: job.customer_avatar,
+      location: job.customer_location,
       // PROVIDER PINS FIX: Copy coordinates into customer object
       latitude: latitude,
       longitude: longitude,
