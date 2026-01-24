@@ -1,0 +1,161 @@
+/*
+  # Fix Service Listings Price Display - Use Base Price Fallback
+
+  1. Problem
+    - Most service listings have price = NULL
+    - All listings have base_price (NOT NULL column)
+    - RPC function returns price column, causing $0 display on cards
+
+  2. Solution
+    - Use COALESCE(price, base_price) to fallback to base_price
+    - Ensures all listings display their actual pricing
+*/
+
+DROP FUNCTION IF EXISTS get_services_cursor_paginated(
+  TIMESTAMPTZ, UUID, INT, UUID, TEXT, DECIMAL, DECIMAL, DECIMAL, TEXT[], TEXT, BOOLEAN, DOUBLE PRECISION, DOUBLE PRECISION, INT
+);
+
+CREATE OR REPLACE FUNCTION get_services_cursor_paginated(
+  p_cursor_created_at TIMESTAMPTZ DEFAULT NULL,
+  p_cursor_id UUID DEFAULT NULL,
+  p_limit INT DEFAULT 20,
+  p_category_id UUID DEFAULT NULL,
+  p_search TEXT DEFAULT NULL,
+  p_min_price DECIMAL DEFAULT NULL,
+  p_max_price DECIMAL DEFAULT NULL,
+  p_min_rating DECIMAL DEFAULT NULL,
+  p_listing_types TEXT[] DEFAULT NULL,
+  p_sort_by TEXT DEFAULT 'relevance',
+  p_verified BOOLEAN DEFAULT NULL,
+  p_user_lat DOUBLE PRECISION DEFAULT NULL,
+  p_user_lng DOUBLE PRECISION DEFAULT NULL,
+  p_distance INT DEFAULT NULL
+)
+RETURNS TABLE(
+  id UUID,
+  title TEXT,
+  description TEXT,
+  price DECIMAL,
+  image_url TEXT,
+  created_at TIMESTAMPTZ,
+  status TEXT,
+  provider_id UUID,
+  category_id UUID,
+  average_rating DECIMAL,
+  total_bookings INT,
+  listing_type TEXT,
+  service_type TEXT,
+  provider_full_name TEXT,
+  provider_avatar TEXT,
+  provider_location TEXT,
+  provider_city TEXT,
+  provider_state TEXT,
+  latitude DECIMAL,
+  longitude DECIMAL,
+  provider_user_type TEXT,
+  distance_miles DOUBLE PRECISION
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+STABLE
+AS $$
+DECLARE
+  v_apply_distance_filter BOOLEAN;
+BEGIN
+  v_apply_distance_filter := (
+    p_user_lat IS NOT NULL AND 
+    p_user_lng IS NOT NULL AND 
+    p_distance IS NOT NULL
+  );
+
+  RETURN QUERY
+  SELECT
+    sl.id,
+    sl.title,
+    sl.description,
+    COALESCE(sl.price, sl.base_price) as price,
+    sl.featured_image_url as image_url,
+    sl.created_at,
+    sl.status,
+    sl.provider_id,
+    sl.category_id,
+    sl.rating_average as average_rating,
+    sl.booking_count as total_bookings,
+    sl.listing_type,
+    sl.service_type,
+    p.full_name as provider_full_name,
+    p.avatar_url as provider_avatar,
+    p.location as provider_location,
+    p.city as provider_city,
+    p.state as provider_state,
+    p.latitude,
+    p.longitude,
+    p.user_type as provider_user_type,
+    CASE 
+      WHEN v_apply_distance_filter AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN
+        (point(p_user_lng, p_user_lat) <@> point(p.longitude::float, p.latitude::float))
+      ELSE NULL
+    END as distance_miles
+  FROM service_listings sl
+  LEFT JOIN profiles p ON p.id = sl.provider_id
+  WHERE LOWER(sl.status) = 'active'
+    AND (
+      p_cursor_created_at IS NULL
+      OR sl.created_at < p_cursor_created_at
+      OR (sl.created_at = p_cursor_created_at AND sl.id < p_cursor_id)
+    )
+    AND (p_category_id IS NULL OR sl.category_id = p_category_id)
+    AND (
+      p_search IS NULL
+      OR sl.title ILIKE '%' || p_search || '%'
+      OR sl.description ILIKE '%' || p_search || '%'
+    )
+    AND (p_min_price IS NULL OR COALESCE(sl.price, sl.base_price) >= p_min_price)
+    AND (p_max_price IS NULL OR COALESCE(sl.price, sl.base_price) <= p_max_price)
+    AND (p_min_rating IS NULL OR sl.rating_average >= p_min_rating)
+    AND (
+      p_listing_types IS NULL
+      OR sl.listing_type = ANY(p_listing_types)
+    )
+    AND (
+      p_verified IS NULL
+      OR p_verified = false
+      OR (p_verified = true AND (p.id_verified = true OR p.business_verified = true))
+    )
+    AND (
+      NOT v_apply_distance_filter
+      OR (
+        p.latitude IS NOT NULL 
+        AND p.longitude IS NOT NULL
+        AND (point(p_user_lng, p_user_lat) <@> point(p.longitude::float, p.latitude::float)) <= p_distance
+      )
+    )
+  ORDER BY
+    CASE
+      WHEN p_sort_by = 'distance' AND v_apply_distance_filter THEN
+        (point(p_user_lng, p_user_lat) <@> point(p.longitude::float, p.latitude::float))
+      ELSE NULL
+    END ASC NULLS LAST,
+    CASE
+      WHEN p_sort_by = 'price_low' THEN COALESCE(sl.price, sl.base_price)
+      ELSE NULL
+    END ASC NULLS LAST,
+    CASE
+      WHEN p_sort_by = 'price_high' THEN COALESCE(sl.price, sl.base_price)
+      ELSE NULL
+    END DESC NULLS LAST,
+    CASE
+      WHEN p_sort_by = 'rating' THEN sl.rating_average
+      ELSE NULL
+    END DESC NULLS LAST,
+    CASE
+      WHEN p_sort_by = 'popular' THEN sl.booking_count
+      ELSE NULL
+    END DESC NULLS LAST,
+    sl.created_at DESC,
+    sl.id DESC
+  LIMIT p_limit;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_services_cursor_paginated TO authenticated, anon;
