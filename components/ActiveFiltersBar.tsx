@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { X, DollarSign, MapPin, Tag, Star, Award, Filter } from 'lucide-react-native';
+import { X, DollarSign, MapPin, Tag, Star, Award, Filter, ArrowUpDown } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import type { FilterOptions } from './FilterModal';
 
@@ -84,6 +84,21 @@ function buildActiveFiltersList(filters: FilterOptions) {
       type: 'verified',
       label: 'Verified Only',
       icon: Award,
+    });
+  }
+
+  if (filters.sortBy && filters.sortBy !== 'relevance') {
+    const sortLabels: Record<string, string> = {
+      price_low_high: 'Price: Low to High',
+      price_high_low: 'Price: High to Low',
+      rating: 'Highest Rated',
+      distance: 'Nearest First',
+      recent: 'Most Recent',
+    };
+    activeFilters.push({
+      type: 'sortBy',
+      label: sortLabels[filters.sortBy] || filters.sortBy,
+      icon: ArrowUpDown,
     });
   }
 
