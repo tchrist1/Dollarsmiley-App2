@@ -209,6 +209,18 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
 
   // APPLY HANDLER - Only place where filters are committed
   const handleApply = useCallback(() => {
+    if (__DEV__) {
+      if (draftFilters.priceMin && draftFilters.priceMax) {
+        const min = parseFloat(draftFilters.priceMin);
+        const max = parseFloat(draftFilters.priceMax);
+        if (min > max) {
+          console.warn('[FilterModal Safety] Invalid price range: min > max');
+        }
+      }
+      if (draftFilters.distance && draftFilters.distance < 0) {
+        console.warn('[FilterModal Safety] Invalid distance value');
+      }
+    }
     onApply(draftFilters);
     onClose();
   }, [draftFilters, onApply, onClose]);
@@ -309,7 +321,9 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
       setDraftFilters(prev => ({ ...prev, location: locationString }));
       setUseCurrentLocation(true);
     } catch (error) {
-      console.error('Error getting location:', error);
+      if (__DEV__) {
+        console.warn('[FilterModal] Location error:', error);
+      }
       if (Platform.OS !== 'web') {
         Alert.alert(
           'Location Error',

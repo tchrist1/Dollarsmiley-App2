@@ -305,6 +305,15 @@ export default function HomeScreen() {
     if (visualCommitReady) {
       stableListingsRef.current = rawListings;
     }
+    if (__DEV__) {
+      const current = stableListingsRef.current;
+      if (current.length > 0) {
+        const firstItem = current[0];
+        if (!firstItem.id || !firstItem.title) {
+          console.warn('[Home Safety] Invalid listing structure detected');
+        }
+      }
+    }
     return stableListingsRef.current;
   }, [rawListings, visualCommitReady]);
 
@@ -452,7 +461,9 @@ export default function HomeScreen() {
   };
 
   const handleVoiceError = (error: string) => {
-    // Error handled silently
+    if (__DEV__) {
+      console.warn('[Home] Voice search error:', error);
+    }
   };
 
   const handleImageResults = (matches: any[], analysis: any) => {
@@ -464,7 +475,9 @@ export default function HomeScreen() {
   };
 
   const handleImageError = (error: string) => {
-    // Error handled silently
+    if (__DEV__) {
+      console.warn('[Home] Image search error:', error);
+    }
   };
 
   const recordSearch = async (query: string, resultsCount: number) => {
@@ -772,6 +785,17 @@ export default function HomeScreen() {
   const getMapMarkers = useMemo(() => {
     if (visualCommitReady) {
       stableMapMarkersRef.current = rawMapMarkers;
+    }
+    if (__DEV__) {
+      const markers = stableMapMarkersRef.current;
+      if (markers.length > 0) {
+        const hasInvalidMarker = markers.some(m =>
+          m.latitude == null || m.longitude == null || !m.id
+        );
+        if (hasInvalidMarker) {
+          console.warn('[Home Safety] Invalid map marker detected');
+        }
+      }
     }
     return stableMapMarkersRef.current;
   }, [rawMapMarkers, visualCommitReady]);

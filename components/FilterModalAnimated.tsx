@@ -190,6 +190,19 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
     });
 
+    if (__DEV__) {
+      if (draftFilters.priceMin && draftFilters.priceMax) {
+        const min = parseFloat(draftFilters.priceMin);
+        const max = parseFloat(draftFilters.priceMax);
+        if (min > max) {
+          console.warn('[FilterModalAnimated Safety] Invalid price range: min > max');
+        }
+      }
+      if (draftFilters.distance && draftFilters.distance < 0) {
+        console.warn('[FilterModalAnimated Safety] Invalid distance value');
+      }
+    }
+
     // Show success animation
     setApplySuccess(true);
     successScale.value = withSpring(1, {
@@ -285,7 +298,9 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       actions.setUserCoordinates(latitude, longitude);
       setUseCurrentLocation(true);
     } catch (error) {
-      console.error('Error getting location:', error);
+      if (__DEV__) {
+        console.warn('[FilterModalAnimated] Location error:', error);
+      }
       if (Platform.OS !== 'web') {
         Alert.alert('Location Error', 'Unable to get your current location.', [{ text: 'OK' }]);
       }
