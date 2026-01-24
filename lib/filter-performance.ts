@@ -55,7 +55,10 @@ class FilterPerformanceMonitor {
 
     const metric = this.metrics.get(operation);
     if (!metric) {
-      console.warn(`[FilterPerf] No start metric found for: ${operation}`);
+      // DEV-only: Warn about missing start metric
+      if (__DEV__) {
+        console.warn(`[FilterPerf] No start metric found for: ${operation}`);
+      }
       return;
     }
 
@@ -72,11 +75,9 @@ class FilterPerformanceMonitor {
     this.completed.push(completed);
     this.metrics.delete(operation);
 
-    // Log slow operations (> 100ms)
-    if (duration > 100) {
+    // DEV-only: Log slow operations (> 100ms)
+    if (__DEV__ && duration > 100) {
       console.warn(`[FilterPerf] SLOW OPERATION: ${operation} took ${duration.toFixed(2)}ms`, additionalMetadata);
-    } else if (__DEV__) {
-      console.log(`[FilterPerf] ${operation}: ${duration.toFixed(2)}ms`, additionalMetadata);
     }
   }
 

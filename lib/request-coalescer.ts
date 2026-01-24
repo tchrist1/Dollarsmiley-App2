@@ -76,9 +76,10 @@ export async function coalescedRpc<T = any>(
   const existing = inFlightCache.get(cacheKey);
 
   if (existing) {
+    // DEV-only instrumentation: Track cache hits
     if (__DEV__) {
       const elapsed = Date.now() - existing.startTime;
-      console.warn(
+      console.log(
         `[RequestCoalescer HIT] Returning existing promise for ${rpcName} (${elapsed}ms in-flight)`
       );
     }
@@ -88,8 +89,9 @@ export async function coalescedRpc<T = any>(
   }
 
   // No existing request - create new one
+  // DEV-only instrumentation: Track cache misses
   if (__DEV__) {
-    console.warn(`[RequestCoalescer MISS] Creating new request for ${rpcName}`);
+    console.log(`[RequestCoalescer MISS] Creating new request for ${rpcName}`);
   }
 
   // Store start time for logging
@@ -99,9 +101,10 @@ export async function coalescedRpc<T = any>(
   const promise = supabase
     .rpc(rpcName, params)
     .then((result) => {
+      // DEV-only instrumentation: Track request completion
       if (__DEV__) {
         const elapsed = Date.now() - startTime;
-        console.warn(
+        console.log(
           `[RequestCoalescer COMPLETE] ${rpcName} finished (${elapsed}ms)`
         );
       }
@@ -112,6 +115,7 @@ export async function coalescedRpc<T = any>(
       return result;
     })
     .catch((error) => {
+      // DEV-only instrumentation: Track request errors
       if (__DEV__) {
         console.warn(`[RequestCoalescer ERROR] ${rpcName} failed:`, error);
       }
@@ -140,8 +144,9 @@ export async function coalescedRpc<T = any>(
  * Clear all in-flight requests (useful for testing or manual cache invalidation).
  */
 export function clearCoalescerCache(): void {
+  // DEV-only instrumentation: Track cache clears
   if (__DEV__) {
-    console.warn(
+    console.log(
       `[RequestCoalescer] Clearing ${inFlightCache.size} in-flight requests`
     );
   }

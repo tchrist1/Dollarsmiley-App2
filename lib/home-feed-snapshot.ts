@@ -107,7 +107,10 @@ export async function getCachedSnapshot(
 
     return snapshot;
   } catch (err) {
-    console.error('[Snapshot] Error reading cache:', err);
+    // DEV-only: Log cache read errors for debugging
+    if (__DEV__) {
+      console.error('[Snapshot] Error reading cache:', err);
+    }
     return null;
   }
 }
@@ -141,7 +144,10 @@ export async function saveSnapshot(
 
     await AsyncStorage.setItem(key, JSON.stringify(snapshot));
   } catch (err) {
-    console.error('[Snapshot] Error saving cache:', err);
+    // DEV-only: Log cache write errors for debugging
+    if (__DEV__) {
+      console.error('[Snapshot] Error saving cache:', err);
+    }
   }
 }
 
@@ -156,7 +162,10 @@ export async function invalidateSnapshot(
     const key = getSnapshotCacheKey(userId, context);
     await AsyncStorage.removeItem(key);
   } catch (err) {
-    console.error('[Snapshot] Error invalidating cache:', err);
+    // DEV-only: Log cache invalidation errors for debugging
+    if (__DEV__) {
+      console.error('[Snapshot] Error invalidating cache:', err);
+    }
   }
 }
 
@@ -175,7 +184,10 @@ export async function invalidateAllSnapshots(userId: string | null): Promise<voi
       await AsyncStorage.multiRemove(snapshotKeys);
     }
   } catch (err) {
-    console.error('[Snapshot] Error invalidating all snapshots:', err);
+    // DEV-only: Log snapshot invalidation errors for debugging
+    if (__DEV__) {
+      console.error('[Snapshot] Error invalidating all snapshots:', err);
+    }
   }
 }
 
@@ -389,6 +401,9 @@ function throttledInvalidateSnapshot(userId: string | null): void {
 
   // Invalidate all snapshots for this user
   invalidateAllSnapshots(userId).catch(err => {
-    console.error('[Snapshot] Realtime invalidation failed:', err);
+    // DEV-only: Log realtime invalidation errors for debugging
+    if (__DEV__) {
+      console.error('[Snapshot] Realtime invalidation failed:', err);
+    }
   });
 }
