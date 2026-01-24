@@ -212,7 +212,10 @@ export function useListingsCursor({
                 p_min_rating: filters.minRating || null,
                 p_listing_types: listingTypes,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude || null,
+                p_user_lng: filters.userLongitude || null,
+                p_distance: filters.distance || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -247,7 +250,10 @@ export function useListingsCursor({
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_sort_by: filters.sortBy || 'relevance',
-                p_verified: filters.verified || null
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude || null,
+                p_user_lng: filters.userLongitude || null,
+                p_distance: filters.distance || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -454,7 +460,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     title: service.title,
     description: service.description || '',
     price: service.price,
-    base_price: service.price, // Map to base_price for UI compatibility
+    base_price: service.price,
     image_url: service.image_url,
     featured_image_url: service.image_url,
     created_at: service.created_at,
@@ -473,14 +479,15 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
       city: service.provider_city,
       state: service.provider_state,
       location: service.provider_location,
-      // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,
-      // PROVIDER PINS FIX: Map user_type correctly
       user_type: service.provider_user_type || null,
     } : undefined,
     latitude: latitude,
     longitude: longitude,
+    distance_miles: service.distance_miles !== undefined && service.distance_miles !== null
+      ? (typeof service.distance_miles === 'string' ? parseFloat(service.distance_miles) : service.distance_miles)
+      : undefined,
   } as any;
 }
 
@@ -525,16 +532,17 @@ function normalizeJobCursor(job: any): MarketplaceListing {
       full_name: job.customer_full_name,
       avatar_url: job.customer_avatar,
       location: job.customer_location,
-      // PROVIDER PINS FIX: Copy coordinates into customer object
       latitude: latitude,
       longitude: longitude,
-      // PROVIDER PINS FIX: Map user_type correctly
       user_type: job.customer_user_type || null,
     } : undefined,
     city: job.city,
     state: job.state,
     latitude: latitude,
     longitude: longitude,
-    deadline: job.deadline
+    deadline: job.deadline,
+    distance_miles: job.distance_miles !== undefined && job.distance_miles !== null
+      ? (typeof job.distance_miles === 'string' ? parseFloat(job.distance_miles) : job.distance_miles)
+      : undefined,
   } as any;
 }
