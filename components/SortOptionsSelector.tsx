@@ -127,20 +127,30 @@ const SORT_OPTIONS: SortConfig[] = [
   },
 ];
 
-export function SortOptionsSelector({
+// PHASE 2B: Memoized for filter modal performance
+export const SortOptionsSelector = React.memo(function SortOptionsSelector({
   sortBy,
   onSortChange,
   showDistance = true,
 }: SortOptionsSelectorProps) {
-  const filteredOptions = showDistance
-    ? SORT_OPTIONS
-    : SORT_OPTIONS.filter((opt) => opt.value !== 'distance');
+  // PHASE 2B: Memoize filtered options to prevent recalculation
+  const filteredOptions = React.useMemo(() =>
+    showDistance
+      ? SORT_OPTIONS
+      : SORT_OPTIONS.filter((opt) => opt.value !== 'distance'),
+    [showDistance]
+  );
 
-  const selectedOption = SORT_OPTIONS.find((opt) => opt.value === sortBy);
+  // PHASE 2B: Memoize selected option lookup
+  const selectedOption = React.useMemo(() =>
+    SORT_OPTIONS.find((opt) => opt.value === sortBy),
+    [sortBy]
+  );
 
-  const getOptionsForCategory = (category: string) => {
+  // PHASE 2B: Memoize category filter function
+  const getOptionsForCategory = React.useCallback((category: string) => {
     return filteredOptions.filter((opt) => opt.category === category);
-  };
+  }, [filteredOptions]);
 
   return (
     <View style={styles.container}>
@@ -289,7 +299,7 @@ export function SortOptionsSelector({
       </View>
     </View>
   );
-}
+});
 
 interface SortOptionCardProps {
   option: SortConfig;
@@ -297,7 +307,8 @@ interface SortOptionCardProps {
   onSelect: () => void;
 }
 
-function SortOptionCard({ option, isSelected, onSelect }: SortOptionCardProps) {
+// PHASE 2B: Memoized to prevent re-renders when other options change
+const SortOptionCard = React.memo(function SortOptionCard({ option, isSelected, onSelect }: SortOptionCardProps) {
   const Icon = option.icon;
   const DirectionIcon = option.directionIcon;
 
@@ -345,7 +356,7 @@ function SortOptionCard({ option, isSelected, onSelect }: SortOptionCardProps) {
       )}
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -18,7 +18,8 @@ export interface ButtonProps {
 
 export { Button };
 
-export default function Button({
+// PHASE 2B: Memoized for filter modal performance
+const Button = React.memo(function Button({
   title,
   onPress,
   variant = 'primary',
@@ -65,7 +66,9 @@ export default function Button({
       )}
     </TouchableOpacity>
   );
-}
+});
+
+export default Button;
 
 const styles = StyleSheet.create({
   base: {

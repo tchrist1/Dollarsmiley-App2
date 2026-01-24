@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,8 @@ interface MapboxAutocompleteInputProps extends TextInputProps {
   placeholder?: string;
 }
 
-export default function MapboxAutocompleteInput({
+// PHASE 2B: Memoized for filter modal performance
+const MapboxAutocompleteInput = React.memo(function MapboxAutocompleteInput({
   value,
   onChangeText,
   onPlaceSelect,
@@ -41,7 +42,8 @@ export default function MapboxAutocompleteInput({
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<TextInput>(null);
 
-  const handleTextChange = (text: string) => {
+  // PHASE 2B: Memoize handlers to prevent recreation on every render
+  const handleTextChange = useCallback((text: string) => {
     onChangeText(text);
 
     if (searchTimeout.current) {
@@ -75,9 +77,10 @@ export default function MapboxAutocompleteInput({
         setLoading(false);
       }
     }, 300);
-  };
+  }, [onChangeText, searchTypes, sessionToken]);
 
-  const handleSuggestionSelect = async (suggestion: MapboxSuggestion) => {
+  // PHASE 2B: Memoize suggestion select handler
+  const handleSuggestionSelect = useCallback(async (suggestion: MapboxSuggestion) => {
     setLoading(true);
 
     try {
@@ -109,7 +112,7 @@ export default function MapboxAutocompleteInput({
     } finally {
       setLoading(false);
     }
-  };
+  }, [onChangeText, onPlaceSelect, sessionToken]);
 
   return (
     <View style={styles.container}>
@@ -172,7 +175,9 @@ export default function MapboxAutocompleteInput({
       )}
     </View>
   );
-}
+});
+
+export default MapboxAutocompleteInput;
 
 const styles = StyleSheet.create({
   container: {
