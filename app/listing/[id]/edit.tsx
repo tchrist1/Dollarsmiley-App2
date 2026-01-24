@@ -30,6 +30,7 @@ export default function EditListingScreen() {
   const [subcategoryId, setSubcategoryId] = useState('');
   const [subcategoryName, setSubcategoryName] = useState('');
   const [listingType, setListingType] = useState<'Service' | 'CustomService'>('Service');
+  const [serviceType, setServiceType] = useState<'In-Person' | 'Remote' | 'Both'>('In-Person');
   const [priceType, setPriceType] = useState<'hourly' | 'fixed'>('hourly');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
@@ -92,6 +93,7 @@ export default function EditListingScreen() {
     setCategoryId(data.category_id || '');
     setSubcategoryId(data.subcategory_id || '');
     setListingType(data.listing_type || 'Service');
+    setServiceType(data.service_type || 'In-Person');
     setPriceType(data.pricing_type === 'Hourly' ? 'hourly' : 'fixed');
     setPrice(data.base_price?.toString() || '');
     setDuration(data.estimated_duration?.toString() || '');
@@ -212,6 +214,7 @@ export default function EditListingScreen() {
         category_id: categoryId,
         subcategory_id: subcategoryId,
         listing_type: listingType,
+        service_type: serviceType,
         pricing_type: priceType === 'hourly' ? 'Hourly' : 'Fixed',
         base_price: parseFloat(price),
         estimated_duration: duration ? parseFloat(duration) : null,
@@ -489,6 +492,44 @@ export default function EditListingScreen() {
                   ]}
                 >
                   {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Service Location</Text>
+          <Text style={styles.helperText}>How will you deliver this service?</Text>
+          <View style={styles.serviceTypeSelector}>
+            {[
+              { value: 'In-Person', label: 'In-Person', subtext: 'At customer location' },
+              { value: 'Remote', label: 'Remote', subtext: 'Online/virtual' },
+              { value: 'Both', label: 'Both', subtext: 'Either option' },
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.serviceTypeButton,
+                  serviceType === option.value && styles.serviceTypeButtonActive,
+                ]}
+                onPress={() => setServiceType(option.value as any)}
+              >
+                <Text
+                  style={[
+                    styles.serviceTypeButtonText,
+                    serviceType === option.value && styles.serviceTypeButtonTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.serviceTypeButtonSubtext,
+                    serviceType === option.value && styles.serviceTypeButtonSubtextActive,
+                  ]}
+                >
+                  {option.subtext}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -983,6 +1024,48 @@ const styles = StyleSheet.create({
   listingTypeButtonTextActive: {
     color: colors.white,
     fontWeight: fontWeight.semibold,
+  },
+  serviceTypeSelector: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  serviceTypeButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  serviceTypeButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  serviceTypeButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  serviceTypeButtonTextActive: {
+    color: colors.white,
+  },
+  serviceTypeButtonSubtext: {
+    fontSize: fontSize.xs,
+    color: colors.textLight,
+  },
+  serviceTypeButtonSubtextActive: {
+    color: colors.white,
+    opacity: 0.9,
+  },
+  helperText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
   },
   priceTypeSelector: {
     flexDirection: 'row',

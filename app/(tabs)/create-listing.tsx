@@ -39,6 +39,7 @@ export default function CreateListingScreen() {
   const [subcategoryId, setSubcategoryId] = useState('');
   const [subcategoryName, setSubcategoryName] = useState('');
   const [listingType, setListingType] = useState<'Service' | 'CustomService'>('Service');
+  const [serviceType, setServiceType] = useState<'In-Person' | 'Remote' | 'Both'>('In-Person');
   const [priceType, setPriceType] = useState<'hourly' | 'fixed'>('hourly');
   const [price, setPrice] = useState('');
   const [duration, setDuration] = useState('');
@@ -99,6 +100,7 @@ export default function CreateListingScreen() {
       is_active: false,
       status: 'Draft',
       listing_type: 'CustomService',
+      service_type: 'In-Person',
       requires_fulfilment: false,
       requires_agreement: false,
       requires_damage_deposit: false,
@@ -139,6 +141,7 @@ export default function CreateListingScreen() {
       availableDays.length > 0 ||
       tags.trim() !== '' ||
       listingType !== 'Service' ||
+      serviceType !== 'In-Person' ||
       priceType !== 'hourly' ||
       requiresFulfilment !== false ||
       fulfillmentType.length > 0 ||
@@ -168,6 +171,7 @@ export default function CreateListingScreen() {
     setSubcategoryId('');
     setSubcategoryName('');
     setListingType('Service');
+    setServiceType('In-Person');
     setPriceType('hourly');
     setPrice('');
     setDuration('');
@@ -319,6 +323,7 @@ export default function CreateListingScreen() {
       is_active: targetStatus === 'Active',
       status: targetStatus,
       listing_type: listingType,
+      service_type: serviceType,
       requires_fulfilment: requiresFulfilment,
       requires_agreement: requiresAgreement,
       requires_damage_deposit: requiresDamageDeposit,
@@ -738,6 +743,85 @@ export default function CreateListingScreen() {
             style={styles.readOnlyField}
           />
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Service Location</Text>
+          <Text style={styles.helperText}>How will you deliver this service?</Text>
+          <View style={styles.serviceTypeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.serviceTypeButton,
+                serviceType === 'In-Person' && styles.serviceTypeButtonActive,
+              ]}
+              onPress={() => setServiceType('In-Person')}
+            >
+              <Text
+                style={[
+                  styles.serviceTypeText,
+                  serviceType === 'In-Person' && styles.serviceTypeTextActive,
+                ]}
+              >
+                In-Person
+              </Text>
+              <Text
+                style={[
+                  styles.serviceTypeSubtext,
+                  serviceType === 'In-Person' && styles.serviceTypeSubtextActive,
+                ]}
+              >
+                At customer location
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.serviceTypeButton,
+                serviceType === 'Remote' && styles.serviceTypeButtonActive,
+              ]}
+              onPress={() => setServiceType('Remote')}
+            >
+              <Text
+                style={[
+                  styles.serviceTypeText,
+                  serviceType === 'Remote' && styles.serviceTypeTextActive,
+                ]}
+              >
+                Remote
+              </Text>
+              <Text
+                style={[
+                  styles.serviceTypeSubtext,
+                  serviceType === 'Remote' && styles.serviceTypeSubtextActive,
+                ]}
+              >
+                Online/virtual
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.serviceTypeButton,
+                serviceType === 'Both' && styles.serviceTypeButtonActive,
+              ]}
+              onPress={() => setServiceType('Both')}
+            >
+              <Text
+                style={[
+                  styles.serviceTypeText,
+                  serviceType === 'Both' && styles.serviceTypeTextActive,
+                ]}
+              >
+                Both
+              </Text>
+              <Text
+                style={[
+                  styles.serviceTypeSubtext,
+                  serviceType === 'Both' && styles.serviceTypeSubtextActive,
+                ]}
+              >
+                Either option
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Pricing</Text>
@@ -1543,6 +1627,42 @@ const styles = StyleSheet.create({
   },
   listingTypeTextActive: {
     color: colors.white,
+  },
+  serviceTypeContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  serviceTypeButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviceTypeButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  serviceTypeText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  serviceTypeTextActive: {
+    color: colors.white,
+  },
+  serviceTypeSubtext: {
+    fontSize: fontSize.xs,
+    color: colors.textLight,
+  },
+  serviceTypeSubtextActive: {
+    color: colors.white,
+    opacity: 0.9,
   },
   fulfillmentContainer: {
     flexDirection: 'row',
