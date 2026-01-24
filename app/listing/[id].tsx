@@ -20,6 +20,7 @@ import { Button } from '@/components/Button';
 import { RecommendationsCarousel } from '@/components/RecommendationsCarousel';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
+import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 import BadgeList from '@/components/BadgeList';
 import { Badge } from '@/components/VerificationBadge';
 import {
@@ -390,12 +391,10 @@ export default function ListingDetailScreen() {
             </View>
           )}
 
-          {listing.location && (
-            <View style={styles.infoRow}>
-              <MapPin size={16} color={colors.textSecondary} />
-              <Text style={styles.infoText}>{listing.location}</Text>
-            </View>
-          )}
+          <View style={styles.infoRow}>
+            <MapPin size={16} color={colors.textSecondary} />
+            <Text style={styles.infoText}>{getServiceLocationDisplay(listing.service_type, provider)}</Text>
+          </View>
 
           {tags.length > 0 && (
             <View style={styles.tagsContainer}>

@@ -21,6 +21,7 @@ import {
 import { Star, MapPin, TrendingUp, Users, Sparkles } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
+import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
@@ -186,14 +187,12 @@ export function RecommendationsCarousel({
             </View>
           </View>
 
-          {listing.location && (
-            <View style={styles.locationRow}>
-              <MapPin size={14} color={colors.textSecondary} />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {listing.location}
-              </Text>
-            </View>
-          )}
+          <View style={styles.locationRow}>
+            <MapPin size={14} color={colors.textSecondary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {getServiceLocationDisplay(listing.service_type, provider)}
+            </Text>
+          </View>
 
           <View style={styles.cardFooter}>
             <View>

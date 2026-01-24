@@ -5,6 +5,7 @@ import { Star } from 'lucide-react-native';
 import { MarketplaceListing } from '@/types/database';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { formatCurrency } from '@/lib/currency-utils';
+import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 
 interface HomeCarouselSectionProps {
   title: string;
@@ -75,7 +76,7 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
           </Text>
 
           <Text style={styles.carouselCardLocation} numberOfLines={1}>
-            {item.location || 'Remote'}
+            {getServiceLocationDisplay(item.service_type, profile)}
           </Text>
 
           <View style={styles.carouselCardFooter}>

@@ -439,12 +439,14 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     rating_average: service.rating || 0,
     total_bookings: service.total_bookings || 0,
     listing_type: service.listing_type,
+    service_type: service.service_type || 'In-Person',
     provider: service.provider_full_name ? {
       id: service.provider_id,
       full_name: service.provider_full_name,
       avatar_url: service.provider_avatar,
       city: service.provider_city,
       state: service.provider_state,
+      location: service.provider_location,
       // PROVIDER PINS FIX: Copy coordinates into provider object
       latitude: latitude,
       longitude: longitude,

@@ -11,6 +11,7 @@ export type FulfillmentType = 'Pickup' | 'DropOff' | 'Shipping';
 export type ShippingMode = 'Platform' | 'External';
 export type ShipmentStatus = 'Pending' | 'InTransit' | 'OutForDelivery' | 'Delivered' | 'Exception' | 'Cancelled';
 export type OrderType = 'Job' | 'Service' | 'CustomService';
+export type ServiceType = 'In-Person' | 'Remote' | 'Both';
 export type PayoutStatus = 'Pending' | 'Scheduled' | 'Processing' | 'Completed' | 'Failed';
 export type CommunicationType = 'Text' | 'Voice' | 'Video';
 export type TimeExtensionStatus = 'pending' | 'approved' | 'declined' | 'cancelled';
@@ -25,6 +26,8 @@ export interface Profile {
   avatar_url?: string;
   bio?: string;
   location?: string;
+  city?: string;
+  state?: string;
   latitude?: number;
   longitude?: number;
   service_radius: number;
@@ -408,6 +411,7 @@ export interface MarketplaceListing {
   location: string;
   latitude?: number;
   longitude?: number;
+  service_type?: ServiceType;
   photos: string | string[];
   featured_image_url?: string;
   created_at: string;

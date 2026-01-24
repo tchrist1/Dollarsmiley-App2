@@ -29,6 +29,7 @@ import { formatCurrency } from '@/lib/currency-utils';
 import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
+import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -97,7 +98,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} />
             <Text style={styles.listingLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {getServiceLocationDisplay(item.service_type, profile)}
             </Text>
           </View>
           {profile?.rating_average && profile.rating_average > 0 && (
@@ -224,7 +225,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />
             <Text style={styles.gridLocationText} numberOfLines={1}>
-              {item.location || 'Remote'}
+              {getServiceLocationDisplay(item.service_type, profile)}
             </Text>
           </View>
           <View style={styles.gridPrice}>
