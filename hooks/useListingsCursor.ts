@@ -19,6 +19,7 @@ import {
   snapshotToMarketplaceListing,
   fetchHomeFeedSnapshot
 } from '@/lib/home-feed-snapshot';
+import { coalescedRpc } from '@/lib/request-coalescer';
 
 // ============================================================================
 // TYPES
@@ -201,7 +202,8 @@ export function useListingsCursor({
                 : filters.listingType === 'CustomService' ? ['CustomService']
                 : ['Service', 'CustomService'];
 
-              const { data, error } = await supabase.rpc('get_services_cursor_paginated', {
+              // PHASE 2A: Coalesced RPC call to reduce duplicate requests
+              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,
@@ -241,7 +243,8 @@ export function useListingsCursor({
             (async () => {
               const currentCursor = reset ? null : jobCursor;
 
-              const { data, error } = await supabase.rpc('get_jobs_cursor_paginated', {
+              // PHASE 2A: Coalesced RPC call to reduce duplicate requests
+              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,

@@ -13,6 +13,7 @@ import {
   getCachedHomeListings,
   setCachedHomeListings,
 } from '@/lib/listing-cache';
+import { coalescedRpc } from '@/lib/request-coalescer';
 
 // ============================================================================
 // TYPES
@@ -251,7 +252,8 @@ export function useListings({
                 const listingTypeParam = filters.listingType === 'CustomService' ? 'CustomService'
                   : null;
 
-                const { data, error } = await supabase.rpc('find_nearby_service_listings', {
+                // PHASE 2A: Coalesced RPC call to reduce duplicate requests
+                const { data, error } = await coalescedRpc(supabase, 'find_nearby_service_listings', {
                   p_latitude: filters.userLatitude,
                   p_longitude: filters.userLongitude,
                   p_radius_miles: filters.distance,
@@ -326,7 +328,8 @@ export function useListings({
           if (useDistanceFilter) {
             fetchPromises.push(
               (async () => {
-                const { data, error } = await supabase.rpc('find_nearby_jobs', {
+                // PHASE 2A: Coalesced RPC call to reduce duplicate requests
+                const { data, error } = await coalescedRpc(supabase, 'find_nearby_jobs', {
                   p_latitude: filters.userLatitude,
                   p_longitude: filters.userLongitude,
                   p_radius_miles: filters.distance,
