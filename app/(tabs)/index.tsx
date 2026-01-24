@@ -1121,12 +1121,6 @@ export default function HomeScreen() {
               updateCellsBatchingPeriod={100}
               windowSize={5}
               removeClippedSubviews={true}
-              // Improve scroll performance
-              getItemLayout={(data, index) => ({
-                length: 200,
-                offset: 200 * index,
-                index,
-              })}
               maintainVisibleContentPosition={{
                 minIndexForVisible: 0,
                 autoscrollToTopThreshold: 10,
