@@ -10,8 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, X } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-
-export type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | 'jobs_fixed' | 'jobs_quoted';
+import { MapViewMode } from '@/types/map';
 
 interface MapViewFABProps {
   mode: MapViewMode;
@@ -59,6 +58,14 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   const [expanded, setExpanded] = useState(false);
   const menuAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  // Cleanup animations on unmount
+  React.useEffect(() => {
+    return () => {
+      menuAnim.stopAnimation();
+      shakeAnim.stopAnimation();
+    };
+  }, [menuAnim, shakeAnim]);
 
   const toggleExpanded = () => {
     const toValue = expanded ? 0 : 1;
@@ -150,6 +157,9 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
             onPress={() => handleModeSelect('listings')}
             activeOpacity={0.7}
             pointerEvents="auto"
+            accessibilityLabel="Show all listings on map"
+            accessibilityRole="button"
+            accessibilityState={{ selected: mode === 'listings' }}
           >
             <MapPin
               size={18}
@@ -253,6 +263,9 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
         onPress={toggleExpanded}
         activeOpacity={0.9}
         pointerEvents="auto"
+        accessibilityLabel={expanded ? 'Close map view options' : 'Open map view options'}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
       >
         <Animated.View
           style={{

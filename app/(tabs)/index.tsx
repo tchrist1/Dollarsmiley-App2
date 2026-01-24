@@ -19,7 +19,7 @@ import MapViewPlatform from '@/components/MapViewPlatform';
 import InteractiveMapViewPlatform from '@/components/InteractiveMapViewPlatform';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
-import MapViewFAB, { MapViewMode } from '@/components/MapViewFAB';
+import MapViewFAB from '@/components/MapViewFAB';
 import MapFAB from '@/components/MapFAB';
 import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
@@ -28,6 +28,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/
 import { formatCurrency } from '@/lib/currency-utils';
 import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
+import { MapViewMode } from '@/types/map';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -49,7 +50,7 @@ interface ListingCardProps {
 const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
-  const listing = item as any;
+  const listing = item;
 
   // Type label logic
   let typeLabel = { text: 'SERVICE', color: colors.success };
@@ -130,7 +131,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
 const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
-  const listing = item as any;
+  const listing = item;
 
   // Type label logic
   let typeLabel = { text: 'SERVICE', color: colors.success };
@@ -766,7 +767,7 @@ export default function HomeScreen() {
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
-      router.push(`/provider/store/${marker.id}` as any);
+      router.push(`/provider/store/${marker.id}`);
     } else {
       const listing = listings.find((l) => l.id === marker.id);
       if (listing) {

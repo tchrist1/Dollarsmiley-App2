@@ -3,8 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-
-type MapViewMode = 'listings' | 'providers' | 'services' | 'jobs_all' | 'jobs_fixed' | 'jobs_quoted';
+import { MapViewMode } from '@/types/map';
 
 interface MapStatusHintProps {
   locationCount: number;
@@ -22,6 +21,14 @@ export default function MapStatusHint({
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(-20)).current;
+
+  // Cleanup animations on unmount
+  useEffect(() => {
+    return () => {
+      fadeAnim.stopAnimation();
+      translateYAnim.stopAnimation();
+    };
+  }, [fadeAnim, translateYAnim]);
 
   useEffect(() => {
     if (visible) {
