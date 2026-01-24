@@ -1123,7 +1123,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: '#006634',
   },
   searchBarWrapper: {
@@ -1392,11 +1392,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadows.lg,
   },
   mapBadgeText: {
     fontSize: fontSize.sm,
@@ -1465,7 +1461,7 @@ const styles = StyleSheet.create({
   },
   carouselTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: '#222222',
   },
   seeAllText: {
@@ -1560,12 +1556,12 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: colors.text,
   },
   embeddedSeeAllText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: colors.primary,
   },
   embeddedCarouselList: {
@@ -1580,11 +1576,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.md,
   },
   embeddedCarouselCardImage: {
     width: '100%',
@@ -1626,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselCardTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: colors.text,
     marginBottom: spacing.xs,
     lineHeight: 20,
@@ -1646,7 +1638,7 @@ const styles = StyleSheet.create({
   },
   embeddedCarouselCardPrice: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: colors.primary,
   },
   embeddedCarouselCardRating: {
@@ -1661,7 +1653,7 @@ const styles = StyleSheet.create({
   embeddedCarouselCardRatingText: {
     fontSize: 12,
     color: colors.text,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   viewContainer: {
     ...StyleSheet.absoluteFillObject,
