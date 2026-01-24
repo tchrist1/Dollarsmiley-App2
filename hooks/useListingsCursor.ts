@@ -210,7 +210,8 @@ export function useListingsCursor({
                 p_min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
                 p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
                 p_min_rating: filters.minRating || null,
-                p_listing_types: listingTypes
+                p_listing_types: listingTypes,
+                p_sort_by: filters.sortBy || 'relevance'
               });
 
               let nextCursor: Cursor | null = null;
@@ -243,7 +244,8 @@ export function useListingsCursor({
                 p_category_id: filters.categories.length === 1 ? filters.categories[0] : null,
                 p_search: searchQuery.trim() || null,
                 p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
-                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null
+                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_sort_by: filters.sortBy || 'relevance'
               });
 
               let nextCursor: Cursor | null = null;
@@ -298,9 +300,31 @@ export function useListingsCursor({
         // Tier-4: Conditional sorting optimization
         // Only sort on initial fetch; pagination appends maintain cursor order
         if (reset) {
-          allResults.sort((a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          const sortBy = filters.sortBy || 'relevance';
+
+          allResults.sort((a, b) => {
+            if (sortBy === 'price_low') {
+              const priceA = a.price || a.budget || 0;
+              const priceB = b.price || b.budget || 0;
+              return priceA - priceB;
+            }
+            if (sortBy === 'price_high') {
+              const priceA = a.price || a.budget || 0;
+              const priceB = b.price || b.budget || 0;
+              return priceB - priceA;
+            }
+            if (sortBy === 'rating') {
+              const ratingA = a.average_rating || 0;
+              const ratingB = b.average_rating || 0;
+              return ratingB - ratingA;
+            }
+            if (sortBy === 'popular') {
+              const bookingsA = a.total_bookings || 0;
+              const bookingsB = b.total_bookings || 0;
+              return bookingsB - bookingsA;
+            }
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
         }
 
         if (!isMountedRef.current) return;
