@@ -94,10 +94,7 @@ export const CompactListingCard = memo(function CompactListingCard({
             </View>
           )}
           <Animated.Image
-            source={{
-              uri: image_url,
-              cache: 'force-cache'
-            }}
+            source={{ uri: image_url }}
             style={[styles.image, { opacity: imageOpacity }]}
             resizeMode="cover"
             onLoad={handleImageLoad}

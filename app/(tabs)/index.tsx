@@ -173,14 +173,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       onPress={() => onPress(item.id, isJob)}
     >
       {mainImage ? (
-        <Image
-          source={{
-            uri: mainImage,
-            cache: 'force-cache'
-          }}
-          style={styles.gridCardImage}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: mainImage }} style={styles.gridCardImage} resizeMode="cover" />
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
