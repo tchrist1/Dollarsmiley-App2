@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Image, InteractionManager, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, InteractionManager, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,7 +8,6 @@ import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock,
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
-import CachedAvatar from '@/components/CachedAvatar';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
 // WEEK 3: Using optimized FilterModal with 90% performance improvement
 import { FilterOptions, defaultFilters } from '@/components/FilterModal';
@@ -25,11 +24,9 @@ import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { formatCurrency } from '@/lib/currency-utils';
 import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
-import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -37,214 +34,9 @@ import { useListingsCursor as useListings } from '@/hooks/useListingsCursor';
 import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
 
-// ============================================================================
-// PRIORITY 5 FIX: Memoized card components to prevent re-renders
-// Before: Parent re-renders → renderListingCard recreates all card elements → all cards re-render
-// After: Parent re-renders → Memoized cards check if props changed → only changed cards re-render
-// ============================================================================
-
-interface ListingCardProps {
-  item: MarketplaceListing;
-  onPress: (id: string, isJob: boolean) => void;
-}
-
-const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
-  const isJob = item.marketplace_type === 'Job';
-  const profile = isJob ? item.customer : item.provider;
-  const listing = item;
-
-  // Type label logic
-  let typeLabel = { text: 'SERVICE', color: colors.success };
-  if (isJob) {
-    typeLabel = { text: 'JOB', color: colors.primary };
-  } else if (listing.listing_type === 'CustomService') {
-    typeLabel = { text: 'CUSTOM', color: colors.accent };
-  }
-
-  // Price calculation
-  let priceText = '';
-  if (isJob) {
-    if (listing.fixed_price) {
-      priceText = formatCurrency(listing.fixed_price);
-    } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${formatCurrency(listing.budget_min)} - ${formatCurrency(listing.budget_max)}`;
-    } else if (listing.budget_min) {
-      priceText = `From ${formatCurrency(listing.budget_min)}`;
-    } else {
-      priceText = 'Budget TBD';
-    }
-  } else {
-    const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
-  }
-
-  return (
-    <TouchableOpacity
-      style={styles.listingCard}
-      activeOpacity={0.7}
-      onPress={() => onPress(item.id, isJob)}
-    >
-      <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
-      </View>
-      <View style={styles.listingContent}>
-        <Text style={styles.listingTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.listingMeta}>
-          <View style={styles.listingLocation}>
-            <MapPin size={14} color={colors.textLight} />
-            <Text style={styles.listingLocationText} numberOfLines={1}>
-              {getServiceLocationDisplay(item.service_type, profile)}
-            </Text>
-            {item.distance_miles != null && (
-              <View style={styles.distanceBadge}>
-                <Navigation size={10} color={colors.textLight} />
-                <Text style={styles.distanceBadgeText}>
-                  {item.distance_miles.toFixed(1)} mi
-                </Text>
-              </View>
-            )}
-          </View>
-          {profile?.rating_average && profile.rating_average > 0 && (
-            <View style={styles.listingRating}>
-              <Star size={14} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.listingRatingText}>
-                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
-              </Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.listingFooter}>
-          <View style={styles.listingProvider}>
-            <CachedAvatar
-              uri={profile?.avatar_url}
-              size={32}
-              fallbackIconSize={16}
-              style={styles.providerAvatar}
-            />
-            <Text style={styles.providerName} numberOfLines={1}>
-              {profile?.full_name || 'Anonymous'}
-            </Text>
-          </View>
-          <Text style={styles.listingPrice}>{priceText}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
-const GridCard = memo(({ item, onPress }: ListingCardProps) => {
-  const isJob = item.marketplace_type === 'Job';
-  const profile = isJob ? item.customer : item.provider;
-  const listing = item;
-
-  // Type label logic
-  let typeLabel = { text: 'SERVICE', color: colors.success };
-  if (isJob) {
-    typeLabel = { text: 'JOB', color: colors.primary };
-  } else if (listing.listing_type === 'CustomService') {
-    typeLabel = { text: 'CUSTOM', color: colors.accent };
-  }
-
-  const mainImage = listing.featured_image_url || null;
-
-  // Price calculation
-  let priceText = '';
-  let priceSuffix = '';
-  if (isJob) {
-    if (listing.fixed_price) {
-      priceText = formatCurrency(listing.fixed_price);
-      priceSuffix = '';
-    } else if (listing.budget_min && listing.budget_max) {
-      priceText = `${formatCurrency(listing.budget_min)}-${formatCurrency(listing.budget_max)}`;
-      priceSuffix = '';
-    } else if (listing.budget_min) {
-      priceText = formatCurrency(listing.budget_min);
-      priceSuffix = '+';
-    } else {
-      priceText = 'Budget TBD';
-      priceSuffix = '';
-    }
-  } else {
-    const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
-    priceText = formatCurrency(listing.base_price || 0);
-    priceSuffix = `/${priceType}`;
-  }
-
-  return (
-    <TouchableOpacity
-      style={styles.gridCard}
-      activeOpacity={0.7}
-      onPress={() => onPress(item.id, isJob)}
-    >
-      {mainImage ? (
-        <Image source={{ uri: mainImage }} style={styles.gridCardImage} resizeMode="cover" />
-      ) : (
-        <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
-          <Text style={styles.gridCardImagePlaceholderText}>
-            {isJob ? '💼' : listing.listing_type === 'CustomService' ? '✨' : '🛠️'}
-          </Text>
-        </View>
-      )}
-      <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
-      </View>
-      {listing.distance_miles != null && (
-        <View style={styles.gridDistanceBadge}>
-          <Navigation size={10} color={colors.white} />
-          <Text style={styles.gridDistanceBadgeText}>
-            {listing.distance_miles < 1
-              ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-              : `${listing.distance_miles.toFixed(1)} mi`}
-          </Text>
-        </View>
-      )}
-      <View style={styles.gridCardContent}>
-        <View style={styles.gridHeader}>
-          <CachedAvatar
-            uri={profile?.avatar_url}
-            size={28}
-            fallbackIconSize={14}
-            style={styles.gridAvatar}
-          />
-          {profile && (
-            <Text style={styles.gridAccountName} numberOfLines={1}>
-              {profile.full_name}
-            </Text>
-          )}
-          {profile && profile.rating_average > 0 && (
-            <View style={styles.gridRating}>
-              <Star size={10} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
-            </View>
-          )}
-        </View>
-        <Text style={styles.gridTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.gridFooter}>
-          <View style={styles.gridLocation}>
-            <MapPin size={12} color={colors.textLight} />
-            <Text style={styles.gridLocationText} numberOfLines={1}>
-              {getServiceLocationDisplay(item.service_type, profile)}
-            </Text>
-          </View>
-          <View style={styles.gridPrice}>
-            <Text style={styles.gridPriceAmount}>{priceText}</Text>
-            {priceSuffix ? <Text style={styles.gridPriceType}>{priceSuffix}</Text> : null}
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
+// PHASE 3A: Import modularized card components
+import { HomeListingCard } from '@/components/HomeListingCard';
+import { HomeGridCard } from '@/components/HomeGridCard';
 
 // ============================================================================
 
@@ -894,16 +686,16 @@ export default function HomeScreen() {
     router.push(isJob ? `/jobs/${id}` : `/listing/${id}`);
   }, []);
 
-  // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
+  // PRIORITY 5 FIX: Use memoized card components instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} />;
+    return <HomeListingCard item={item} onPress={handleCardPress} />;
   }, [handleCardPress]);
 
-  // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
+  // PRIORITY 5 FIX: Use memoized card components instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} />;
+    return <HomeGridCard item={item} onPress={handleCardPress} />;
   }, [handleCardPress]);
 
   // List view renderer - stable, no viewMode dependency
@@ -1444,96 +1236,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
-  listingCard: {
-    position: 'relative',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    ...shadows.md,
-  },
-  listingContent: {
-    padding: spacing.lg,
-  },
-  listingTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    paddingRight: 100,
-  },
-  listingDescription: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  listingMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  listingLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  listingLocationText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.border,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
-  },
-  distanceBadgeText: {
-    fontSize: 10,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  listingRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  listingRatingText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  listingFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  listingProvider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  providerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.full,
-  },
-  providerAvatarPlaceholder: {
-    backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listingPrice: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.primary,
-  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1578,12 +1280,6 @@ const styles = StyleSheet.create({
   },
   providerDetails: {
     flex: 1,
-  },
-  providerName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-    marginBottom: spacing.xs,
   },
   rating: {
     flexDirection: 'row',
@@ -1737,130 +1433,6 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: '48%',
   },
-  gridCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  gridCardImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: colors.surface,
-  },
-  gridCardImagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-  },
-  gridCardImagePlaceholderText: {
-    fontSize: 48,
-  },
-  gridCardContent: {
-    padding: spacing.md,
-  },
-  gridHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: spacing.xs,
-  },
-  gridAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: borderRadius.full,
-  },
-  gridAvatarPlaceholder: {
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gridAvatarText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.white,
-  },
-  gridAccountName: {
-    fontSize: 13,
-    fontWeight: fontWeight.medium,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  gridRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  gridRatingText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-  },
-  gridTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    minHeight: 36,
-  },
-  gridDescription: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-    minHeight: 32,
-  },
-  gridFooter: {
-    gap: spacing.xs,
-  },
-  gridLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  gridLocationText: {
-    flex: 1,
-    fontSize: fontSize.xs,
-    color: colors.textLight,
-  },
-  gridPrice: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginTop: spacing.xs,
-  },
-  gridPriceAmount: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-  },
-  gridPriceType: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-    marginLeft: 2,
-  },
-  gridDistanceBadge: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    ...shadows.md,
-    zIndex: 1,
-  },
-  gridDistanceBadgeText: {
-    fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: colors.white,
   },
