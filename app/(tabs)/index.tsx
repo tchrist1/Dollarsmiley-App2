@@ -1150,6 +1150,11 @@ export default function HomeScreen() {
     setViewMode(mode);
   }, []);
 
+  // ============================================================================
+  // UNIFIED PRESENTATION GUARD - Prevents blank screen during asset loading
+  // ============================================================================
+  const isPresentationBlocked = loading || !visualCommitReady || !assetCommitReady;
+
   return (
     <View style={styles.container}>
       <HomeHeader
@@ -1190,7 +1195,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {loading && listings.length === 0 ? (
+      {isPresentationBlocked ? (
         <View style={{ flex: 1 }}>
           {viewMode === 'list' ? (
             <FlatList
@@ -1215,7 +1220,7 @@ export default function HomeScreen() {
             />
           )}
         </View>
-      ) : !loading && listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
+      ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.centerContent}>
           <Text style={styles.emptyStateTitle}>Welcome to Dollarsmiley</Text>
           <Text style={styles.emptyStateText}>
