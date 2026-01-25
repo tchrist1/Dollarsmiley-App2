@@ -55,10 +55,11 @@ interface ListingCardProps {
 }
 
 interface ListingCardPropsWithImageTracking extends ListingCardProps {
-  onImageReady?: (listingId: string) => void;
+  onImageReady?: (listingId: string, generation: number) => void;
+  generation?: number;
 }
 
-const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
+const ListingCard = memo(({ item, onPress, onImageReady, generation }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -90,10 +91,10 @@ const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithI
 
   // Track image readiness for list view (no primary image in this view, mark as ready immediately)
   useEffect(() => {
-    if (onImageReady) {
-      onImageReady(item.id);
+    if (onImageReady && generation !== undefined) {
+      onImageReady(item.id, generation);
     }
-  }, [item.id, onImageReady]);
+  }, [item.id, onImageReady, generation]);
 
   return (
     <TouchableOpacity
@@ -157,7 +158,7 @@ const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithI
   );
 });
 
-const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
+const GridCard = memo(({ item, onPress, onImageReady, generation }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -197,30 +198,30 @@ const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImag
 
   // Track image loading completion
   const handleImageLoad = useCallback(() => {
-    if (onImageReady) {
+    if (onImageReady && generation !== undefined) {
       if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] IMAGE_READY: ${item.id.substring(0, 8)}`);
+        console.log(`[HOME_ASSET_TRACE] IMAGE_READY: ${item.id.substring(0, 8)} GEN=${generation}`);
       }
-      onImageReady(item.id);
+      onImageReady(item.id, generation);
     }
-  }, [item.id, onImageReady]);
+  }, [item.id, onImageReady, generation]);
 
   const handleImageError = useCallback(() => {
     // Fail-safe: Mark as ready even on error to prevent deadlock
-    if (onImageReady) {
+    if (onImageReady && generation !== undefined) {
       if (__DEV__) {
-        console.warn(`[HOME_ASSET_TRACE] IMAGE_ERROR_FALLBACK: ${item.id.substring(0, 8)}`);
+        console.warn(`[HOME_ASSET_TRACE] IMAGE_ERROR_FALLBACK: ${item.id.substring(0, 8)} GEN=${generation}`);
       }
-      onImageReady(item.id);
+      onImageReady(item.id, generation);
     }
-  }, [item.id, onImageReady]);
+  }, [item.id, onImageReady, generation]);
 
   // If no image, mark as ready immediately
   useEffect(() => {
-    if (!mainImage && onImageReady) {
-      onImageReady(item.id);
+    if (!mainImage && onImageReady && generation !== undefined) {
+      onImageReady(item.id, generation);
     }
-  }, [mainImage, item.id, onImageReady]);
+  }, [mainImage, item.id, onImageReady, generation]);
 
   return (
     <TouchableOpacity
@@ -339,12 +340,19 @@ export default function HomeScreen() {
   // OPTIMIZATION STRATEGY:
   // 1. Only gate on first 4 listings (reduced from 8) - 50% faster first paint
   // 2. Preload images during skeleton phase - overlaps network time
-  // 3. Reduced timeout from 3s to 1.5s - faster fallback
-  // 4. Below-fold images don't block assetCommitReady
+  // 3. Generation-based tracking prevents deadlock on filter changes
+  // 4. Timeout fallback ALWAYS releases for active generation
+  // 5. Below-fold images don't block assetCommitReady
   // ============================================================================
   const [imageReadinessMap, setImageReadinessMap] = useState<Set<string>>(new Set());
   const imageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageReadinessInitializedRef = useRef(false);
+
+  // GENERATION-BASED TRACKING - Prevents stale callbacks from interfering
+  const assetGenerationRef = useRef(0);
+  const currentGenerationRef = useRef(0);
+  const firstPaintIdsRef = useRef<string[]>([]);
+  const timeoutStartedForGenerationRef = useRef<number | null>(null);
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -368,8 +376,17 @@ export default function HomeScreen() {
 
   // ============================================================================
   // IMAGE READINESS CALLBACK - Track when individual images complete loading
+  // GENERATION-GUARDED: Ignore callbacks from stale generations
   // ============================================================================
-  const handleImageReady = useCallback((listingId: string) => {
+  const handleImageReady = useCallback((listingId: string, callbackGeneration: number) => {
+    // GUARD: Ignore stale callbacks from previous generations
+    if (!isMountedRef.current || callbackGeneration !== currentGenerationRef.current) {
+      if (__DEV__) {
+        console.log(`[HOME_ASSET_TRACE] GEN_STALE_CALLBACK_IGNORED ${callbackGeneration} (current: ${currentGenerationRef.current})`);
+      }
+      return;
+    }
+
     setImageReadinessMap(prev => {
       const next = new Set(prev);
       next.add(listingId);
@@ -377,9 +394,17 @@ export default function HomeScreen() {
     });
   }, []);
 
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // ============================================================================
   // IMAGE READINESS GATE - Determine if all visible images are ready
-  // OPTIMIZED: Only gate on first visible row (4 cards max)
+  // GENERATION-BASED: Uses FROZEN first-paint IDs per generation
   // ============================================================================
   const allVisibleImagesReady = useMemo(() => {
     if (!visualCommitReady || rawListings.length === 0) {
@@ -391,51 +416,83 @@ export default function HomeScreen() {
       return true;
     }
 
-    // OPTIMIZATION: Only wait for first 4 listings (2 rows in grid view)
-    // This reduces assetCommitReady blocking by 50% while maintaining visual quality
-    const firstPaintBatchSize = 4;
-    const visibleListings = rawListings.slice(0, firstPaintBatchSize);
-    const allImagesReady = visibleListings.every(listing => {
+    // Use frozen first-paint IDs for this generation
+    const frozenFirstPaintIds = firstPaintIdsRef.current;
+
+    if (frozenFirstPaintIds.length === 0) {
+      // No frozen IDs yet, generation hasn't started tracking
+      return false;
+    }
+
+    // Check if all frozen first-paint listings are ready
+    const allImagesReady = frozenFirstPaintIds.every(listingId => {
+      // Find the listing in rawListings
+      const listing = rawListings.find(l => l.id === listingId);
+
+      // If listing not found in current results, skip (it was removed)
+      if (!listing) {
+        return true;
+      }
+
       // If no featured image, consider it ready
       if (!listing.featured_image_url) {
         return true;
       }
+
       // Check if this listing's image has been marked ready
       return imageReadinessMap.has(listing.id);
     });
 
-    if (__DEV__ && allImagesReady) {
-      console.log('[HOME_ASSET_TRACE] ALL_IMAGES_READY (first 4 cards)');
+    if (__DEV__ && allImagesReady && frozenFirstPaintIds.length > 0) {
+      console.log(`[HOME_ASSET_TRACE] GEN_ALL_READY_RELEASE ${currentGenerationRef.current} (${frozenFirstPaintIds.length} images)`);
     }
 
     return allImagesReady;
   }, [visualCommitReady, rawListings, viewMode, imageReadinessMap]);
 
   // ============================================================================
-  // TIMEOUT PROTECTION - Prevent deadlock if images fail to load
-  // OPTIMIZED: Shorter timeout (1.5s) for faster first paint fallback
+  // GENERATION-AWARE TIMEOUT PROTECTION - GUARANTEED to release gate
+  // Prevents infinite skeleton by forcing release after timeout
   // ============================================================================
   useEffect(() => {
-    if (visualCommitReady && rawListings.length > 0 && !allVisibleImagesReady) {
-      // Clear any existing timeout
+    // Start timeout only when:
+    // 1. Visual data is ready
+    // 2. We have listings
+    // 3. Images aren't all ready yet
+    // 4. Timeout hasn't been started for this generation yet
+    if (visualCommitReady &&
+        rawListings.length > 0 &&
+        !allVisibleImagesReady &&
+        timeoutStartedForGenerationRef.current !== currentGenerationRef.current) {
+
+      // Clear any existing timeout from previous generation
       if (imageTimeoutRef.current) {
         clearTimeout(imageTimeoutRef.current);
       }
 
-      // OPTIMIZATION: Reduced timeout from 3s to 1.5s for faster first paint
-      imageTimeoutRef.current = setTimeout(() => {
-        if (__DEV__) {
-          console.warn('[HOME_ASSET_TRACE] IMAGE_TIMEOUT_FALLBACK - Force marking first 4 as ready');
-        }
+      const timeoutGeneration = currentGenerationRef.current;
+      timeoutStartedForGenerationRef.current = timeoutGeneration;
 
-        // Mark first 4 visible listings as ready
-        const firstPaintBatchSize = 4;
-        const visibleListings = rawListings.slice(0, firstPaintBatchSize);
-        setImageReadinessMap(prev => {
-          const next = new Set(prev);
-          visibleListings.forEach(listing => next.add(listing.id));
-          return next;
-        });
+      if (__DEV__) {
+        console.log(`[HOME_ASSET_TRACE] GEN_TIMEOUT_START ${timeoutGeneration}`);
+      }
+
+      // CRITICAL: Timeout MUST release the active generation regardless of callbacks
+      imageTimeoutRef.current = setTimeout(() => {
+        // Only release if this is still the active generation
+        if (timeoutGeneration === currentGenerationRef.current && isMountedRef.current) {
+          if (__DEV__) {
+            console.warn(`[HOME_ASSET_TRACE] GEN_TIMEOUT_RELEASE ${timeoutGeneration} - Force marking frozen IDs as ready`);
+          }
+
+          // Mark all frozen first-paint IDs as ready
+          const frozenIds = firstPaintIdsRef.current;
+          setImageReadinessMap(prev => {
+            const next = new Set(prev);
+            frozenIds.forEach(id => next.add(id));
+            return next;
+          });
+        }
       }, 1500);
     }
 
@@ -448,27 +505,51 @@ export default function HomeScreen() {
   }, [visualCommitReady, rawListings, allVisibleImagesReady]);
 
   // ============================================================================
-  // RESET IMAGE TRACKING - Clear when listings change (new search/filter)
+  // GENERATION MANAGEMENT - Increment ONLY on meaningful listing resets
+  // CRITICAL: This prevents "moving target" deadlock
   // ============================================================================
   const listingsSnapshotRef = useRef<string>('');
   useEffect(() => {
-    // Create a fingerprint of current listings
-    const currentSnapshot = rawListings.map(l => l.id).slice(0, 4).join(',');
+    // Only process when visual data is ready
+    if (!visualCommitReady || rawListings.length === 0) {
+      return;
+    }
 
-    // Reset image readiness when listings change significantly
-    if (listingsSnapshotRef.current !== currentSnapshot && rawListings.length > 0) {
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] LISTINGS_CHANGED - Resetting image tracking');
-      }
+    // Create a fingerprint of current listings (first 6 IDs)
+    const currentSnapshot = rawListings.map(l => l.id).slice(0, 6).join(',');
+
+    // Check if listings have meaningfully changed (identity changed)
+    const listingsChanged = listingsSnapshotRef.current !== currentSnapshot;
+
+    if (listingsChanged) {
+      // ADVANCE GENERATION - This is a meaningful reset
+      const newGeneration = assetGenerationRef.current + 1;
+      assetGenerationRef.current = newGeneration;
+      currentGenerationRef.current = newGeneration;
+
+      // FREEZE FIRST-PAINT IDs for this generation
+      const firstPaintBatchSize = 4;
+      const frozenIds = rawListings.slice(0, firstPaintBatchSize).map(l => l.id);
+      firstPaintIdsRef.current = frozenIds;
+
+      // Reset image tracking for new generation
       setImageReadinessMap(new Set());
       imageReadinessInitializedRef.current = false;
+      timeoutStartedForGenerationRef.current = null;
+
+      // Update snapshot
       listingsSnapshotRef.current = currentSnapshot;
+
+      if (__DEV__) {
+        console.log(`[HOME_ASSET_TRACE] GEN_START ${newGeneration} firstPaintCount=${frozenIds.length}`);
+      }
     }
-  }, [rawListings]);
+  }, [visualCommitReady, rawListings]);
 
   // ============================================================================
   // IMAGE PRELOADING - Start loading images during skeleton phase
   // OPTIMIZATION: Overlap image fetching with skeleton display time
+  // Uses FROZEN first-paint IDs to preload exactly what gates presentation
   // ============================================================================
   const preloadedImagesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -482,11 +563,17 @@ export default function HomeScreen() {
       return;
     }
 
-    // Preload first 4 images that will gate first paint
-    const firstPaintBatchSize = 4;
-    const imagesToPreload = rawListings
-      .slice(0, firstPaintBatchSize)
-      .filter(listing => listing.featured_image_url && !preloadedImagesRef.current.has(listing.id))
+    // Skip if no frozen IDs yet
+    const frozenIds = firstPaintIdsRef.current;
+    if (frozenIds.length === 0) {
+      return;
+    }
+
+    // Preload images for frozen first-paint IDs
+    const imagesToPreload = frozenIds
+      .map(id => rawListings.find(l => l.id === id))
+      .filter((listing): listing is MarketplaceListing => !!listing && !!listing.featured_image_url)
+      .filter(listing => !preloadedImagesRef.current.has(listing.id))
       .map(listing => ({
         id: listing.id,
         url: listing.featured_image_url!
@@ -494,7 +581,7 @@ export default function HomeScreen() {
 
     if (imagesToPreload.length > 0) {
       if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] PRELOADING ${imagesToPreload.length} images during skeleton`);
+        console.log(`[HOME_ASSET_TRACE] PRELOADING ${imagesToPreload.length} images during skeleton GEN=${currentGenerationRef.current}`);
       }
 
       // Preload images using React Native's Image.prefetch
@@ -515,9 +602,9 @@ export default function HomeScreen() {
     }
   }, [visualCommitReady, assetCommitReady, rawListings, viewMode]);
 
-  // Clear preload cache when listings change
+  // Clear preload cache when generation changes (listings changed)
   useEffect(() => {
-    const currentSnapshot = rawListings.map(l => l.id).slice(0, 4).join(',');
+    const currentSnapshot = rawListings.map(l => l.id).slice(0, 6).join(',');
     if (listingsSnapshotRef.current !== currentSnapshot) {
       preloadedImagesRef.current.clear();
     }
@@ -1150,13 +1237,27 @@ export default function HomeScreen() {
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
+    return (
+      <ListingCard
+        item={item}
+        onPress={handleCardPress}
+        onImageReady={handleImageReady}
+        generation={currentGenerationRef.current}
+      />
+    );
   }, [handleCardPress, handleImageReady]);
 
   // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
+    return (
+      <GridCard
+        item={item}
+        onPress={handleCardPress}
+        onImageReady={handleImageReady}
+        generation={currentGenerationRef.current}
+      />
+    );
   }, [handleCardPress, handleImageReady]);
 
   // List view renderer - stable, no viewMode dependency
