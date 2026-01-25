@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { Star } from 'lucide-react-native';
 import { MarketplaceListing } from '@/types/database';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { formatCurrency } from '@/lib/currency-utils';
+import { formatCurrency, formatRating } from '@/lib/currency-utils';
 import { getServiceLocationDisplay } from '@/lib/service-location-utils';
 
 interface HomeCarouselSectionProps {
@@ -81,14 +81,17 @@ export const HomeCarouselSection = memo<HomeCarouselSectionProps>(({
 
           <View style={styles.carouselCardFooter}>
             <Text style={styles.carouselCardPrice}>{price}</Text>
-            {profile?.rating_average && profile.rating_average > 0 && (
-              <View style={styles.carouselCardRating}>
-                <Star size={12} color={colors.warning} fill={colors.warning} />
-                <Text style={styles.carouselCardRatingText}>
-                  {profile.rating_average.toFixed(1)}
-                </Text>
-              </View>
-            )}
+            {(() => {
+              const ratingInfo = formatRating(profile?.rating_average, profile?.rating_count);
+              return ratingInfo.display && (
+                <View style={styles.carouselCardRating}>
+                  <Star size={12} color={colors.warning} fill={colors.warning} />
+                  <Text style={styles.carouselCardRatingText}>
+                    {ratingInfo.text}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
       </TouchableOpacity>
