@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated }
 import { Star, MapPin } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
-import { formatCurrency } from '@/lib/currency-utils';
+import { formatCurrency, formatDistance, formatRating } from '@/lib/currency-utils';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - spacing.lg * 3) / 2;
@@ -16,8 +16,10 @@ interface CompactListingCardProps {
   provider_name?: string;
   provider_avatar?: string;
   rating?: number;
+  rating_count?: number;
   listing_type?: string;
   location?: string;
+  distance_miles?: number | null;
   customWidth?: number;
   description?: string;
 }
@@ -60,8 +62,10 @@ export const CompactListingCard = memo(function CompactListingCard({
   provider_name,
   provider_avatar,
   rating,
+  rating_count,
   listing_type,
   location,
+  distance_miles,
   customWidth,
   description,
 }: CompactListingCardProps) {
@@ -119,12 +123,15 @@ export const CompactListingCard = memo(function CompactListingCard({
           <Text style={styles.price}>{formatCurrency(price)}</Text>
         )}
 
-        {rating !== undefined && rating > 0 && (
-          <View style={styles.ratingContainer}>
-            <Star size={12} fill={colors.warning} color={colors.warning} />
-            <Text style={styles.rating}>{rating.toFixed(1)}</Text>
-          </View>
-        )}
+        {(() => {
+          const ratingInfo = formatRating(rating, rating_count);
+          return ratingInfo.display && (
+            <View style={styles.ratingContainer}>
+              <Star size={12} fill={colors.warning} color={colors.warning} />
+              <Text style={styles.rating}>{ratingInfo.text}</Text>
+            </View>
+          );
+        })()}
 
         {provider_name && (
           <View style={styles.providerContainer}>
@@ -148,6 +155,14 @@ export const CompactListingCard = memo(function CompactListingCard({
             <MapPin size={10} color={colors.textSecondary} />
             <Text style={styles.location} numberOfLines={1}>
               {location}
+            </Text>
+          </View>
+        )}
+
+        {formatDistance(distance_miles) && (
+          <View style={styles.distanceContainer}>
+            <Text style={styles.distance}>
+              {formatDistance(distance_miles)}
             </Text>
           </View>
         )}
@@ -270,6 +285,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginLeft: spacing.xxs,
     flex: 1,
+  },
+  distanceContainer: {
+    marginBottom: spacing.xs,
+  },
+  distance: {
+    fontSize: fontSize.xs,
+    color: colors.primary,
+    fontWeight: fontWeight.semibold,
   },
   button: {
     backgroundColor: colors.primary,

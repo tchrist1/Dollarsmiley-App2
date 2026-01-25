@@ -25,7 +25,7 @@ import MapStatusHint from '@/components/MapStatusHint';
 import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapView';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
-import { formatCurrency } from '@/lib/currency-utils';
+import { formatCurrency, formatDistance, formatRating } from '@/lib/currency-utils';
 import { invalidateAllCaches } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
@@ -106,23 +106,26 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
             <Text style={styles.listingLocationText} numberOfLines={1}>
               {getServiceLocationDisplay(item.service_type, profile)}
             </Text>
-            {item.distance_miles != null && (
+            {formatDistance(item.distance_miles) && (
               <View style={styles.distanceBadge}>
                 <Navigation size={10} color={colors.textLight} />
                 <Text style={styles.distanceBadgeText}>
-                  {item.distance_miles.toFixed(1)} mi
+                  {formatDistance(item.distance_miles)}
                 </Text>
               </View>
             )}
           </View>
-          {profile?.rating_average && profile.rating_average > 0 && (
-            <View style={styles.listingRating}>
-              <Star size={14} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.listingRatingText}>
-                {profile.rating_average.toFixed(1)} ({profile.rating_count || 0})
-              </Text>
-            </View>
-          )}
+          {(() => {
+            const ratingInfo = formatRating(profile?.rating_average, profile?.rating_count);
+            return ratingInfo.display && (
+              <View style={styles.listingRating}>
+                <Star size={14} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.listingRatingText}>
+                  {ratingInfo.text} ({profile.rating_count || 0})
+                </Text>
+              </View>
+            );
+          })()}
         </View>
         <View style={styles.listingFooter}>
           <View style={styles.listingProvider}>
@@ -199,13 +202,11 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: typeLabel.color, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, zIndex: 1 }}>
         <Text style={{ color: '#fff', fontSize: 10, fontWeight: '600' }}>{typeLabel.text}</Text>
       </View>
-      {listing.distance_miles != null && (
+      {formatDistance(listing.distance_miles) && (
         <View style={styles.gridDistanceBadge}>
           <Navigation size={10} color={colors.white} />
           <Text style={styles.gridDistanceBadgeText}>
-            {listing.distance_miles < 1
-              ? `${(listing.distance_miles * 5280).toFixed(0)} ft`
-              : `${listing.distance_miles.toFixed(1)} mi`}
+            {formatDistance(listing.distance_miles)}
           </Text>
         </View>
       )}
@@ -222,12 +223,15 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
               {profile.full_name}
             </Text>
           )}
-          {profile && profile.rating_average > 0 && (
-            <View style={styles.gridRating}>
-              <Star size={10} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.gridRatingText}>{profile.rating_average?.toFixed(1) || 'N/A'}</Text>
-            </View>
-          )}
+          {(() => {
+            const ratingInfo = formatRating(profile?.rating_average, profile?.rating_count);
+            return ratingInfo.display && (
+              <View style={styles.gridRating}>
+                <Star size={10} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.gridRatingText}>{ratingInfo.text}</Text>
+              </View>
+            );
+          })()}
         </View>
         <Text style={styles.gridTitle} numberOfLines={2}>
           {item.title}

@@ -76,3 +76,52 @@ export function getPriceValue(amount: number | string | undefined | null): numbe
   const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return isNaN(numericAmount) ? 0 : numericAmount;
 }
+
+/**
+ * Format distance consistently across all views
+ * - < 1 mile: display in feet (rounded)
+ * - >= 1 mile: display in miles (1 decimal)
+ * - null/undefined: return null (do not display)
+ */
+export function formatDistance(distanceMiles: number | null | undefined): string | null {
+  if (distanceMiles === null || distanceMiles === undefined || isNaN(distanceMiles)) {
+    return null;
+  }
+
+  if (distanceMiles < 0.1) {
+    // Very close - show in feet
+    const feet = Math.round(distanceMiles * 5280);
+    return `${feet} ft`;
+  } else if (distanceMiles < 1) {
+    // Less than 1 mile - show in feet for precision
+    const feet = Math.round(distanceMiles * 5280);
+    return `${feet} ft`;
+  } else {
+    // 1 mile or more - show in miles with 1 decimal
+    return `${distanceMiles.toFixed(1)} mi`;
+  }
+}
+
+/**
+ * Format rating with validation
+ * Only show rating if both average and count are available
+ */
+export function formatRating(
+  average: number | null | undefined,
+  count?: number | null | undefined
+): { display: boolean; text: string; value: number } {
+  const hasValidAverage = average !== null && average !== undefined && average > 0;
+
+  // If count is provided, require it to be > 0
+  const hasValidCount = count === undefined || (count !== null && count > 0);
+
+  if (!hasValidAverage || !hasValidCount) {
+    return { display: false, text: '', value: 0 };
+  }
+
+  return {
+    display: true,
+    text: average.toFixed(1),
+    value: average,
+  };
+}

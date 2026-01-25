@@ -17,7 +17,7 @@ import {
 } from 'lucide-react-native';
 import FeaturedBadge from './FeaturedBadge';
 import { trackFeaturedImpression, trackFeaturedClick } from '@/lib/featured-listings';
-import { formatCurrency } from '@/lib/currency-utils';
+import { formatCurrency, formatRating } from '@/lib/currency-utils';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -113,14 +113,17 @@ export default function FeaturedListingCard({
                 {listing.category?.name || 'Featured'}
               </Text>
             </View>
-            {listing.provider?.average_rating && (
-              <View style={styles.ratingBadge}>
-                <Star size={14} color={colors.warning} fill={colors.warning} />
-                <Text style={styles.ratingText}>
-                  {listing.provider.average_rating.toFixed(1)}
-                </Text>
-              </View>
-            )}
+            {(() => {
+              const ratingInfo = formatRating(listing.provider?.average_rating);
+              return ratingInfo.display && (
+                <View style={styles.ratingBadge}>
+                  <Star size={14} color={colors.warning} fill={colors.warning} />
+                  <Text style={styles.ratingText}>
+                    {ratingInfo.text}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           <Text style={styles.heroTitle} numberOfLines={2}>
@@ -200,14 +203,17 @@ export default function FeaturedListingCard({
           </Text>
 
           <View style={styles.compactMeta}>
-            {listing.provider?.average_rating && (
-              <View style={styles.compactRating}>
-                <Star size={12} color={colors.warning} fill={colors.warning} />
-                <Text style={styles.compactRatingText}>
-                  {listing.provider.average_rating.toFixed(1)}
-                </Text>
-              </View>
-            )}
+            {(() => {
+              const ratingInfo = formatRating(listing.provider?.average_rating);
+              return ratingInfo.display && (
+                <View style={styles.compactRating}>
+                  <Star size={12} color={colors.warning} fill={colors.warning} />
+                  <Text style={styles.compactRatingText}>
+                    {ratingInfo.text}
+                  </Text>
+                </View>
+              );
+            })()}
             <Text style={styles.compactPrice}>{formatCurrency(listing.price)}</Text>
           </View>
         </View>
@@ -244,14 +250,17 @@ export default function FeaturedListingCard({
           <Text style={styles.category}>
             {listing.category?.name || 'Service'}
           </Text>
-          {listing.provider?.average_rating && (
-            <View style={styles.rating}>
-              <Star size={14} color={colors.warning} fill={colors.warning} />
-              <Text style={styles.ratingText}>
-                {listing.provider.average_rating.toFixed(1)}
-              </Text>
-            </View>
-          )}
+          {(() => {
+            const ratingInfo = formatRating(listing.provider?.average_rating);
+            return ratingInfo.display && (
+              <View style={styles.rating}>
+                <Star size={14} color={colors.warning} fill={colors.warning} />
+                <Text style={styles.ratingText}>
+                  {ratingInfo.text}
+                </Text>
+              </View>
+            );
+          })()}
         </View>
 
         <Text style={styles.title} numberOfLines={2}>
