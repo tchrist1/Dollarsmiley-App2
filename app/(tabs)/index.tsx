@@ -54,7 +54,11 @@ interface ListingCardProps {
   onPress: (id: string, isJob: boolean) => void;
 }
 
-const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
+interface ListingCardPropsWithImageTracking extends ListingCardProps {
+  onImageReady?: (listingId: string) => void;
+}
+
+const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -83,6 +87,13 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
     priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
   }
+
+  // Track image readiness for list view (no primary image in this view, mark as ready immediately)
+  useEffect(() => {
+    if (onImageReady) {
+      onImageReady(item.id);
+    }
+  }, [item.id, onImageReady]);
 
   return (
     <TouchableOpacity
@@ -146,7 +157,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   );
 });
 
-const GridCard = memo(({ item, onPress }: ListingCardProps) => {
+const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -184,6 +195,33 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
     priceSuffix = `/${priceType}`;
   }
 
+  // Track image loading completion
+  const handleImageLoad = useCallback(() => {
+    if (onImageReady) {
+      if (__DEV__) {
+        console.log(`[HOME_ASSET_TRACE] IMAGE_READY: ${item.id.substring(0, 8)}`);
+      }
+      onImageReady(item.id);
+    }
+  }, [item.id, onImageReady]);
+
+  const handleImageError = useCallback(() => {
+    // Fail-safe: Mark as ready even on error to prevent deadlock
+    if (onImageReady) {
+      if (__DEV__) {
+        console.warn(`[HOME_ASSET_TRACE] IMAGE_ERROR_FALLBACK: ${item.id.substring(0, 8)}`);
+      }
+      onImageReady(item.id);
+    }
+  }, [item.id, onImageReady]);
+
+  // If no image, mark as ready immediately
+  useEffect(() => {
+    if (!mainImage && onImageReady) {
+      onImageReady(item.id);
+    }
+  }, [mainImage, item.id, onImageReady]);
+
   return (
     <TouchableOpacity
       style={styles.gridCard}
@@ -191,7 +229,13 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       onPress={() => onPress(item.id, isJob)}
     >
       {mainImage ? (
-        <Image source={{ uri: mainImage }} style={styles.gridCardImage} resizeMode="cover" />
+        <Image
+          source={{ uri: mainImage }}
+          style={styles.gridCardImage}
+          resizeMode="cover"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+        />
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
@@ -290,6 +334,13 @@ export default function HomeScreen() {
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
+  // ============================================================================
+  // IMAGE READINESS TRACKING - Prevents visual commit until images are loaded
+  // ============================================================================
+  const [imageReadinessMap, setImageReadinessMap] = useState<Set<string>>(new Set());
+  const imageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const imageReadinessInitializedRef = useRef(false);
+
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings: rawListings,
@@ -310,9 +361,120 @@ export default function HomeScreen() {
     debounceMs: 300,
   });
 
+  // ============================================================================
+  // IMAGE READINESS CALLBACK - Track when individual images complete loading
+  // ============================================================================
+  const handleImageReady = useCallback((listingId: string) => {
+    setImageReadinessMap(prev => {
+      const next = new Set(prev);
+      next.add(listingId);
+      return next;
+    });
+  }, []);
+
+  // ============================================================================
+  // IMAGE READINESS GATE - Determine if all visible images are ready
+  // ============================================================================
+  const allVisibleImagesReady = useMemo(() => {
+    if (!visualCommitReady || rawListings.length === 0) {
+      return false;
+    }
+
+    // In list view, we don't have primary images, so mark as ready immediately
+    if (viewMode === 'list') {
+      return true;
+    }
+
+    // Check if all listings in the first visible batch have loaded their images
+    const initialBatchSize = 8; // Match initialNumToRender
+    const visibleListings = rawListings.slice(0, initialBatchSize);
+    const allImagesReady = visibleListings.every(listing => {
+      // If no featured image, consider it ready
+      if (!listing.featured_image_url) {
+        return true;
+      }
+      // Check if this listing's image has been marked ready
+      return imageReadinessMap.has(listing.id);
+    });
+
+    if (__DEV__ && allImagesReady) {
+      console.log('[HOME_ASSET_TRACE] ALL_IMAGES_READY');
+    }
+
+    return allImagesReady;
+  }, [visualCommitReady, rawListings, viewMode, imageReadinessMap]);
+
+  // ============================================================================
+  // TIMEOUT PROTECTION - Prevent deadlock if images fail to load
+  // ============================================================================
+  useEffect(() => {
+    if (visualCommitReady && rawListings.length > 0 && !allVisibleImagesReady) {
+      // Clear any existing timeout
+      if (imageTimeoutRef.current) {
+        clearTimeout(imageTimeoutRef.current);
+      }
+
+      // Set a fail-safe timeout (3 seconds)
+      imageTimeoutRef.current = setTimeout(() => {
+        if (__DEV__) {
+          console.warn('[HOME_ASSET_TRACE] IMAGE_TIMEOUT_FALLBACK - Force marking all as ready');
+        }
+
+        // Mark all visible listings as ready
+        const initialBatchSize = 8;
+        const visibleListings = rawListings.slice(0, initialBatchSize);
+        setImageReadinessMap(prev => {
+          const next = new Set(prev);
+          visibleListings.forEach(listing => next.add(listing.id));
+          return next;
+        });
+      }, 3000);
+    }
+
+    return () => {
+      if (imageTimeoutRef.current) {
+        clearTimeout(imageTimeoutRef.current);
+        imageTimeoutRef.current = null;
+      }
+    };
+  }, [visualCommitReady, rawListings, allVisibleImagesReady]);
+
+  // ============================================================================
+  // RESET IMAGE TRACKING - Clear when listings change (new search/filter)
+  // ============================================================================
+  const listingsSnapshotRef = useRef<string>('');
+  useEffect(() => {
+    // Create a fingerprint of current listings
+    const currentSnapshot = rawListings.map(l => l.id).slice(0, 8).join(',');
+
+    // Reset image readiness when listings change significantly
+    if (listingsSnapshotRef.current !== currentSnapshot && rawListings.length > 0) {
+      if (__DEV__) {
+        console.log('[HOME_ASSET_TRACE] LISTINGS_CHANGED - Resetting image tracking');
+      }
+      setImageReadinessMap(new Set());
+      imageReadinessInitializedRef.current = false;
+      listingsSnapshotRef.current = currentSnapshot;
+    }
+  }, [rawListings]);
+
+  // ============================================================================
+  // EXTENDED VISUAL COMMIT - Data ready AND images ready
+  // ============================================================================
+  const assetCommitReady = useMemo(() => {
+    const ready = visualCommitReady && allVisibleImagesReady;
+
+    if (__DEV__ && ready && !imageReadinessInitializedRef.current) {
+      console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED');
+      imageReadinessInitializedRef.current = true;
+    }
+
+    return ready;
+  }, [visualCommitReady, allVisibleImagesReady]);
+
   const stableListingsRef = useRef<MarketplaceListing[]>([]);
   const listings = useMemo(() => {
-    if (visualCommitReady) {
+    if (assetCommitReady) {
       stableListingsRef.current = rawListings;
     }
     if (__DEV__) {
@@ -325,7 +487,7 @@ export default function HomeScreen() {
       }
     }
     return stableListingsRef.current;
-  }, [rawListings, visualCommitReady]);
+  }, [rawListings, assetCommitReady]);
 
   const {
     searches: trendingSearches,
@@ -923,14 +1085,14 @@ export default function HomeScreen() {
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} />;
-  }, [handleCardPress]);
+    return <ListingCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
+  }, [handleCardPress, handleImageReady]);
 
   // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} />;
-  }, [handleCardPress]);
+    return <GridCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
+  }, [handleCardPress, handleImageReady]);
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
