@@ -340,6 +340,7 @@ export default function HomeScreen() {
   const [imageReadinessMap, setImageReadinessMap] = useState<Set<string>>(new Set());
   const imageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageReadinessInitializedRef = useRef(false);
+  const assetTrackingInitializedRef = useRef(false); // PATCH: Guard against double reset
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -440,7 +441,7 @@ export default function HomeScreen() {
   }, [visualCommitReady, rawListings, allVisibleImagesReady]);
 
   // ============================================================================
-  // RESET IMAGE TRACKING - Clear when listings change (new search/filter)
+  // RESET IMAGE TRACKING - Clear ONCE per load cycle (prevents double reset)
   // ============================================================================
   const listingsSnapshotRef = useRef<string>('');
   useEffect(() => {
@@ -449,11 +450,19 @@ export default function HomeScreen() {
 
     // Reset image readiness when listings change significantly
     if (listingsSnapshotRef.current !== currentSnapshot && rawListings.length > 0) {
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] LISTINGS_CHANGED - Resetting image tracking');
+      // PATCH: Only reset if tracking hasn't been initialized for this load cycle
+      if (!assetTrackingInitializedRef.current) {
+        if (__DEV__) {
+          console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_INITIALIZED');
+        }
+        setImageReadinessMap(new Set());
+        imageReadinessInitializedRef.current = false;
+        assetTrackingInitializedRef.current = true; // Mark as initialized
+      } else {
+        if (__DEV__) {
+          console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_IGNORED (duplicate listings change)');
+        }
       }
-      setImageReadinessMap(new Set());
-      imageReadinessInitializedRef.current = false;
       listingsSnapshotRef.current = currentSnapshot;
     }
   }, [rawListings]);
@@ -471,6 +480,21 @@ export default function HomeScreen() {
 
     return ready;
   }, [visualCommitReady, allVisibleImagesReady]);
+
+  // ============================================================================
+  // RESET GUARD AFTER COMMIT - Ready for next load cycle
+  // ============================================================================
+  useEffect(() => {
+    if (assetCommitReady) {
+      // Reset guard after commit so next search/filter can reset tracking
+      if (assetTrackingInitializedRef.current) {
+        if (__DEV__) {
+          console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_RESET_AFTER_COMMIT');
+        }
+        assetTrackingInitializedRef.current = false;
+      }
+    }
+  }, [assetCommitReady]);
 
   const stableListingsRef = useRef<MarketplaceListing[]>([]);
   const listings = useMemo(() => {
