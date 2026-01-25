@@ -357,6 +357,7 @@ export default function HomeScreen() {
   // PHASE 4: CACHE INVALIDATION - Clear all caches on user change or logout
   // ============================================================================
   const userIdRef = useRef<string | null>(profile?.id || null);
+  const locationInitializedRef = useRef(false);
 
   useEffect(() => {
     const currentUserId = profile?.id || null;
@@ -365,6 +366,7 @@ export default function HomeScreen() {
     if (userIdRef.current !== currentUserId) {
       invalidateAllListingCaches(); // PHASE 2: Home listings cache
       invalidateAllCaches(); // Session caches (trending, carousel, geocoding, categories)
+      locationInitializedRef.current = false; // Reset location lock on user change
       userIdRef.current = currentUserId;
     }
   }, [profile?.id]);
@@ -380,8 +382,12 @@ export default function HomeScreen() {
 
   // ============================================================================
   // OPTIMIZATION: Sync user location to filters for distance-based filtering
+  // STABILITY: Only set location once to prevent distance recalculation
   // ============================================================================
   useEffect(() => {
+    // Only update location if not already set (prevents distance from changing mid-session)
+    if (locationInitializedRef.current) return;
+
     const location = userLocation || (profile?.latitude && profile?.longitude
       ? { latitude: profile.latitude, longitude: profile.longitude }
       : null);
@@ -392,6 +398,7 @@ export default function HomeScreen() {
         userLatitude: location.latitude,
         userLongitude: location.longitude,
       }));
+      locationInitializedRef.current = true;
     }
   }, [userLocation, profile?.latitude, profile?.longitude]);
 
@@ -1042,7 +1049,7 @@ export default function HomeScreen() {
             />
           )}
         </View>
-      ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
+      ) : !loading && listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.centerContent}>
           <Text style={styles.emptyStateTitle}>Welcome to Dollarsmiley</Text>
           <Text style={styles.emptyStateText}>

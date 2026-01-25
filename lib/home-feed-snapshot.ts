@@ -208,14 +208,18 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       created_at: snapshot.created_at,
       customer: {
         id: snapshot.provider_id,
-        full_name: snapshot.provider_name
+        full_name: snapshot.provider_name,
+        avatar_url: null, // Explicit null - will hydrate from live data
+        rating_average: snapshot.rating || null,
+        rating_count: null
       },
       city: snapshot.location.split(',')[0]?.trim() || '',
       state: snapshot.location.split(',')[1]?.trim() || '',
       description: '', // Will be hydrated later
       status: 'open',
       category_id: null,
-      customer_id: snapshot.provider_id
+      customer_id: snapshot.provider_id,
+      distance_miles: null // Explicit null - will hydrate when location available
     } as any;
   } else {
     return {
@@ -230,12 +234,16 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       average_rating: snapshot.rating || 0,
       provider: {
         id: snapshot.provider_id,
-        full_name: snapshot.provider_name
+        full_name: snapshot.provider_name,
+        avatar_url: null, // Explicit null - will hydrate from live data
+        rating_average: snapshot.rating || null,
+        rating_count: null
       },
       listing_type: snapshot.listing_type,
       description: '', // Will be hydrated later
       status: 'Active',
-      provider_id: snapshot.provider_id
+      provider_id: snapshot.provider_id,
+      distance_miles: null // Explicit null - will hydrate when location available
     } as any;
   }
 }

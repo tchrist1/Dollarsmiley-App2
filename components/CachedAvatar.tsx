@@ -19,12 +19,12 @@ export default function CachedAvatar({
 }: CachedAvatarProps) {
   const [imageError, setImageError] = useState(false);
 
-  const cacheBustedUri = useMemo(() => {
+  const cachedUri = useMemo(() => {
     if (!uri) return null;
-    return uri.includes('?') ? uri : `${uri}?t=${Date.now()}`;
+    return uri;
   }, [uri]);
 
-  if (!cacheBustedUri || imageError) {
+  if (!cachedUri || imageError) {
     return (
       <View
         style={[
@@ -46,7 +46,7 @@ export default function CachedAvatar({
   return (
     <Image
       {...props}
-      source={{ uri: cacheBustedUri }}
+      source={{ uri: cachedUri }}
       style={[
         {
           width: size,

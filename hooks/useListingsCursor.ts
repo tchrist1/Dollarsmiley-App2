@@ -407,10 +407,9 @@ export function useListingsCursor({
         snapshotLoadedRef.current = false;
       }
 
-      setTimeout(() => {
-        setIsTransitioning(false);
-        setVisualCommitReady(true);
-      }, 100);
+      // Set visual commit ready immediately when data is ready
+      setIsTransitioning(false);
+      setVisualCommitReady(true);
     }, effectiveDebounce);
 
     return () => {
