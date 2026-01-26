@@ -16,6 +16,7 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import FeaturedBadge from './FeaturedBadge';
+import CachedAvatar from './CachedAvatar';
 import { trackFeaturedImpression, trackFeaturedClick } from '@/lib/featured-listings';
 import { formatCurrency, formatRating } from '@/lib/currency-utils';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
@@ -130,18 +131,20 @@ export default function FeaturedListingCard({
             {listing.title}
           </Text>
 
-          <Text style={styles.heroDescription} numberOfLines={2}>
-            {listing.description}
-          </Text>
+          {listing.description && listing.description.trim() && (
+            <Text style={styles.heroDescription} numberOfLines={2}>
+              {listing.description}
+            </Text>
+          )}
 
           <View style={styles.heroFooter}>
             <View style={styles.providerInfo}>
-              {listing.provider?.avatar_url && typeof listing.provider.avatar_url === 'string' && (
-                <Image
-                  source={{ uri: listing.provider.avatar_url }}
-                  style={styles.providerAvatar}
-                />
-              )}
+              <CachedAvatar
+                uri={listing.provider?.avatar_url}
+                size={32}
+                fallbackIconSize={16}
+                style={styles.providerAvatar}
+              />
               <Text style={styles.providerName} numberOfLines={1}>
                 {listing.provider?.full_name || 'Provider'}
               </Text>
@@ -267,18 +270,20 @@ export default function FeaturedListingCard({
           {listing.title}
         </Text>
 
-        <Text style={styles.description} numberOfLines={2}>
-          {listing.description}
-        </Text>
+        {listing.description && listing.description.trim() && (
+          <Text style={styles.description} numberOfLines={2}>
+            {listing.description}
+          </Text>
+        )}
 
         <View style={styles.footer}>
           <View style={styles.provider}>
-            {listing.provider?.avatar_url && typeof listing.provider.avatar_url === 'string' && (
-              <Image
-                source={{ uri: listing.provider.avatar_url }}
-                style={styles.avatar}
-              />
-            )}
+            <CachedAvatar
+              uri={listing.provider?.avatar_url}
+              size={28}
+              fallbackIconSize={14}
+              style={styles.avatar}
+            />
             <Text style={styles.providerNameText} numberOfLines={1}>
               {listing.provider?.full_name || 'Provider'}
             </Text>
@@ -307,7 +312,7 @@ export default function FeaturedListingCard({
 const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: colors.white,
-    borderRadius: borderRadius.xxl,
+    borderRadius: borderRadius.xl,
     overflow: 'hidden',
     marginBottom: spacing.lg,
     shadowColor: '#000',
@@ -392,10 +397,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   providerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
+    // Size handled by CachedAvatar props
   },
   providerName: {
     fontSize: fontSize.sm,
@@ -566,10 +568,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   avatar: {
-    width: 28,
-    height: 28,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
+    // Size handled by CachedAvatar props
   },
   providerNameText: {
     fontSize: fontSize.sm,

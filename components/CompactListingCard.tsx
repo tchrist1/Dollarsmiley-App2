@@ -2,6 +2,7 @@ import React, { memo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Star, MapPin } from 'lucide-react-native';
 import { router } from 'expo-router';
+import CachedAvatar from '@/components/CachedAvatar';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import { formatCurrency, formatDistance, formatRating } from '@/lib/currency-utils';
 
@@ -135,15 +136,12 @@ export const CompactListingCard = memo(function CompactListingCard({
 
         {provider_name && (
           <View style={styles.providerContainer}>
-            {provider_avatar ? (
-              <Image source={{ uri: provider_avatar }} style={styles.providerAvatar} />
-            ) : (
-              <View style={styles.providerAvatarPlaceholder}>
-                <Text style={styles.providerAvatarText}>
-                  {provider_name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <CachedAvatar
+              uri={provider_avatar}
+              size={20}
+              fallbackIconSize={10}
+              style={styles.providerAvatar}
+            />
             <Text style={styles.provider} numberOfLines={1}>
               {provider_name}
             </Text>
@@ -253,22 +251,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   providerAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-  },
-  providerAvatarPlaceholder: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  providerAvatarText: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
+    // Size handled by CachedAvatar props
   },
   provider: {
     fontSize: fontSize.xs,

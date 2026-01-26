@@ -97,9 +97,11 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
         <Text style={styles.listingTitle} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.listingDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
+        {item.description && item.description.trim() && (
+          <Text style={styles.listingDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
         <View style={styles.listingMeta}>
           <View style={styles.listingLocation}>
             <MapPin size={14} color={colors.textLight} />
@@ -121,7 +123,7 @@ const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
               <View style={styles.listingRating}>
                 <Star size={14} color={colors.warning} fill={colors.warning} />
                 <Text style={styles.listingRatingText}>
-                  {ratingInfo.text} ({profile.rating_count || 0})
+                  {ratingInfo.text} ({profile?.rating_count || 0})
                 </Text>
               </View>
             );
@@ -236,9 +238,11 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
         <Text style={styles.gridTitle} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.gridDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
+        {item.description && item.description.trim() && (
+          <Text style={styles.gridDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
         <View style={styles.gridFooter}>
           <View style={styles.gridLocation}>
             <MapPin size={12} color={colors.textLight} />

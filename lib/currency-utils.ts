@@ -81,24 +81,40 @@ export function getPriceValue(amount: number | string | undefined | null): numbe
  * Format distance consistently across all views
  * - < 1 mile: display in feet (rounded)
  * - >= 1 mile: display in miles (1 decimal)
- * - null/undefined: return null (do not display)
+ * - null/undefined/0: return null (do not display)
+ *
+ * CRITICAL: Never display "0.0 mi" or "0 ft" for nearby/invalid locations
  */
 export function formatDistance(distanceMiles: number | null | undefined): string | null {
   if (distanceMiles === null || distanceMiles === undefined || isNaN(distanceMiles)) {
     return null;
   }
 
-  if (distanceMiles < 0.1) {
-    // Very close - show in feet
-    const feet = Math.round(distanceMiles * 5280);
-    return `${feet} ft`;
-  } else if (distanceMiles < 1) {
+  // Don't display if distance is effectively zero or negative
+  if (distanceMiles <= 0 || distanceMiles < 0.001) {
+    return null;
+  }
+
+  if (distanceMiles < 1) {
     // Less than 1 mile - show in feet for precision
     const feet = Math.round(distanceMiles * 5280);
+
+    // Don't show if too close or invalid
+    if (feet <= 0 || feet < 50) {
+      return null;
+    }
+
     return `${feet} ft`;
   } else {
     // 1 mile or more - show in miles with 1 decimal
-    return `${distanceMiles.toFixed(1)} mi`;
+    const formatted = distanceMiles.toFixed(1);
+
+    // Don't show "0.0 mi" edge case
+    if (formatted === '0.0') {
+      return null;
+    }
+
+    return `${formatted} mi`;
   }
 }
 
