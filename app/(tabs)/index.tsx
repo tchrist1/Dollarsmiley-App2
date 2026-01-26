@@ -54,11 +54,7 @@ interface ListingCardProps {
   onPress: (id: string, isJob: boolean) => void;
 }
 
-interface ListingCardPropsWithImageTracking extends ListingCardProps {
-  onImageReady?: (listingId: string) => void;
-}
-
-const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
+const ListingCard = memo(({ item, onPress }: ListingCardProps) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -87,13 +83,6 @@ const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithI
     const priceType = listing.pricing_type === 'Hourly' ? 'hour' : 'job';
     priceText = `${formatCurrency(listing.base_price || 0)}/${priceType}`;
   }
-
-  // Track image readiness for list view (no primary image in this view, mark as ready immediately)
-  useEffect(() => {
-    if (onImageReady) {
-      onImageReady(item.id);
-    }
-  }, [item.id, onImageReady]);
 
   return (
     <TouchableOpacity
@@ -157,7 +146,7 @@ const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithI
   );
 });
 
-const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
+const GridCard = memo(({ item, onPress }: ListingCardProps) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -195,33 +184,6 @@ const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImag
     priceSuffix = `/${priceType}`;
   }
 
-  // Track image loading completion
-  const handleImageLoad = useCallback(() => {
-    if (onImageReady) {
-      if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] IMAGE_READY: ${item.id.substring(0, 8)}`);
-      }
-      onImageReady(item.id);
-    }
-  }, [item.id, onImageReady]);
-
-  const handleImageError = useCallback(() => {
-    // Fail-safe: Mark as ready even on error to prevent deadlock
-    if (onImageReady) {
-      if (__DEV__) {
-        console.warn(`[HOME_ASSET_TRACE] IMAGE_ERROR_FALLBACK: ${item.id.substring(0, 8)}`);
-      }
-      onImageReady(item.id);
-    }
-  }, [item.id, onImageReady]);
-
-  // If no image, mark as ready immediately
-  useEffect(() => {
-    if (!mainImage && onImageReady) {
-      onImageReady(item.id);
-    }
-  }, [mainImage, item.id, onImageReady]);
-
   return (
     <TouchableOpacity
       style={styles.gridCard}
@@ -229,13 +191,7 @@ const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImag
       onPress={() => onPress(item.id, isJob)}
     >
       {mainImage ? (
-        <Image
-          source={{ uri: mainImage }}
-          style={styles.gridCardImage}
-          resizeMode="cover"
-          onLoad={handleImageLoad}
-          onError={handleImageError}
-        />
+        <Image source={{ uri: mainImage }} style={styles.gridCardImage} resizeMode="cover" />
       ) : (
         <View style={[styles.gridCardImage, styles.gridCardImagePlaceholder]}>
           <Text style={styles.gridCardImagePlaceholderText}>
@@ -334,18 +290,6 @@ export default function HomeScreen() {
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
-  // ============================================================================
-  // IMAGE READINESS TRACKING - Prevents visual commit until images are loaded
-  // OPTIMIZATION STRATEGY:
-  // 1. Only gate on first 4 listings (reduced from 8) - 50% faster first paint
-  // 2. Preload images during skeleton phase - overlaps network time
-  // 3. Reduced timeout from 3s to 1.5s - faster fallback
-  // 4. Below-fold images don't block assetCommitReady
-  // ============================================================================
-  const [imageReadinessMap, setImageReadinessMap] = useState<Set<string>>(new Set());
-  const imageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const imageReadinessInitializedRef = useRef(false);
-
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings: rawListings,
@@ -366,180 +310,9 @@ export default function HomeScreen() {
     debounceMs: 300,
   });
 
-  // ============================================================================
-  // IMAGE READINESS CALLBACK - Track when individual images complete loading
-  // ============================================================================
-  const handleImageReady = useCallback((listingId: string) => {
-    setImageReadinessMap(prev => {
-      const next = new Set(prev);
-      next.add(listingId);
-      return next;
-    });
-  }, []);
-
-  // ============================================================================
-  // IMAGE READINESS GATE - Determine if all visible images are ready
-  // OPTIMIZED: Only gate on first visible row (4 cards max)
-  // ============================================================================
-  const allVisibleImagesReady = useMemo(() => {
-    if (!visualCommitReady || rawListings.length === 0) {
-      return false;
-    }
-
-    // In list view, we don't have primary images, so mark as ready immediately
-    if (viewMode === 'list') {
-      return true;
-    }
-
-    // OPTIMIZATION: Only wait for first 4 listings (2 rows in grid view)
-    // This reduces assetCommitReady blocking by 50% while maintaining visual quality
-    const firstPaintBatchSize = 4;
-    const visibleListings = rawListings.slice(0, firstPaintBatchSize);
-    const allImagesReady = visibleListings.every(listing => {
-      // If no featured image, consider it ready
-      if (!listing.featured_image_url) {
-        return true;
-      }
-      // Check if this listing's image has been marked ready
-      return imageReadinessMap.has(listing.id);
-    });
-
-    if (__DEV__ && allImagesReady) {
-      console.log('[HOME_ASSET_TRACE] ALL_IMAGES_READY (first 4 cards)');
-    }
-
-    return allImagesReady;
-  }, [visualCommitReady, rawListings, viewMode, imageReadinessMap]);
-
-  // ============================================================================
-  // TIMEOUT PROTECTION - Prevent deadlock if images fail to load
-  // OPTIMIZED: Shorter timeout (1.5s) for faster first paint fallback
-  // ============================================================================
-  useEffect(() => {
-    if (visualCommitReady && rawListings.length > 0 && !allVisibleImagesReady) {
-      // Clear any existing timeout
-      if (imageTimeoutRef.current) {
-        clearTimeout(imageTimeoutRef.current);
-      }
-
-      // OPTIMIZATION: Reduced timeout from 3s to 1.5s for faster first paint
-      imageTimeoutRef.current = setTimeout(() => {
-        if (__DEV__) {
-          console.warn('[HOME_ASSET_TRACE] IMAGE_TIMEOUT_FALLBACK - Force marking first 4 as ready');
-        }
-
-        // Mark first 4 visible listings as ready
-        const firstPaintBatchSize = 4;
-        const visibleListings = rawListings.slice(0, firstPaintBatchSize);
-        setImageReadinessMap(prev => {
-          const next = new Set(prev);
-          visibleListings.forEach(listing => next.add(listing.id));
-          return next;
-        });
-      }, 1500);
-    }
-
-    return () => {
-      if (imageTimeoutRef.current) {
-        clearTimeout(imageTimeoutRef.current);
-        imageTimeoutRef.current = null;
-      }
-    };
-  }, [visualCommitReady, rawListings, allVisibleImagesReady]);
-
-  // ============================================================================
-  // RESET IMAGE TRACKING - Clear when listings change (new search/filter)
-  // ============================================================================
-  const listingsSnapshotRef = useRef<string>('');
-  useEffect(() => {
-    // Create a fingerprint of current listings
-    const currentSnapshot = rawListings.map(l => l.id).slice(0, 4).join(',');
-
-    // Reset image readiness when listings change significantly
-    if (listingsSnapshotRef.current !== currentSnapshot && rawListings.length > 0) {
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] LISTINGS_CHANGED - Resetting image tracking');
-      }
-      setImageReadinessMap(new Set());
-      imageReadinessInitializedRef.current = false;
-      listingsSnapshotRef.current = currentSnapshot;
-    }
-  }, [rawListings]);
-
-  // ============================================================================
-  // IMAGE PRELOADING - Start loading images during skeleton phase
-  // OPTIMIZATION: Overlap image fetching with skeleton display time
-  // ============================================================================
-  const preloadedImagesRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    // Preload when visual data is ready but assets are still gating (skeleton showing)
-    if (!visualCommitReady || assetCommitReady || rawListings.length === 0) {
-      return;
-    }
-
-    // Skip if in list view (no primary images)
-    if (viewMode === 'list') {
-      return;
-    }
-
-    // Preload first 4 images that will gate first paint
-    const firstPaintBatchSize = 4;
-    const imagesToPreload = rawListings
-      .slice(0, firstPaintBatchSize)
-      .filter(listing => listing.featured_image_url && !preloadedImagesRef.current.has(listing.id))
-      .map(listing => ({
-        id: listing.id,
-        url: listing.featured_image_url!
-      }));
-
-    if (imagesToPreload.length > 0) {
-      if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] PRELOADING ${imagesToPreload.length} images during skeleton`);
-      }
-
-      // Preload images using React Native's Image.prefetch
-      imagesToPreload.forEach(({ id, url }) => {
-        Image.prefetch(url)
-          .then(() => {
-            preloadedImagesRef.current.add(id);
-            if (__DEV__) {
-              console.log(`[HOME_ASSET_TRACE] PRELOAD_SUCCESS: ${id.substring(0, 8)}`);
-            }
-          })
-          .catch((error) => {
-            if (__DEV__) {
-              console.warn(`[HOME_ASSET_TRACE] PRELOAD_FAILED: ${id.substring(0, 8)}`, error);
-            }
-          });
-      });
-    }
-  }, [visualCommitReady, assetCommitReady, rawListings, viewMode]);
-
-  // Clear preload cache when listings change
-  useEffect(() => {
-    const currentSnapshot = rawListings.map(l => l.id).slice(0, 4).join(',');
-    if (listingsSnapshotRef.current !== currentSnapshot) {
-      preloadedImagesRef.current.clear();
-    }
-  }, [rawListings]);
-
-  // ============================================================================
-  // EXTENDED VISUAL COMMIT - Data ready AND images ready
-  // ============================================================================
-  const assetCommitReady = useMemo(() => {
-    const ready = visualCommitReady && allVisibleImagesReady;
-
-    if (__DEV__ && ready && !imageReadinessInitializedRef.current) {
-      console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED');
-      imageReadinessInitializedRef.current = true;
-    }
-
-    return ready;
-  }, [visualCommitReady, allVisibleImagesReady]);
-
   const stableListingsRef = useRef<MarketplaceListing[]>([]);
   const listings = useMemo(() => {
-    if (assetCommitReady) {
+    if (visualCommitReady) {
       stableListingsRef.current = rawListings;
     }
     if (__DEV__) {
@@ -552,7 +325,7 @@ export default function HomeScreen() {
       }
     }
     return stableListingsRef.current;
-  }, [rawListings, assetCommitReady]);
+  }, [rawListings, visualCommitReady]);
 
   const {
     searches: trendingSearches,
@@ -1150,14 +923,14 @@ export default function HomeScreen() {
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
-  }, [handleCardPress, handleImageReady]);
+    return <ListingCard item={item} onPress={handleCardPress} />;
+  }, [handleCardPress]);
 
   // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
-  }, [handleCardPress, handleImageReady]);
+    return <GridCard item={item} onPress={handleCardPress} />;
+  }, [handleCardPress]);
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
@@ -1215,11 +988,6 @@ export default function HomeScreen() {
     setViewMode(mode);
   }, []);
 
-  // ============================================================================
-  // UNIFIED PRESENTATION GUARD - Prevents blank screen during asset loading
-  // ============================================================================
-  const isPresentationBlocked = loading || !visualCommitReady || !assetCommitReady;
-
   return (
     <View style={styles.container}>
       <HomeHeader
@@ -1260,7 +1028,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {isPresentationBlocked ? (
+      {loading && listings.length === 0 ? (
         <View style={{ flex: 1 }}>
           {viewMode === 'list' ? (
             <FlatList
@@ -1285,7 +1053,7 @@ export default function HomeScreen() {
             />
           )}
         </View>
-      ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
+      ) : !loading && listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.centerContent}>
           <Text style={styles.emptyStateTitle}>Welcome to Dollarsmiley</Text>
           <Text style={styles.emptyStateText}>
