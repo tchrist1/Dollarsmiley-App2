@@ -36,6 +36,7 @@ export function useImagePreload({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isPreloadingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const preloadedUrlsRef = useRef<string>(''); // Track actual preloaded URLs as hash
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -54,18 +55,12 @@ export function useImagePreload({
       setPreloadProgress(0);
       setTotalImages(0);
       isPreloadingRef.current = false;
+      preloadedUrlsRef.current = '';
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
       return;
     }
-
-    // Prevent re-running if already preloading
-    if (isPreloadingRef.current) {
-      return;
-    }
-
-    isPreloadingRef.current = true;
 
     // Extract image URLs from first N listings
     const firstNListings = listings.slice(0, Math.min(maxListings, 6));
@@ -96,7 +91,33 @@ export function useImagePreload({
     }
 
     // Remove duplicates and nulls
-    const uniqueUrls = [...new Set(imageUrls)].filter(url => url && url.trim() !== '');
+    const uniqueUrls = Array.from(new Set(imageUrls)).filter(url => url && url.trim() !== '');
+
+    // Create stable hash of URLs to detect actual changes
+    const urlsHash = uniqueUrls.sort().join('|');
+
+    // If we already preloaded these exact images, skip
+    if (preloadedUrlsRef.current === urlsHash && imagesReady) {
+      if (__DEV__) {
+        console.log('[ImagePreload] Already preloaded these images, skipping');
+      }
+      return;
+    }
+
+    // Prevent re-running if already preloading THE SAME URLs
+    if (isPreloadingRef.current && preloadedUrlsRef.current === urlsHash) {
+      return;
+    }
+
+    // If URLs changed, reset state
+    if (preloadedUrlsRef.current !== urlsHash) {
+      setImagesReady(false);
+      setPreloadProgress(0);
+      isPreloadingRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    }
 
     if (uniqueUrls.length === 0) {
       // No images to preload, mark as ready immediately
@@ -104,15 +125,24 @@ export function useImagePreload({
       setTotalImages(0);
       setPreloadProgress(0);
       isPreloadingRef.current = false;
+      preloadedUrlsRef.current = urlsHash;
       return;
     }
+
+    // Start preloading
+    isPreloadingRef.current = true;
+    preloadedUrlsRef.current = urlsHash;
 
     setTotalImages(uniqueUrls.length);
     setPreloadProgress(0);
 
+    if (__DEV__) {
+      console.log(`[ImagePreload] Starting preload for ${uniqueUrls.length} images`);
+    }
+
     // Safety timeout: Force ready after 5 seconds
     timeoutRef.current = setTimeout(() => {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && isPreloadingRef.current) {
         if (__DEV__) {
           console.log('[ImagePreload] Timeout reached, forcing imagesReady=true');
         }

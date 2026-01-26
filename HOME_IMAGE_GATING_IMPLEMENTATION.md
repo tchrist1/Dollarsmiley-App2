@@ -18,14 +18,24 @@ Implemented smart image preloading to ensure the Home screen displays as one cle
 - Tracks featured images + provider/customer avatars
 - Non-blocking with 5-second safety timeout
 - Progress tracking for observability
-- Automatic reset when listings change
+- **Smart URL tracking**: Only resets if actual image URLs change
+- **Prevents duplicate preloads**: Uses URL hash to detect identical content
 
 **State Machine**:
 ```typescript
 enabled=false OR listings.length=0 → imagesReady=false (instant)
-enabled=true AND listings.length>0 → Start preloading → imagesReady=false
+enabled=true AND listings.length>0 → Extract URLs, create hash
+  → If URLs already preloaded → Skip (no reset)
+  → If URLs new → Start preloading → imagesReady=false
 All images loaded OR 5s timeout → imagesReady=true
+Next listings update → Compare URL hash → Skip if same
 ```
+
+**Anti-Reset Logic**:
+- Tracks `preloadedUrlsRef` as sorted URL hash (`url1|url2|url3...`)
+- Returns early if `urlsHash === preloadedUrlsRef.current && imagesReady`
+- Returns early if `isPreloadingRef.current && urlsHash === preloadedUrlsRef.current`
+- Only resets if actual URLs change (e.g., user applies filters)
 
 ### 3. Home Screen Integration
 **File**: `app/(tabs)/index.tsx`
@@ -160,18 +170,24 @@ First 6 images preload (200-800ms) - Skeleton remains
 - Maintains visual stability
 - Only shows "Updating..." badge when both data and images ready
 
-## Duplicate Load Issue (Identified but not fixed)
+## Duplicate Load Issue (Analyzed)
 
-**Root Cause**: Location sync useEffect (lines 395-411 in index.tsx) runs after initial mount, setting `userLatitude`/`userLongitude` in filters, triggering a second fetch.
+**Root Cause**: Multiple effects trigger listing updates:
+1. Initial mount loads snapshot
+2. Location sync effect sets coordinates → triggers refetch
+3. Visual commit updates listings array → triggers effects
+4. Live data arrives → triggers effects
 
-**Impact**:
-- Snapshot loaded twice
-- RPC calls made twice
-- Not a critical issue (coalescing prevents duplicate network requests)
-- Only adds ~50ms to load time
+**Impact on Image Preloading** (NOW FIXED):
+- ~~Previously~~ Image preload would reset 4+ times as `listings` array changed
+- **Fixed**: URL hash tracking prevents resets when URLs don't change
+- Now preloads only once, even if `listings` array reference changes
 
-**Recommended Fix** (for future PR):
-Move location initialization before useListings hook, or add dependency check in useEffect.
+**Network Impact** (Acceptable):
+- Request coalescing prevents duplicate RPC calls
+- Snapshot mechanism provides instant initial render
+- Live data refresh happens in background
+- Total overhead: ~50ms (acceptable)
 
 ## Testing Notes
 
