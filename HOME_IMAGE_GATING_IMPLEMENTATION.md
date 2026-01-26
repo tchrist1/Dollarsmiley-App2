@@ -42,10 +42,15 @@ Next listings update → Compare URL hash → Skip if same
 
 **Added**:
 ```typescript
+const preloadResetKey = useMemo(() => {
+  return `${searchQuery}|${JSON.stringify(filters)}`;
+}, [searchQuery, filters]);
+
 const { imagesReady } = useImagePreload({
   listings,
   enabled: listings.length > 0 && !loading,
   maxListings: 6,
+  resetKey: preloadResetKey, // Reset on user-driven changes
 });
 ```
 

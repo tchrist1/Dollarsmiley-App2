@@ -335,11 +335,17 @@ export default function HomeScreen() {
   // ============================================================================
   // IMAGE PRELOADING: Wait for first 6 listing images before showing cards
   // Prevents image pop-in and ensures clean visual moment
+  // Reset key changes when user explicitly changes filters/search
   // ============================================================================
+  const preloadResetKey = useMemo(() => {
+    return `${searchQuery}|${JSON.stringify(filters)}`;
+  }, [searchQuery, filters]);
+
   const { imagesReady } = useImagePreload({
     listings,
     enabled: listings.length > 0 && !loading,
     maxListings: 6,
+    resetKey: preloadResetKey,
   });
 
   const {

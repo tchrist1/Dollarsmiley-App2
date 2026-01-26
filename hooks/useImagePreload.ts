@@ -6,6 +6,7 @@ interface UseImagePreloadOptions {
   listings: MarketplaceListing[];
   enabled: boolean;
   maxListings?: number; // Max listings to preload (default 6)
+  resetKey?: string; // Change this to force reset (e.g., on filter/search change)
 }
 
 interface UseImagePreloadReturn {
@@ -28,6 +29,7 @@ export function useImagePreload({
   listings,
   enabled,
   maxListings = 6,
+  resetKey = '',
 }: UseImagePreloadOptions): UseImagePreloadReturn {
   const [imagesReady, setImagesReady] = useState(false);
   const [preloadProgress, setPreloadProgress] = useState(0);
@@ -37,6 +39,8 @@ export function useImagePreload({
   const isPreloadingRef = useRef(false);
   const isMountedRef = useRef(true);
   const preloadedUrlsRef = useRef<string>(''); // Track actual preloaded URLs as hash
+  const hasCompletedFirstPreloadRef = useRef(false); // Lock after first successful preload
+  const lastResetKeyRef = useRef<string>(''); // Track reset key changes
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -49,13 +53,27 @@ export function useImagePreload({
   }, []);
 
   useEffect(() => {
+    // Check if resetKey changed (user applied filters/search)
+    if (resetKey && resetKey !== lastResetKeyRef.current) {
+      if (__DEV__) {
+        console.log('[ImagePreload] Reset key changed, unlocking for new preload');
+      }
+      hasCompletedFirstPreloadRef.current = false;
+      setImagesReady(false);
+      preloadedUrlsRef.current = '';
+      lastResetKeyRef.current = resetKey;
+    }
+
     // Reset if disabled or no listings
     if (!enabled || listings.length === 0) {
-      setImagesReady(false);
-      setPreloadProgress(0);
-      setTotalImages(0);
-      isPreloadingRef.current = false;
-      preloadedUrlsRef.current = '';
+      // Only reset if we haven't completed first preload yet
+      if (!hasCompletedFirstPreloadRef.current) {
+        setImagesReady(false);
+        setPreloadProgress(0);
+        setTotalImages(0);
+        isPreloadingRef.current = false;
+        preloadedUrlsRef.current = '';
+      }
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -100,6 +118,15 @@ export function useImagePreload({
     if (preloadedUrlsRef.current === urlsHash && imagesReady) {
       if (__DEV__) {
         console.log('[ImagePreload] Already preloaded these images, skipping');
+      }
+      return;
+    }
+
+    // CRITICAL: Once first preload completes, lock it until URLs genuinely change
+    // This prevents resets during snapshot → live data transitions
+    if (hasCompletedFirstPreloadRef.current && imagesReady) {
+      if (__DEV__) {
+        console.log('[ImagePreload] First preload completed, staying ready for stability');
       }
       return;
     }
@@ -185,13 +212,14 @@ export function useImagePreload({
 
       setImagesReady(true);
       isPreloadingRef.current = false;
+      hasCompletedFirstPreloadRef.current = true; // Lock after first success
 
       if (__DEV__) {
         console.log(`[ImagePreload] All images ready: ${loadedCount}/${uniqueUrls.length} loaded successfully`);
       }
     });
 
-  }, [listings, enabled, maxListings]);
+  }, [listings, enabled, maxListings, resetKey]);
 
   return {
     imagesReady,
