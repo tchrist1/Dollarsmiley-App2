@@ -296,6 +296,10 @@ export default function HomeScreen() {
   const imageReadyCountRef = useRef(0);
   const requiredImagesCountRef = useRef(0);
 
+  // PRESENTATION-ONCE GUARD: Track if first presentation is complete
+  const hasPresentedOnceRef = useRef(false);
+  const previousFiltersRef = useRef<FilterOptions | null>(null);
+
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings: rawListings,
@@ -348,6 +352,21 @@ export default function HomeScreen() {
   }, [loading]);
 
   // ============================================================================
+  // RESET PRESENTATION GUARD: When filters change (new presentation cycle)
+  // ============================================================================
+  useEffect(() => {
+    if (previousFiltersRef.current !== null) {
+      const filtersChanged = JSON.stringify(previousFiltersRef.current) !== JSON.stringify(filters);
+      if (filtersChanged && hasPresentedOnceRef.current) {
+        hasPresentedOnceRef.current = false;
+        if (__DEV__) {
+          console.log('[HOME_ASSET_TRACE] PRESENTATION_GUARD_RESET - filters changed');
+        }
+      }
+    }
+  }, [filters]);
+
+  // ============================================================================
   // ASSET GATING: Initialize asset tracking once per load cycle
   // ============================================================================
   useEffect(() => {
@@ -360,6 +379,39 @@ export default function HomeScreen() {
       }
       return;
     }
+
+    // ============================================================================
+    // CLASSIFY LOAD CYCLE: Presentation-affecting vs Background refresh
+    // ============================================================================
+    const filtersChanged = previousFiltersRef.current !== null &&
+      JSON.stringify(previousFiltersRef.current) !== JSON.stringify(filters);
+
+    const isPresentationAffectingCycle = !hasPresentedOnceRef.current || filtersChanged;
+    const isBackgroundRefresh = hasPresentedOnceRef.current && !filtersChanged;
+
+    if (__DEV__) {
+      if (isPresentationAffectingCycle) {
+        console.log('[HOME_ASSET_TRACE] PRESENTATION_LOAD_CYCLE', {
+          firstPresentation: !hasPresentedOnceRef.current,
+          filtersChanged,
+        });
+      } else {
+        console.log('[HOME_ASSET_TRACE] BACKGROUND_REFRESH_CYCLE');
+      }
+    }
+
+    // ============================================================================
+    // BYPASS ASSET GATING FOR BACKGROUND REFRESHES
+    // ============================================================================
+    if (isBackgroundRefresh) {
+      if (__DEV__) {
+        console.log('[HOME_ASSET_TRACE] ASSET_GATING_SKIPPED (background refresh)');
+      }
+      return;
+    }
+
+    // Update filters tracking
+    previousFiltersRef.current = filters;
 
     // Initialize asset tracking for first-paint images only (first 6 listings)
     const firstPaintListings = listings.slice(0, 6);
@@ -451,10 +503,18 @@ export default function HomeScreen() {
   }, [listingsChangedTrigger, listings]);
 
   // ============================================================================
-  // ASSET GATING: Reset tracking after commit
+  // ASSET GATING: Reset tracking after commit & Mark first presentation complete
   // ============================================================================
   useEffect(() => {
     if (assetCommitReady && assetTrackingInitializedRef.current) {
+      // Mark first presentation completion
+      if (!hasPresentedOnceRef.current) {
+        hasPresentedOnceRef.current = true;
+        if (__DEV__) {
+          console.log('[HOME_ASSET_TRACE] FIRST_PRESENTATION_COMPLETE');
+        }
+      }
+
       // Reset for next load cycle
       assetTrackingInitializedRef.current = false;
       if (__DEV__) {
