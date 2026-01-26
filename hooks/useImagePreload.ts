@@ -53,8 +53,15 @@ export function useImagePreload({
   }, []);
 
   useEffect(() => {
+    // Initialize lastResetKeyRef on first run (prevent false "change" detection)
+    if (lastResetKeyRef.current === '') {
+      lastResetKeyRef.current = resetKey;
+      return;
+    }
+
     // Check if resetKey changed (user applied filters/search)
-    if (resetKey && resetKey !== lastResetKeyRef.current) {
+    // Only unlock if we've completed at least one preload
+    if (resetKey && resetKey !== lastResetKeyRef.current && hasCompletedFirstPreloadRef.current) {
       if (__DEV__) {
         console.log('[ImagePreload] Reset key changed, unlocking for new preload');
       }
