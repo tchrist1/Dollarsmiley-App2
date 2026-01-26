@@ -42,7 +42,6 @@ import { HomeMapViewWrapper } from '@/components/HomeMapViewWrapper';
 import { useListingsCursor as useListings } from '@/hooks/useListingsCursor';
 import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
-import { useImagePreload } from '@/hooks/useImagePreload';
 
 // ============================================================================
 // PRIORITY 5 FIX: Memoized card components to prevent re-renders
@@ -279,14 +278,6 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams();
 
-  // Pre-populate location in filters to prevent multiple RPC calls during mount
-  const initialFilters = useMemo(() => ({
-    ...defaultFilters,
-    listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
-    userLatitude: profile?.latitude ?? undefined,
-    userLongitude: profile?.longitude ?? undefined,
-  }), [params.filter, profile?.latitude, profile?.longitude]);
-
   // Local UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -298,7 +289,10 @@ export default function HomeScreen() {
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapRef = useRef<NativeInteractiveMapViewRef>(null);
-  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
+  const [filters, setFilters] = useState<FilterOptions>({
+    ...defaultFilters,
+    listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
+  });
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -336,22 +330,6 @@ export default function HomeScreen() {
     }
     return stableListingsRef.current;
   }, [rawListings, visualCommitReady]);
-
-  // ============================================================================
-  // IMAGE PRELOADING: Wait for first 6 listing images before showing cards
-  // Prevents image pop-in and ensures clean visual moment
-  // Reset key changes when user explicitly changes filters/search
-  // ============================================================================
-  const preloadResetKey = useMemo(() => {
-    return `${searchQuery}|${JSON.stringify(filters)}`;
-  }, [searchQuery, filters]);
-
-  const { imagesReady } = useImagePreload({
-    listings,
-    enabled: listings.length > 0 && !loading,
-    maxListings: 6,
-    resetKey: preloadResetKey,
-  });
 
   const {
     searches: trendingSearches,
@@ -412,33 +390,25 @@ export default function HomeScreen() {
 
   // ============================================================================
   // OPTIMIZATION: Sync user location to filters for distance-based filtering
-  // STABILITY: Only update if location wasn't pre-populated or if GPS location arrives
+  // STABILITY: Only set location once to prevent distance recalculation
   // ============================================================================
   useEffect(() => {
-    // Skip if already initialized or if no new location data
+    // Only update location if not already set (prevents distance from changing mid-session)
     if (locationInitializedRef.current) return;
 
-    // Prefer GPS location over profile location
     const location = userLocation || (profile?.latitude && profile?.longitude
       ? { latitude: profile.latitude, longitude: profile.longitude }
       : null);
 
-    // Only update if we have location AND it's different from initial
     if (location && location.latitude && location.longitude) {
-      const needsUpdate =
-        filters.userLatitude !== location.latitude ||
-        filters.userLongitude !== location.longitude;
-
-      if (needsUpdate) {
-        setFilters(prev => ({
-          ...prev,
-          userLatitude: location.latitude,
-          userLongitude: location.longitude,
-        }));
-      }
+      setFilters(prev => ({
+        ...prev,
+        userLatitude: location.latitude,
+        userLongitude: location.longitude,
+      }));
       locationInitializedRef.current = true;
     }
-  }, [userLocation, profile?.latitude, profile?.longitude, filters.userLatitude, filters.userLongitude]);
+  }, [userLocation, profile?.latitude, profile?.longitude]);
 
   // ============================================================================
   // PHASE 2: DATA FETCHING NOW HANDLED BY HOOKS
@@ -1055,14 +1025,14 @@ export default function HomeScreen() {
         styles={styles}
       />
 
-      {loading && listings.length > 0 && imagesReady && (
+      {loading && listings.length > 0 && (
         <View style={styles.backgroundRefreshIndicator}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.backgroundRefreshText}>Updating...</Text>
         </View>
       )}
 
-      {(loading || (listings.length > 0 && !imagesReady)) ? (
+      {loading && listings.length === 0 ? (
         <View style={{ flex: 1 }}>
           {viewMode === 'list' ? (
             <FlatList
@@ -1094,7 +1064,7 @@ export default function HomeScreen() {
             No listings available right now. Check back soon!
           </Text>
         </View>
-      ) : !loading && imagesReady && listings.length > 0 ? (
+      ) : listings.length > 0 ? (
         <View style={{ flex: 1 }}>
           <HomeListViewWrapper
             viewMode={viewMode}
