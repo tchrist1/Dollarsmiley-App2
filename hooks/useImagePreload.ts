@@ -41,6 +41,8 @@ export function useImagePreload({
   const preloadedUrlsRef = useRef<string>(''); // Track actual preloaded URLs as hash
   const hasCompletedFirstPreloadRef = useRef(false); // Lock after first successful preload
   const lastResetKeyRef = useRef<string>(''); // Track reset key changes
+  const mountTimeRef = useRef(Date.now()); // Track mount time for stability period
+  const stabilityPeriodMs = 500; // 500ms stability window after mount
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -69,6 +71,7 @@ export function useImagePreload({
       setImagesReady(false);
       preloadedUrlsRef.current = '';
       lastResetKeyRef.current = resetKey;
+      mountTimeRef.current = Date.now(); // Reset stability period for new search/filter
     }
 
     // Reset if disabled or no listings
@@ -140,6 +143,16 @@ export function useImagePreload({
 
     // Prevent re-running if already preloading THE SAME URLs
     if (isPreloadingRef.current && preloadedUrlsRef.current === urlsHash) {
+      return;
+    }
+
+    // STABILITY GUARD: During initial mount, ignore listings changes for 500ms
+    // This prevents multiple preload attempts as data stabilizes (snapshot → live data)
+    const timeSinceMount = Date.now() - mountTimeRef.current;
+    if (timeSinceMount < stabilityPeriodMs && !hasCompletedFirstPreloadRef.current) {
+      if (__DEV__) {
+        console.log(`[ImagePreload] Stability period active (${timeSinceMount}ms), deferring preload`);
+      }
       return;
     }
 
