@@ -121,9 +121,18 @@ export function useListingsCursor({
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
 
+        // OPTIMIZATION: Log successful snapshot load for observability
+        if (__DEV__) {
+          console.log('[useListingsCursor] Snapshot loaded:', instantFeed.listings.length, 'listings');
+        }
+
         return true;
       }
     } catch (err) {
+      // OPTIMIZATION: Log snapshot failures for observability (non-blocking)
+      if (__DEV__) {
+        console.warn('[useListingsCursor] Snapshot load failed, falling back to live fetch:', err);
+      }
       // Snapshot load failed, continue with normal fetch
     }
 
@@ -282,6 +291,10 @@ export function useListingsCursor({
 
         for (const result of results) {
           if (result.error) {
+            // OPTIMIZATION: Log RPC failures for observability (non-blocking)
+            if (__DEV__) {
+              console.warn('[useListingsCursor] RPC fetch failed:', result.type, result.error);
+            }
             continue;
           }
 
@@ -308,35 +321,13 @@ export function useListingsCursor({
           }
         }
 
-        // Tier-4: Conditional sorting optimization
-        // Only sort on initial fetch; pagination appends maintain cursor order
-        if (reset) {
-          const sortBy = filters.sortBy || 'relevance';
-
-          allResults.sort((a, b) => {
-            if (sortBy === 'price_low') {
-              const priceA = a.price || a.budget || 0;
-              const priceB = b.price || b.budget || 0;
-              return priceA - priceB;
-            }
-            if (sortBy === 'price_high') {
-              const priceA = a.price || a.budget || 0;
-              const priceB = b.price || b.budget || 0;
-              return priceB - priceA;
-            }
-            if (sortBy === 'rating') {
-              const ratingA = a.average_rating || 0;
-              const ratingB = b.average_rating || 0;
-              return ratingB - ratingA;
-            }
-            if (sortBy === 'popular') {
-              const bookingsA = a.total_bookings || 0;
-              const bookingsB = b.total_bookings || 0;
-              return bookingsB - bookingsA;
-            }
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          });
-        }
+        // OPTIMIZATION: REMOVED CLIENT-SIDE SORTING
+        // Database now handles all sorting via composite indexes in RPC functions.
+        // Results arrive pre-sorted from get_services_cursor_paginated_v2 and
+        // get_jobs_cursor_paginated_v2 based on p_sort_by parameter.
+        // This eliminates redundant O(n log n) sorting on client side.
+        // The ORDER BY clauses in the RPC functions use the new composite indexes
+        // created in optimize_cursor_pagination_indexes migration for optimal performance.
 
         if (!isMountedRef.current) return;
 
