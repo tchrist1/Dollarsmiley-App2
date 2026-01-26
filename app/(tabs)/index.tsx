@@ -42,6 +42,7 @@ import { HomeMapViewWrapper } from '@/components/HomeMapViewWrapper';
 import { useListingsCursor as useListings } from '@/hooks/useListingsCursor';
 import { useTrendingSearches } from '@/hooks/useTrendingSearches';
 import { useMapData } from '@/hooks/useMapData';
+import { useImagePreload } from '@/hooks/useImagePreload';
 
 // ============================================================================
 // PRIORITY 5 FIX: Memoized card components to prevent re-renders
@@ -330,6 +331,16 @@ export default function HomeScreen() {
     }
     return stableListingsRef.current;
   }, [rawListings, visualCommitReady]);
+
+  // ============================================================================
+  // IMAGE PRELOADING: Wait for first 6 listing images before showing cards
+  // Prevents image pop-in and ensures clean visual moment
+  // ============================================================================
+  const { imagesReady } = useImagePreload({
+    listings,
+    enabled: listings.length > 0 && !loading,
+    maxListings: 6,
+  });
 
   const {
     searches: trendingSearches,
@@ -1025,14 +1036,14 @@ export default function HomeScreen() {
         styles={styles}
       />
 
-      {loading && listings.length > 0 && (
+      {loading && listings.length > 0 && imagesReady && (
         <View style={styles.backgroundRefreshIndicator}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.backgroundRefreshText}>Updating...</Text>
         </View>
       )}
 
-      {loading && listings.length === 0 ? (
+      {(loading || (listings.length > 0 && !imagesReady)) ? (
         <View style={{ flex: 1 }}>
           {viewMode === 'list' ? (
             <FlatList
@@ -1064,7 +1075,7 @@ export default function HomeScreen() {
             No listings available right now. Check back soon!
           </Text>
         </View>
-      ) : listings.length > 0 ? (
+      ) : !loading && imagesReady && listings.length > 0 ? (
         <View style={{ flex: 1 }}>
           <HomeListViewWrapper
             viewMode={viewMode}
