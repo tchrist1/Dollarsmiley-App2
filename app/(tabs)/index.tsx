@@ -279,6 +279,14 @@ export default function HomeScreen() {
   const { profile } = useAuth();
   const params = useLocalSearchParams();
 
+  // Pre-populate location in filters to prevent multiple RPC calls during mount
+  const initialFilters = useMemo(() => ({
+    ...defaultFilters,
+    listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
+    userLatitude: profile?.latitude ?? undefined,
+    userLongitude: profile?.longitude ?? undefined,
+  }), [params.filter, profile?.latitude, profile?.longitude]);
+
   // Local UI state
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -290,10 +298,7 @@ export default function HomeScreen() {
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapRef = useRef<NativeInteractiveMapViewRef>(null);
-  const [filters, setFilters] = useState<FilterOptions>({
-    ...defaultFilters,
-    listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
-  });
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters);
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -407,25 +412,33 @@ export default function HomeScreen() {
 
   // ============================================================================
   // OPTIMIZATION: Sync user location to filters for distance-based filtering
-  // STABILITY: Only set location once to prevent distance recalculation
+  // STABILITY: Only update if location wasn't pre-populated or if GPS location arrives
   // ============================================================================
   useEffect(() => {
-    // Only update location if not already set (prevents distance from changing mid-session)
+    // Skip if already initialized or if no new location data
     if (locationInitializedRef.current) return;
 
+    // Prefer GPS location over profile location
     const location = userLocation || (profile?.latitude && profile?.longitude
       ? { latitude: profile.latitude, longitude: profile.longitude }
       : null);
 
+    // Only update if we have location AND it's different from initial
     if (location && location.latitude && location.longitude) {
-      setFilters(prev => ({
-        ...prev,
-        userLatitude: location.latitude,
-        userLongitude: location.longitude,
-      }));
+      const needsUpdate =
+        filters.userLatitude !== location.latitude ||
+        filters.userLongitude !== location.longitude;
+
+      if (needsUpdate) {
+        setFilters(prev => ({
+          ...prev,
+          userLatitude: location.latitude,
+          userLongitude: location.longitude,
+        }));
+      }
       locationInitializedRef.current = true;
     }
-  }, [userLocation, profile?.latitude, profile?.longitude]);
+  }, [userLocation, profile?.latitude, profile?.longitude, filters.userLatitude, filters.userLongitude]);
 
   // ============================================================================
   // PHASE 2: DATA FETCHING NOW HANDLED BY HOOKS
