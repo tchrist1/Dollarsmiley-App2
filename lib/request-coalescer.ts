@@ -17,7 +17,6 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
-import { recordQueryPerformance } from './query-performance-monitor';
 
 // ============================================================================
 // TYPES
@@ -41,31 +40,17 @@ const inFlightCache = new Map<string, InFlightRequest>();
 /**
  * Generate stable cache key from RPC name and parameters.
  * Uses JSON.stringify with sorted keys for consistency.
- *
- * OPTIMIZATION: Normalize null/undefined values to reduce cache misses
- * from semantically identical but syntactically different parameters.
  */
 function generateCacheKey(rpcName: string, params: Record<string, any>): string {
-  // Normalize params: convert undefined to null, remove null values
-  const normalizedParams: Record<string, any> = {};
-
-  Object.keys(params)
+  // Sort params by key for consistent cache key
+  const sortedParams = Object.keys(params)
     .sort()
-    .forEach((key) => {
-      const value = params[key];
+    .reduce((acc, key) => {
+      acc[key] = params[key];
+      return acc;
+    }, {} as Record<string, any>);
 
-      // Skip null and undefined to reduce cache key variations
-      if (value !== null && value !== undefined) {
-        // Normalize arrays (empty arrays should be treated as null)
-        if (Array.isArray(value) && value.length === 0) {
-          // Skip empty arrays
-        } else {
-          normalizedParams[key] = value;
-        }
-      }
-    });
-
-  return `${rpcName}::${JSON.stringify(normalizedParams)}`;
+  return `${rpcName}::${JSON.stringify(sortedParams)}`;
 }
 
 // ============================================================================
@@ -116,37 +101,12 @@ export async function coalescedRpc<T = any>(
   const promise = supabase
     .rpc(rpcName, params)
     .then((result) => {
-      const elapsed = Date.now() - startTime;
-
       // DEV-only instrumentation: Track request completion
       if (__DEV__) {
+        const elapsed = Date.now() - startTime;
         console.log(
           `[RequestCoalescer COMPLETE] ${rpcName} finished (${elapsed}ms)`
         );
-
-        // PERFORMANCE MONITORING: Record query for analysis
-        recordQueryPerformance(rpcName, params, elapsed);
-
-        // PERFORMANCE LOGGING: Log slow queries with filter details
-        if (elapsed > 500) {
-          console.warn(
-            `[RequestCoalescer SLOW_QUERY] ${rpcName} took ${elapsed}ms`,
-            {
-              duration: elapsed,
-              filters: {
-                hasSearch: !!params.p_search,
-                hasCategoryFilter: !!(params.p_category_ids && params.p_category_ids.length > 0),
-                hasDistance: !!(params.p_user_lat && params.p_user_lng && params.p_distance),
-                hasPriceFilter: !!(params.p_min_price || params.p_max_price || params.p_min_budget || params.p_max_budget),
-                hasRatingFilter: !!params.p_min_rating,
-                hasVerifiedFilter: params.p_verified === true,
-                sortBy: params.p_sort_by || 'default',
-                limit: params.p_limit || 'unknown',
-              },
-              paramCount: Object.keys(params).filter(k => params[k] !== null && params[k] !== undefined).length,
-            }
-          );
-        }
       }
 
       // Clear from cache on success

@@ -36,7 +36,6 @@ import { HomeSuggestions } from '@/components/HomeSuggestions';
 import { HomeListViewWrapper } from '@/components/HomeListViewWrapper';
 import { HomeGridViewWrapper } from '@/components/HomeGridViewWrapper';
 import { HomeMapViewWrapper } from '@/components/HomeMapViewWrapper';
-import { PerformanceDebugPanel } from '@/components/PerformanceDebugPanel';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -291,12 +290,6 @@ export default function HomeScreen() {
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
 
-  // ASSET GATING: Image readiness tracking
-  const [assetCommitReady, setAssetCommitReady] = useState(true);
-  const assetTrackingInitializedRef = useRef(false);
-  const imageReadyCountRef = useRef(0);
-  const requiredImagesCountRef = useRef(0);
-
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings: rawListings,
@@ -309,7 +302,6 @@ export default function HomeScreen() {
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
-    listingsChangedTrigger,
   } = useListings({
     searchQuery,
     filters,
@@ -334,135 +326,6 @@ export default function HomeScreen() {
     }
     return stableListingsRef.current;
   }, [rawListings, visualCommitReady]);
-
-  // ============================================================================
-  // ASSET GATING: Reset tracking when loading starts
-  // ============================================================================
-  useEffect(() => {
-    if (loading) {
-      assetTrackingInitializedRef.current = false;
-      setAssetCommitReady(true); // Start with ready state
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_RESET - loading started');
-      }
-    }
-  }, [loading]);
-
-  // ============================================================================
-  // ASSET GATING: Initialize asset tracking once per load cycle
-  // ============================================================================
-  useEffect(() => {
-    if (!listingsChangedTrigger || listings.length === 0) return;
-
-    // Only initialize once per load cycle
-    if (assetTrackingInitializedRef.current) {
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_IGNORED - already initialized');
-      }
-      return;
-    }
-
-    // Initialize asset tracking for first-paint images only (first 6 listings)
-    const firstPaintListings = listings.slice(0, 6);
-    const imagesToTrack = firstPaintListings
-      .map(listing => {
-        if (listing.marketplace_type === 'Job') {
-          return listing.featured_image_url || null;
-        }
-        return listing.featured_image_url || null;
-      })
-      .filter(Boolean);
-
-    requiredImagesCountRef.current = imagesToTrack.length;
-    imageReadyCountRef.current = 0;
-
-    if (requiredImagesCountRef.current === 0) {
-      // No images to track, commit immediately
-      setAssetCommitReady(true);
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED - no images to track');
-      }
-    } else {
-      setAssetCommitReady(false);
-      assetTrackingInitializedRef.current = true;
-
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_INITIALIZED', {
-          firstPaintCount: firstPaintListings.length,
-          imagesToTrack: requiredImagesCountRef.current,
-        });
-      }
-
-      // Preload images during skeleton phase with timeout
-      const preloadTimeout = setTimeout(() => {
-        if (imageReadyCountRef.current < requiredImagesCountRef.current) {
-          if (__DEV__) {
-            console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED - timeout fallback', {
-              ready: imageReadyCountRef.current,
-              required: requiredImagesCountRef.current,
-            });
-          }
-          setAssetCommitReady(true);
-        }
-      }, 3000); // 3s timeout for first-paint images
-
-      // Preload images
-      imagesToTrack.forEach((url, index) => {
-        if (!url) return;
-
-        Image.prefetch(url as string)
-          .then(() => {
-            imageReadyCountRef.current += 1;
-            if (__DEV__) {
-              console.log('[HOME_ASSET_TRACE] IMAGE_READY', {
-                index,
-                ready: imageReadyCountRef.current,
-                required: requiredImagesCountRef.current,
-              });
-            }
-
-            if (imageReadyCountRef.current >= requiredImagesCountRef.current) {
-              clearTimeout(preloadTimeout);
-              setAssetCommitReady(true);
-              if (__DEV__) {
-                console.log('[HOME_ASSET_TRACE] ALL_IMAGES_READY');
-                console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED');
-              }
-            }
-          })
-          .catch((err) => {
-            // Silently mark as ready on error
-            imageReadyCountRef.current += 1;
-            if (__DEV__) {
-              console.warn('[HOME_ASSET_TRACE] IMAGE_FAILED - marking as ready', { index, url, err });
-            }
-
-            if (imageReadyCountRef.current >= requiredImagesCountRef.current) {
-              clearTimeout(preloadTimeout);
-              setAssetCommitReady(true);
-              if (__DEV__) {
-                console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED - with fallbacks');
-              }
-            }
-          });
-      });
-
-      return () => clearTimeout(preloadTimeout);
-    }
-  }, [listingsChangedTrigger, listings]);
-
-  // ============================================================================
-  // ASSET GATING: Reset tracking after commit
-  // ============================================================================
-  useEffect(() => {
-    if (assetCommitReady && assetTrackingInitializedRef.current) {
-      // Reset for next load cycle
-      assetTrackingInitializedRef.current = false;
-      if (__DEV__) {
-        console.log('[HOME_ASSET_TRACE] ASSET_TRACKING_RESET_AFTER_COMMIT');
-      }
-    }
-  }, [assetCommitReady]);
 
   const {
     searches: trendingSearches,
@@ -1125,11 +988,6 @@ export default function HomeScreen() {
     setViewMode(mode);
   }, []);
 
-  // ============================================================================
-  // UNIFIED PRESENTATION GUARD
-  // ============================================================================
-  const isPresentationBlocked = loading || !visualCommitReady || !assetCommitReady;
-
   return (
     <View style={styles.container}>
       <HomeHeader
@@ -1163,14 +1021,14 @@ export default function HomeScreen() {
         styles={styles}
       />
 
-      {loading && !isPresentationBlocked && listings.length > 0 && (
+      {loading && listings.length > 0 && (
         <View style={styles.backgroundRefreshIndicator}>
           <ActivityIndicator size="small" color={colors.primary} />
           <Text style={styles.backgroundRefreshText}>Updating...</Text>
         </View>
       )}
 
-      {isPresentationBlocked ? (
+      {loading && listings.length === 0 ? (
         <View style={{ flex: 1 }}>
           {viewMode === 'list' ? (
             <FlatList
@@ -1195,7 +1053,7 @@ export default function HomeScreen() {
             />
           )}
         </View>
-      ) : listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
+      ) : !loading && listings.length === 0 && !searchQuery && activeFilterCount === 0 ? (
         <View style={styles.centerContent}>
           <Text style={styles.emptyStateTitle}>Welcome to Dollarsmiley</Text>
           <Text style={styles.emptyStateText}>
@@ -1294,9 +1152,6 @@ export default function HomeScreen() {
           currentFilters={filters}
         />
       </ErrorBoundary>
-
-      {/* Performance Debug Panel (DEV only) */}
-      <PerformanceDebugPanel />
     </View>
   );
 }

@@ -6,15 +6,7 @@
  * - Snapshot-first loading (instant perceived load)
  * - Two-phase fetch (minimal data → full data)
  * - Background hydration
- * - Scales to 100,000+ listings efficiently
- *
- * PERFORMANCE OPTIMIZATIONS APPLIED:
- * 1. GIN Full-Text Search: 5-10x faster text searches vs ILIKE
- * 2. GiST Spatial Index: 3-5x faster distance queries
- * 3. Single Distance Calculation: 3x faster via CTE reuse
- * 4. No Client-Side Sorting: Trust database ORDER BY
- * 5. Multi-Category Arrays: Single query vs multiple
- * 6. RPC Failure Logging: Observability without user exposure
+ * - Scales to 10,000+ listings efficiently
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -53,7 +45,6 @@ interface UseListingsCursorReturn {
   isTransitioning: boolean;
   hasHydratedLiveData: boolean;
   visualCommitReady: boolean;
-  listingsChangedTrigger: number;
 }
 
 interface Cursor {
@@ -82,7 +73,6 @@ export function useListingsCursor({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
   const [visualCommitReady, setVisualCommitReady] = useState(true);
-  const [listingsChangedTrigger, setListingsChangedTrigger] = useState(0);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -127,9 +117,6 @@ export function useListingsCursor({
         setListings(instantFeed.listings);
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
-
-        // Emit listings changed trigger
-        setListingsChangedTrigger(prev => prev + 1);
 
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
@@ -216,8 +203,7 @@ export function useListingsCursor({
                 : ['Service', 'CustomService'];
 
               // PHASE 2A: Coalesced RPC call to reduce duplicate requests
-              // PERFORMANCE: Using optimized v2 function with GIN/GiST indexes
-              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated_v2', {
+              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,
@@ -258,8 +244,7 @@ export function useListingsCursor({
               const currentCursor = reset ? null : jobCursor;
 
               // PHASE 2A: Coalesced RPC call to reduce duplicate requests
-              // PERFORMANCE: Using optimized v2 function with GIN/GiST indexes
-              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated_v2', {
+              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,
@@ -297,19 +282,6 @@ export function useListingsCursor({
 
         for (const result of results) {
           if (result.error) {
-            // PERFORMANCE: Log RPC failures for observability without exposing to users
-            if (__DEV__) {
-              console.warn('[useListingsCursor] RPC fetch failed:', {
-                type: result.type,
-                error: result.error,
-                filters: {
-                  search: !!searchQuery,
-                  categories: filters.categories.length,
-                  distance: filters.distance,
-                  sortBy: filters.sortBy
-                }
-              });
-            }
             continue;
           }
 
@@ -336,18 +308,41 @@ export function useListingsCursor({
           }
         }
 
-        // PERFORMANCE OPTIMIZATION: Remove redundant client-side sorting
-        // Database already sorts results via ORDER BY clause in RPC functions
-        // Trust database ordering - reduces client CPU usage and maintains consistency
+        // Tier-4: Conditional sorting optimization
+        // Only sort on initial fetch; pagination appends maintain cursor order
+        if (reset) {
+          const sortBy = filters.sortBy || 'relevance';
+
+          allResults.sort((a, b) => {
+            if (sortBy === 'price_low') {
+              const priceA = a.price || a.budget || 0;
+              const priceB = b.price || b.budget || 0;
+              return priceA - priceB;
+            }
+            if (sortBy === 'price_high') {
+              const priceA = a.price || a.budget || 0;
+              const priceB = b.price || b.budget || 0;
+              return priceB - priceA;
+            }
+            if (sortBy === 'rating') {
+              const ratingA = a.average_rating || 0;
+              const ratingB = b.average_rating || 0;
+              return ratingB - ratingA;
+            }
+            if (sortBy === 'popular') {
+              const bookingsA = a.total_bookings || 0;
+              const bookingsB = b.total_bookings || 0;
+              return bookingsB - bookingsA;
+            }
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          });
+        }
 
         if (!isMountedRef.current) return;
 
         if (reset) {
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
-
-          // Emit listings changed trigger ONLY on reset (fresh load)
-          setListingsChangedTrigger(prev => prev + 1);
 
           // Save snapshot for next time
           if (isInitialLoad && allResults.length > 0) {
@@ -359,7 +354,6 @@ export function useListingsCursor({
             );
           }
         } else {
-          // Pagination: append without triggering asset tracking
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
         }
@@ -446,7 +440,6 @@ export function useListingsCursor({
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
-    listingsChangedTrigger,
   };
 }
 
