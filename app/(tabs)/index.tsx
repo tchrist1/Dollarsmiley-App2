@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Activity
 const { width } = Dimensions.get('window');
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
-import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User } from 'lucide-react-native';
+import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User, Check } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
@@ -206,7 +206,7 @@ const GridCard = memo(({ item, onPress }: ListingCardProps) => {
       </View>
       {formatDistance(listing.distance_miles) && (
         <View style={styles.gridDistanceBadge}>
-          <Navigation size={10} color={colors.white} />
+          <Check size={10} color={colors.white} strokeWidth={3} />
           <Text style={styles.gridDistanceBadgeText}>
             {formatDistance(listing.distance_miles)}
           </Text>
@@ -1704,16 +1704,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.success,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.sm,
     ...shadows.md,
     zIndex: 1,
   },
   gridDistanceBadgeText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
+    fontWeight: fontWeight.bold,
     color: colors.white,
   },
   mapViewContainer: {
