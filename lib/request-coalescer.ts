@@ -17,6 +17,7 @@
  */
 
 import { SupabaseClient } from '@supabase/supabase-js';
+import { recordQueryPerformance } from './query-performance-monitor';
 
 // ============================================================================
 // TYPES
@@ -122,6 +123,9 @@ export async function coalescedRpc<T = any>(
         console.log(
           `[RequestCoalescer COMPLETE] ${rpcName} finished (${elapsed}ms)`
         );
+
+        // PERFORMANCE MONITORING: Record query for analysis
+        recordQueryPerformance(rpcName, params, elapsed);
 
         // PERFORMANCE LOGGING: Log slow queries with filter details
         if (elapsed > 500) {

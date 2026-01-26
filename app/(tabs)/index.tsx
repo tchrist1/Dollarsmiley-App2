@@ -36,6 +36,7 @@ import { HomeSuggestions } from '@/components/HomeSuggestions';
 import { HomeListViewWrapper } from '@/components/HomeListViewWrapper';
 import { HomeGridViewWrapper } from '@/components/HomeGridViewWrapper';
 import { HomeMapViewWrapper } from '@/components/HomeMapViewWrapper';
+import { PerformanceDebugPanel } from '@/components/PerformanceDebugPanel';
 
 // PHASE 2: Import data layer hooks
 // TIER 3 UPGRADE: Using cursor-based pagination for enterprise-scale performance
@@ -1293,6 +1294,9 @@ export default function HomeScreen() {
           currentFilters={filters}
         />
       </ErrorBoundary>
+
+      {/* Performance Debug Panel (DEV only) */}
+      <PerformanceDebugPanel />
     </View>
   );
 }
