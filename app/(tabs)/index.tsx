@@ -55,11 +55,10 @@ interface ListingCardProps {
 }
 
 interface ListingCardPropsWithImageTracking extends ListingCardProps {
-  onImageReady?: (listingId: string, generation: number) => void;
-  assetGeneration?: number;
+  onImageReady?: (listingId: string) => void;
 }
 
-const ListingCard = memo(({ item, onPress, onImageReady, assetGeneration }: ListingCardPropsWithImageTracking) => {
+const ListingCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -91,10 +90,10 @@ const ListingCard = memo(({ item, onPress, onImageReady, assetGeneration }: List
 
   // Track image readiness for list view (no primary image in this view, mark as ready immediately)
   useEffect(() => {
-    if (onImageReady && assetGeneration !== undefined) {
-      onImageReady(item.id, assetGeneration);
+    if (onImageReady) {
+      onImageReady(item.id);
     }
-  }, [item.id, onImageReady, assetGeneration]);
+  }, [item.id, onImageReady]);
 
   return (
     <TouchableOpacity
@@ -158,7 +157,7 @@ const ListingCard = memo(({ item, onPress, onImageReady, assetGeneration }: List
   );
 });
 
-const GridCard = memo(({ item, onPress, onImageReady, assetGeneration }: ListingCardPropsWithImageTracking) => {
+const GridCard = memo(({ item, onPress, onImageReady }: ListingCardPropsWithImageTracking) => {
   const isJob = item.marketplace_type === 'Job';
   const profile = isJob ? item.customer : item.provider;
   const listing = item;
@@ -198,30 +197,30 @@ const GridCard = memo(({ item, onPress, onImageReady, assetGeneration }: Listing
 
   // Track image loading completion
   const handleImageLoad = useCallback(() => {
-    if (onImageReady && assetGeneration !== undefined) {
+    if (onImageReady) {
       if (__DEV__) {
         console.log(`[HOME_ASSET_TRACE] IMAGE_READY: ${item.id.substring(0, 8)}`);
       }
-      onImageReady(item.id, assetGeneration);
+      onImageReady(item.id);
     }
-  }, [item.id, onImageReady, assetGeneration]);
+  }, [item.id, onImageReady]);
 
   const handleImageError = useCallback(() => {
     // Fail-safe: Mark as ready even on error to prevent deadlock
-    if (onImageReady && assetGeneration !== undefined) {
+    if (onImageReady) {
       if (__DEV__) {
         console.warn(`[HOME_ASSET_TRACE] IMAGE_ERROR_FALLBACK: ${item.id.substring(0, 8)}`);
       }
-      onImageReady(item.id, assetGeneration);
+      onImageReady(item.id);
     }
-  }, [item.id, onImageReady, assetGeneration]);
+  }, [item.id, onImageReady]);
 
   // If no image, mark as ready immediately
   useEffect(() => {
-    if (!mainImage && onImageReady && assetGeneration !== undefined) {
-      onImageReady(item.id, assetGeneration);
+    if (!mainImage && onImageReady) {
+      onImageReady(item.id);
     }
-  }, [mainImage, item.id, onImageReady, assetGeneration]);
+  }, [mainImage, item.id, onImageReady]);
 
   return (
     <TouchableOpacity
@@ -342,13 +341,10 @@ export default function HomeScreen() {
   // 2. Preload images during skeleton phase - overlaps network time
   // 3. Reduced timeout from 3s to 1.5s - faster fallback
   // 4. Below-fold images don't block assetCommitReady
-  // SAFETY: Asset generation tracking prevents stale callback crashes
   // ============================================================================
   const [imageReadinessMap, setImageReadinessMap] = useState<Set<string>>(new Set());
   const imageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const imageReadinessInitializedRef = useRef(false);
-  const assetGenerationRef = useRef<number>(0);
-  const assetGateReleasedRef = useRef(false);
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -372,17 +368,8 @@ export default function HomeScreen() {
 
   // ============================================================================
   // IMAGE READINESS CALLBACK - Track when individual images complete loading
-  // SAFETY: Validates generation to prevent stale callback crashes
   // ============================================================================
-  const handleImageReady = useCallback((listingId: string, generation: number) => {
-    // Guard against stale callbacks from previous listing generations
-    if (assetGateReleasedRef.current || generation !== assetGenerationRef.current) {
-      if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] STALE_CALLBACK_IGNORED: ${listingId.substring(0, 8)} (gen ${generation} vs ${assetGenerationRef.current})`);
-      }
-      return;
-    }
-
+  const handleImageReady = useCallback((listingId: string) => {
     setImageReadinessMap(prev => {
       const next = new Set(prev);
       next.add(listingId);
@@ -427,7 +414,6 @@ export default function HomeScreen() {
   // ============================================================================
   // TIMEOUT PROTECTION - Prevent deadlock if images fail to load
   // OPTIMIZED: Shorter timeout (1.5s) for faster first paint fallback
-  // SAFETY: Captures generation to prevent stale timeout execution
   // ============================================================================
   useEffect(() => {
     if (visualCommitReady && rawListings.length > 0 && !allVisibleImagesReady) {
@@ -436,19 +422,8 @@ export default function HomeScreen() {
         clearTimeout(imageTimeoutRef.current);
       }
 
-      // Capture current generation for timeout callback validation
-      const generationAtStart = assetGenerationRef.current;
-
       // OPTIMIZATION: Reduced timeout from 3s to 1.5s for faster first paint
       imageTimeoutRef.current = setTimeout(() => {
-        // Guard against stale timeout from previous listing generation
-        if (assetGateReleasedRef.current || generationAtStart !== assetGenerationRef.current) {
-          if (__DEV__) {
-            console.log(`[HOME_ASSET_TRACE] STALE_TIMEOUT_IGNORED (gen ${generationAtStart} vs ${assetGenerationRef.current})`);
-          }
-          return;
-        }
-
         if (__DEV__) {
           console.warn('[HOME_ASSET_TRACE] IMAGE_TIMEOUT_FALLBACK - Force marking first 4 as ready');
         }
@@ -474,7 +449,6 @@ export default function HomeScreen() {
 
   // ============================================================================
   // RESET IMAGE TRACKING - Clear when listings change (new search/filter)
-  // SAFETY: Increments generation to invalidate in-flight callbacks
   // ============================================================================
   const listingsSnapshotRef = useRef<string>('');
   useEffect(() => {
@@ -483,12 +457,8 @@ export default function HomeScreen() {
 
     // Reset image readiness when listings change significantly
     if (listingsSnapshotRef.current !== currentSnapshot && rawListings.length > 0) {
-      // INCREMENT GENERATION - Invalidates all in-flight image callbacks
-      assetGenerationRef.current += 1;
-      assetGateReleasedRef.current = false;
-
       if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] LISTINGS_CHANGED - Generation ${assetGenerationRef.current}`);
+        console.log('[HOME_ASSET_TRACE] LISTINGS_CHANGED - Resetting image tracking');
       }
       setImageReadinessMap(new Set());
       imageReadinessInitializedRef.current = false;
@@ -499,7 +469,6 @@ export default function HomeScreen() {
   // ============================================================================
   // IMAGE PRELOADING - Start loading images during skeleton phase
   // OPTIMIZATION: Overlap image fetching with skeleton display time
-  // SAFETY: Captures generation to prevent stale preload callbacks
   // ============================================================================
   const preloadedImagesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -513,9 +482,6 @@ export default function HomeScreen() {
       return;
     }
 
-    // Capture current generation for preload callback validation
-    const generationAtStart = assetGenerationRef.current;
-
     // Preload first 4 images that will gate first paint
     const firstPaintBatchSize = 4;
     const imagesToPreload = rawListings
@@ -528,21 +494,13 @@ export default function HomeScreen() {
 
     if (imagesToPreload.length > 0) {
       if (__DEV__) {
-        console.log(`[HOME_ASSET_TRACE] PRELOADING ${imagesToPreload.length} images (gen ${generationAtStart})`);
+        console.log(`[HOME_ASSET_TRACE] PRELOADING ${imagesToPreload.length} images during skeleton`);
       }
 
       // Preload images using React Native's Image.prefetch
       imagesToPreload.forEach(({ id, url }) => {
         Image.prefetch(url)
           .then(() => {
-            // Guard against stale preload callback
-            if (assetGateReleasedRef.current || generationAtStart !== assetGenerationRef.current) {
-              if (__DEV__) {
-                console.log(`[HOME_ASSET_TRACE] STALE_PRELOAD_IGNORED: ${id.substring(0, 8)}`);
-              }
-              return;
-            }
-
             preloadedImagesRef.current.add(id);
             if (__DEV__) {
               console.log(`[HOME_ASSET_TRACE] PRELOAD_SUCCESS: ${id.substring(0, 8)}`);
@@ -567,7 +525,6 @@ export default function HomeScreen() {
 
   // ============================================================================
   // EXTENDED VISUAL COMMIT - Data ready AND images ready
-  // SAFETY: Marks gate as released to invalidate any remaining callbacks
   // ============================================================================
   const assetCommitReady = useMemo(() => {
     const ready = visualCommitReady && allVisibleImagesReady;
@@ -575,7 +532,6 @@ export default function HomeScreen() {
     if (__DEV__ && ready && !imageReadinessInitializedRef.current) {
       console.log('[HOME_ASSET_TRACE] ASSET_COMMIT_RELEASED');
       imageReadinessInitializedRef.current = true;
-      assetGateReleasedRef.current = true;
     }
 
     return ready;
@@ -1193,16 +1149,14 @@ export default function HomeScreen() {
 
   // PRIORITY 5 FIX: Use memoized ListingCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
-  // SAFETY: Pass current generation to validate image callbacks
   const renderListingCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <ListingCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} assetGeneration={assetGenerationRef.current} />;
+    return <ListingCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
   }, [handleCardPress, handleImageReady]);
 
   // PRIORITY 5 FIX: Use memoized GridCard component instead of inline rendering
   // This prevents all cards from re-rendering when parent re-renders
-  // SAFETY: Pass current generation to validate image callbacks
   const renderGridCard = useCallback(({ item }: { item: MarketplaceListing }) => {
-    return <GridCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} assetGeneration={assetGenerationRef.current} />;
+    return <GridCard item={item} onPress={handleCardPress} onImageReady={handleImageReady} />;
   }, [handleCardPress, handleImageReady]);
 
   // List view renderer - stable, no viewMode dependency
