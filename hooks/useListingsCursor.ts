@@ -53,6 +53,7 @@ interface UseListingsCursorReturn {
   isTransitioning: boolean;
   hasHydratedLiveData: boolean;
   visualCommitReady: boolean;
+  listingsChangedTrigger: number;
 }
 
 interface Cursor {
@@ -81,6 +82,7 @@ export function useListingsCursor({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
   const [visualCommitReady, setVisualCommitReady] = useState(true);
+  const [listingsChangedTrigger, setListingsChangedTrigger] = useState(0);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -125,6 +127,9 @@ export function useListingsCursor({
         setListings(instantFeed.listings);
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
+
+        // Emit listings changed trigger
+        setListingsChangedTrigger(prev => prev + 1);
 
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
@@ -341,6 +346,9 @@ export function useListingsCursor({
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
 
+          // Emit listings changed trigger ONLY on reset (fresh load)
+          setListingsChangedTrigger(prev => prev + 1);
+
           // Save snapshot for next time
           if (isInitialLoad && allResults.length > 0) {
             saveSnapshot(userId, allResults,
@@ -351,6 +359,7 @@ export function useListingsCursor({
             );
           }
         } else {
+          // Pagination: append without triggering asset tracking
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
         }
@@ -437,6 +446,7 @@ export function useListingsCursor({
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
+    listingsChangedTrigger,
   };
 }
 
