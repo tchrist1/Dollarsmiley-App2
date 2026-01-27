@@ -465,6 +465,13 @@ export function useListingsCursor({
             setInitialLoadComplete(true);
             setHasHydratedLiveData(true);
 
+            // WALMART-GRADE: Set visualCommitReady to signal cycle complete
+            // Even though we're not updating listings, the UI needs to know data is stable
+            if (!commitDoneRef.current) {
+              commitDoneRef.current = true;
+              setVisualCommitReady(true);
+            }
+
             // Save snapshot if appropriate (optional but useful for cache refresh)
             if (isInitialLoad && allResults.length > 0) {
               saveSnapshot(userId, allResults,
@@ -479,9 +486,6 @@ export function useListingsCursor({
             if (snapshotLoadedRef.current) {
               snapshotLoadedRef.current = false;
             }
-
-            // Mark commit done to prevent duplicate attempts
-            commitDoneRef.current = true;
           } else {
             // Result is different - commit normally
             // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
