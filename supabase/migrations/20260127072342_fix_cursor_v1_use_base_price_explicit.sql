@@ -69,8 +69,6 @@ DECLARE
   v_apply_distance_filter BOOLEAN;
   v_search_query tsquery;
 BEGIN
-  -- Calculate distance whenever user coordinates are provided
-  -- Filter by distance only when p_distance is also provided
   v_apply_distance_filter := (
     p_user_lat IS NOT NULL AND
     p_user_lng IS NOT NULL AND
@@ -106,7 +104,7 @@ BEGIN
       p.longitude,
       p.user_type,
       CASE
-        WHEN p_user_lat IS NOT NULL AND p_user_lng IS NOT NULL AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN
+        WHEN v_apply_distance_filter AND p.latitude IS NOT NULL AND p.longitude IS NOT NULL THEN
           (point(p_user_lng, p_user_lat) <@> point(p.longitude::float, p.latitude::float))
         ELSE NULL
       END as distance_miles
