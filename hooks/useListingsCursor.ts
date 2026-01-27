@@ -147,6 +147,15 @@ export function useListingsCursor({
       }
       return false;
     }
+
+    // WALMART-GRADE: Never apply snapshot if live fetch has started
+    if (inFlightCycleIdRef.current !== null) {
+      if (__DEV__) {
+        console.log('[useListingsCursor] Live fetch in progress, skipping snapshot');
+      }
+      return false;
+    }
+
     if (!enableSnapshot) return false;
 
     const isCleanInitialLoad =
@@ -421,6 +430,7 @@ export function useListingsCursor({
         // CRITICAL: Single visual commit per cycle
 
         if (reset) {
+          // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
 
@@ -444,6 +454,11 @@ export function useListingsCursor({
               console.log(`[useListingsCursor] Cycle commit: id=${currentCycleId} visualCommitReady=true`);
             }
           }
+
+          // WALMART-GRADE: Mark snapshot loaded flag as false after first live fetch
+          if (snapshotLoadedRef.current) {
+            snapshotLoadedRef.current = false;
+          }
         } else {
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
@@ -462,14 +477,17 @@ export function useListingsCursor({
           queuedRefetchRef.current = false;
           queuedSignatureRef.current = null;
 
+          // Clear in-flight before starting new cycle
+          inFlightCycleIdRef.current = null;
+
+          // Update signature for next cycle
+          cycleSignatureRef.current = queuedSig;
+
           if (__DEV__) {
             console.log(`[useListingsCursor] Queued refetch scheduled: signature=${queuedSig}`);
           }
 
-          // Clear in-flight
-          inFlightCycleIdRef.current = null;
-
-          // Trigger next cycle
+          // Trigger next cycle with queued signature
           setTimeout(() => {
             fetchListingsCursor(true);
           }, 0);
@@ -544,15 +562,13 @@ export function useListingsCursor({
     }
 
     setIsTransitioning(true);
-    setVisualCommitReady(false);
+    // WALMART-GRADE: Only set visualCommitReady=false if not initial load with snapshot
+    if (!snapshotLoadedRef.current || initialLoadComplete) {
+      setVisualCommitReady(false);
+    }
 
     searchTimeout.current = setTimeout(() => {
       fetchListingsCursor(true);
-
-      // Reset snapshot flag after first live fetch
-      if (snapshotLoadedRef.current) {
-        snapshotLoadedRef.current = false;
-      }
 
       // WALMART-GRADE: DO NOT set visualCommitReady here
       // It will be set in atomic finalization after fetch completes
