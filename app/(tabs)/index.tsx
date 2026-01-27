@@ -289,10 +289,12 @@ export default function HomeScreen() {
   const [showMapStatusHint, setShowMapStatusHint] = useState(false);
   const mapStatusHintTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mapRef = useRef<NativeInteractiveMapViewRef>(null);
-  const [filters, setFilters] = useState<FilterOptions>({
+  const [filters, setFilters] = useState<FilterOptions>(() => ({
     ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
-  });
+    userLatitude: profile?.latitude ?? undefined,
+    userLongitude: profile?.longitude ?? undefined,
+  }));
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -390,23 +392,46 @@ export default function HomeScreen() {
 
   // ============================================================================
   // OPTIMIZATION: Sync user location to filters for distance-based filtering
-  // STABILITY: Only set location once to prevent distance recalculation
+  // STABILITY: Only update location ONCE to prevent double fetch on first load
+  // IMPORTANT: Profile location is initialized in useState to prevent race condition
   // ============================================================================
   useEffect(() => {
-    // Only update location if not already set (prevents distance from changing mid-session)
+    // Skip if already initialized
     if (locationInitializedRef.current) return;
 
-    const location = userLocation || (profile?.latitude && profile?.longitude
-      ? { latitude: profile.latitude, longitude: profile.longitude }
-      : null);
+    // Prefer device GPS location if available
+    if (userLocation && userLocation.latitude && userLocation.longitude) {
+      setFilters(prev => {
+        // Don't update if already has location
+        if (prev.userLatitude !== undefined && prev.userLongitude !== undefined) {
+          locationInitializedRef.current = true;
+          return prev;
+        }
+        locationInitializedRef.current = true;
+        return {
+          ...prev,
+          userLatitude: userLocation.latitude,
+          userLongitude: userLocation.longitude,
+        };
+      });
+      return;
+    }
 
-    if (location && location.latitude && location.longitude) {
-      setFilters(prev => ({
-        ...prev,
-        userLatitude: location.latitude,
-        userLongitude: location.longitude,
-      }));
-      locationInitializedRef.current = true;
+    // Use profile location if it becomes available after mount
+    if (profile?.latitude && profile?.longitude) {
+      setFilters(prev => {
+        // Don't update if already has location
+        if (prev.userLatitude !== undefined && prev.userLongitude !== undefined) {
+          locationInitializedRef.current = true;
+          return prev;
+        }
+        locationInitializedRef.current = true;
+        return {
+          ...prev,
+          userLatitude: profile.latitude,
+          userLongitude: profile.longitude,
+        };
+      });
     }
   }, [userLocation, profile?.latitude, profile?.longitude]);
 
