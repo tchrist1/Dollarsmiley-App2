@@ -83,7 +83,7 @@ function normalizeServiceListing(service: any): MarketplaceListing {
     photos,
     featured_image_url: featuredImage,
     created_at: service.created_at,
-    base_price: service.base_price,
+    base_price: service.price || service.base_price,
     pricing_type: service.pricing_type,
     provider_id: service.provider_id,
     status: service.status,
