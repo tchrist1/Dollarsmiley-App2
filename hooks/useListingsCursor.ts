@@ -90,6 +90,10 @@ export function useListingsCursor({
   // Once live fetch starts, snapshot logic is disabled permanently
   const liveFetchStartedRef = useRef(false);
 
+  // LIVE FETCH READY GATE: Track if initial live fetch has started
+  // Prevents premature fetch before location coordinates are hydrated
+  const initialLiveFetchStartedRef = useRef(false);
+
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
@@ -412,10 +416,28 @@ export function useListingsCursor({
      initialLoadComplete, enableSnapshot, serviceCursor, jobCursor, loadFromSnapshot]
   );
 
+  // LIVE FETCH READY GATE: Compute derived readiness
+  // Block initial live fetch until location coords are available (if needed)
+  const needsLocationCoords = filters.distance !== undefined && filters.distance !== null;
+  const hasLocationCoords = filters.userLatitude !== undefined &&
+                            filters.userLatitude !== null &&
+                            filters.userLongitude !== undefined &&
+                            filters.userLongitude !== null;
+  const liveFetchReady = !!userId && (!needsLocationCoords || hasLocationCoords);
+
   // Debounced effect
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
+    }
+
+    // LIVE FETCH READY GATE: Block premature initial fetch
+    if (!initialLoadComplete && !initialLiveFetchStartedRef.current && !liveFetchReady) {
+      if (__DEV__) {
+        console.log('[useListingsCursor] Initial live fetch blocked - waiting for coords. needsCoords:', needsLocationCoords, 'hasCoords:', hasLocationCoords);
+      }
+      // Don't start transition, don't block snapshot display
+      return;
     }
 
     // Tier-4: Optimized debounce logic
@@ -439,6 +461,14 @@ export function useListingsCursor({
     }
 
     searchTimeout.current = setTimeout(() => {
+      // Mark initial live fetch as started
+      if (!initialLiveFetchStartedRef.current) {
+        initialLiveFetchStartedRef.current = true;
+        if (__DEV__) {
+          console.log('[useListingsCursor] Initial live fetch triggered with final params');
+        }
+      }
+
       fetchListingsCursor(true);
 
       // Reset snapshot flag after first live fetch
@@ -457,6 +487,25 @@ export function useListingsCursor({
       }
     };
   }, [searchQuery, filters, userId]);
+
+  // LIVE FETCH READY GATE: Trigger immediate fetch when ready
+  useEffect(() => {
+    // Only trigger on initial mount when liveFetchReady transitions to true
+    if (!initialLoadComplete &&
+        !initialLiveFetchStartedRef.current &&
+        liveFetchReady) {
+
+      if (__DEV__) {
+        console.log('[useListingsCursor] liveFetchReady = true, triggering initial fetch');
+      }
+
+      // Mark as started to prevent double trigger
+      initialLiveFetchStartedRef.current = true;
+
+      // Trigger immediate fetch with final params
+      fetchListingsCursor(true);
+    }
+  }, [liveFetchReady, initialLoadComplete, fetchListingsCursor]);
 
   const fetchMore = useCallback(() => {
     if (!loading && !loadingMore && hasMore) {
