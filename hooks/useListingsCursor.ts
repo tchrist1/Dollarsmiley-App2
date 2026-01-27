@@ -85,6 +85,19 @@ export function useListingsCursor({
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
+  // ============================================================================
+  // CYCLE MANAGEMENT (WALMART-GRADE SOFT LANDING)
+  // ============================================================================
+  // Prevents flicker and duplicate fetches by tracking load cycles
+  const cycleIdRef = useRef(0); // Increments for each new fetch cycle
+  const activeCycleIdRef = useRef(0); // Currently valid cycle
+  const inFlightCycleIdRef = useRef<number | null>(null); // Cycle currently fetching
+  const cycleSignatureRef = useRef<string | null>(null); // Signature for current cycle
+  const snapshotAppliedRef = useRef(false); // One-shot snapshot application
+  const commitDoneRef = useRef(false); // Single visual commit per cycle
+  const queuedRefetchRef = useRef(false); // Queue next refetch if signature changes
+  const queuedSignatureRef = useRef<string | null>(null); // Queued signature
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -94,10 +107,46 @@ export function useListingsCursor({
   }, []);
 
   // ============================================================================
+  // STABLE SIGNATURE GENERATION (PREVENT DUPLICATE FETCHES)
+  // ============================================================================
+
+  const generateStableSignature = useCallback((query: string, filts: FilterOptions): string => {
+    // Build stable signature from RPC inputs only
+    // CRITICAL: Must be order-stable to prevent false mismatches
+    const sortedCategories = [...filts.categories].sort();
+
+    const signatureObj = {
+      userId: userId || 'guest',
+      searchQuery: query.trim(),
+      categories: sortedCategories,
+      listingType: filts.listingType || 'all',
+      verified: filts.verified || null,
+      sortBy: filts.sortBy || 'relevance',
+      location: filts.location?.trim() || null,
+      priceMin: filts.priceMin || null,
+      priceMax: filts.priceMax || null,
+      minRating: filts.minRating || null,
+      distance: filts.distance !== undefined && filts.distance !== null ? filts.distance : null,
+      userLat: filts.userLatitude !== undefined && filts.userLatitude !== null ? filts.userLatitude : null,
+      userLng: filts.userLongitude !== undefined && filts.userLongitude !== null ? filts.userLongitude : null,
+    };
+
+    // Stable stringify with sorted keys
+    return JSON.stringify(signatureObj, Object.keys(signatureObj).sort());
+  }, [userId]);
+
+  // ============================================================================
   // PHASE 1: INSTANT SNAPSHOT LOAD
   // ============================================================================
 
   const loadFromSnapshot = useCallback(async (): Promise<boolean> => {
+    // ONE-SHOT GUARD: Prevent duplicate snapshot application
+    if (snapshotAppliedRef.current) {
+      if (__DEV__) {
+        console.log('[useListingsCursor] Snapshot already applied, skipping');
+      }
+      return false;
+    }
     if (!enableSnapshot) return false;
 
     const isCleanInitialLoad =
@@ -121,9 +170,12 @@ export function useListingsCursor({
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
 
+        // WALMART-GRADE: Set one-shot flag to prevent reapplication
+        snapshotAppliedRef.current = true;
+
         // OPTIMIZATION: Log successful snapshot load for observability
         if (__DEV__) {
-          console.log('[useListingsCursor] Snapshot loaded:', instantFeed.listings.length, 'listings');
+          console.log('[useListingsCursor] Snapshot applied (one-shot):', instantFeed.listings.length, 'listings');
         }
 
         return true;
@@ -145,6 +197,27 @@ export function useListingsCursor({
 
   const fetchListingsCursor = useCallback(
     async (reset: boolean = false) => {
+      // ========================================================================
+      // WALMART-GRADE CYCLE START
+      // ========================================================================
+      let currentCycleId: number;
+
+      if (reset) {
+        // Start new cycle
+        cycleIdRef.current += 1;
+        currentCycleId = cycleIdRef.current;
+        activeCycleIdRef.current = currentCycleId;
+        inFlightCycleIdRef.current = currentCycleId;
+        commitDoneRef.current = false;
+
+        if (__DEV__) {
+          console.log(`[useListingsCursor] Cycle start: id=${currentCycleId} signature=${cycleSignatureRef.current}`);
+        }
+      } else {
+        // Pagination - use existing cycle
+        currentCycleId = activeCycleIdRef.current;
+      }
+
       // Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -286,6 +359,17 @@ export function useListingsCursor({
 
         if (signal.aborted) return;
 
+        // ====================================================================
+        // WALMART-GRADE CYCLE VALIDATION
+        // ====================================================================
+        // CRITICAL: Only commit if this result belongs to the active cycle
+        if (currentCycleId !== activeCycleIdRef.current) {
+          if (__DEV__) {
+            console.log(`[useListingsCursor] Cycle stale: id=${currentCycleId} (active=${activeCycleIdRef.current}), discarding results`);
+          }
+          return;
+        }
+
         // Process results
         const allResults: MarketplaceListing[] = [];
 
@@ -331,11 +415,16 @@ export function useListingsCursor({
 
         if (!isMountedRef.current) return;
 
+        // ====================================================================
+        // WALMART-GRADE ATOMIC FINALIZATION
+        // ====================================================================
+        // CRITICAL: Single visual commit per cycle
+
         if (reset) {
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
 
-          // Save snapshot for next time
+          // Save snapshot ONLY from final results (not partial)
           if (isInitialLoad && allResults.length > 0) {
             saveSnapshot(userId, allResults,
               allResults.length > 0 ? {
@@ -343,6 +432,17 @@ export function useListingsCursor({
                 id: allResults[allResults.length - 1].id
               } : null
             );
+          }
+
+          // WALMART-GRADE: Flip visual commit ready ONLY after finalization
+          if (!commitDoneRef.current) {
+            commitDoneRef.current = true;
+            setVisualCommitReady(true);
+
+            if (__DEV__) {
+              console.log(`[useListingsCursor] Cycle finalized: id=${currentCycleId} finalCount=${allResults.length}`);
+              console.log(`[useListingsCursor] Cycle commit: id=${currentCycleId} visualCommitReady=true`);
+            }
           }
         } else {
           setListings(prev => [...prev, ...allResults]);
@@ -352,6 +452,34 @@ export function useListingsCursor({
         setError(null);
         setInitialLoadComplete(true);
         setHasHydratedLiveData(true);
+
+        // ====================================================================
+        // WALMART-GRADE QUEUED REFETCH
+        // ====================================================================
+        // Execute queued refetch if signature changed mid-flight
+        if (reset && queuedRefetchRef.current && queuedSignatureRef.current) {
+          const queuedSig = queuedSignatureRef.current;
+          queuedRefetchRef.current = false;
+          queuedSignatureRef.current = null;
+
+          if (__DEV__) {
+            console.log(`[useListingsCursor] Queued refetch scheduled: signature=${queuedSig}`);
+          }
+
+          // Clear in-flight
+          inFlightCycleIdRef.current = null;
+
+          // Trigger next cycle
+          setTimeout(() => {
+            fetchListingsCursor(true);
+          }, 0);
+          return;
+        }
+
+        // Clear in-flight cycle
+        if (reset) {
+          inFlightCycleIdRef.current = null;
+        }
       } catch (err: any) {
         if (err.name === 'AbortError') return;
 
@@ -376,6 +504,34 @@ export function useListingsCursor({
       clearTimeout(searchTimeout.current);
     }
 
+    // ========================================================================
+    // WALMART-GRADE SIGNATURE-BASED DEDUPLICATION
+    // ========================================================================
+    const newSignature = generateStableSignature(searchQuery, filters);
+
+    // Check if same signature is already in-flight
+    if (inFlightCycleIdRef.current !== null && newSignature === cycleSignatureRef.current) {
+      if (__DEV__) {
+        console.log(`[useListingsCursor] Cycle in-flight: id=${inFlightCycleIdRef.current} (deduped trigger ignored)`);
+      }
+      // Same request already in progress - let RequestCoalescer handle it
+      return;
+    }
+
+    // Check if signature changed while another cycle is in-flight
+    if (inFlightCycleIdRef.current !== null && newSignature !== cycleSignatureRef.current) {
+      if (__DEV__) {
+        console.log(`[useListingsCursor] Signature changed mid-flight, queuing refetch`);
+      }
+      // Queue the new signature for execution after current cycle completes
+      queuedRefetchRef.current = true;
+      queuedSignatureRef.current = newSignature;
+      return;
+    }
+
+    // Update signature for this cycle
+    cycleSignatureRef.current = newSignature;
+
     // Tier-4: Optimized debounce logic
     // - Snapshot loaded on initial mount → 0ms delay for background refresh
     // - Initial load without snapshot → 50ms delay
@@ -398,9 +554,9 @@ export function useListingsCursor({
         snapshotLoadedRef.current = false;
       }
 
-      // Set visual commit ready immediately when data is ready
+      // WALMART-GRADE: DO NOT set visualCommitReady here
+      // It will be set in atomic finalization after fetch completes
       setIsTransitioning(false);
-      setVisualCommitReady(true);
     }, effectiveDebounce);
 
     return () => {
@@ -408,7 +564,7 @@ export function useListingsCursor({
         clearTimeout(searchTimeout.current);
       }
     };
-  }, [searchQuery, filters, userId]);
+  }, [searchQuery, filters, userId, generateStableSignature]);
 
   const fetchMore = useCallback(() => {
     if (!loading && !loadingMore && hasMore) {
