@@ -94,6 +94,9 @@ export function useListingsCursor({
   // Prevents premature fetch before location coordinates are hydrated
   const initialLiveFetchStartedRef = useRef(false);
 
+  // POLISH: Track if blocked log has been shown to prevent spam
+  const blockedLoggedRef = useRef(false);
+
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
@@ -104,6 +107,21 @@ export function useListingsCursor({
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
+
+  // POLISH: Snapshot loads immediately on mount (before live fetch readiness)
+  useEffect(() => {
+    // Only run on initial mount for clean loads
+    const isCleanInitialLoad =
+      !searchQuery.trim() &&
+      filters.categories.length === 0 &&
+      !filters.location.trim() &&
+      !filters.priceMin &&
+      !filters.priceMax;
+
+    if (enableSnapshot && isCleanInitialLoad && !snapshotConsumedRef.current) {
+      loadFromSnapshot();
+    }
+  }, []); // Mount-only effect
 
   // ============================================================================
   // PHASE 1: INSTANT SNAPSHOT LOAD
@@ -433,8 +451,10 @@ export function useListingsCursor({
 
     // LIVE FETCH READY GATE: Block premature initial fetch
     if (!initialLoadComplete && !initialLiveFetchStartedRef.current && !liveFetchReady) {
-      if (__DEV__) {
+      // POLISH: Only log blocked message once
+      if (__DEV__ && !blockedLoggedRef.current) {
         console.log('[useListingsCursor] Initial live fetch blocked - waiting for coords. needsCoords:', needsLocationCoords, 'hasCoords:', hasLocationCoords);
+        blockedLoggedRef.current = true;
       }
       // Don't start transition, don't block snapshot display
       return;
@@ -497,6 +517,8 @@ export function useListingsCursor({
 
       if (__DEV__) {
         console.log('[useListingsCursor] liveFetchReady = true, triggering initial fetch');
+        // POLISH: Reset blocked log flag when fetch is ready
+        blockedLoggedRef.current = false;
       }
 
       // Mark as started to prevent double trigger
