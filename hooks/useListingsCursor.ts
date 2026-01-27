@@ -97,6 +97,7 @@ export function useListingsCursor({
   const commitDoneRef = useRef(false); // Single visual commit per cycle
   const queuedRefetchRef = useRef(false); // Queue next refetch if signature changes
   const queuedSignatureRef = useRef<string | null>(null); // Queued signature
+  const lastCommittedResultSigRef = useRef<string | null>(null); // Last committed result signature
 
   useEffect(() => {
     return () => {
@@ -134,6 +135,22 @@ export function useListingsCursor({
     // Stable stringify with sorted keys
     return JSON.stringify(signatureObj, Object.keys(signatureObj).sort());
   }, [userId]);
+
+  // ============================================================================
+  // RESULT SIGNATURE GENERATION (NO-OP COMMIT SUPPRESSION)
+  // ============================================================================
+
+  /**
+   * Generate lightweight signature from finalized results.
+   * Used to detect no-op commits (same IDs, same count).
+   * MUST be fast - no deep stringify of full objects.
+   */
+  const generateResultSignature = useCallback((results: MarketplaceListing[]): string => {
+    // Fast signature: count + first 50 IDs (covers most feeds)
+    const count = results.length;
+    const idSample = results.slice(0, 50).map(r => `${r.marketplace_type}:${r.id}`).join(',');
+    return `${count}:${idSample}`;
+  }, []);
 
   // ============================================================================
   // PHASE 1: INSTANT SNAPSHOT LOAD
@@ -430,43 +447,90 @@ export function useListingsCursor({
         // CRITICAL: Single visual commit per cycle
 
         if (reset) {
-          // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
-          setListings(allResults);
-          setHasMore(allResults.length >= pageSize);
+          // ====================================================================
+          // NO-OP COMMIT SUPPRESSION
+          // ====================================================================
+          // Compute lightweight result signature to detect redundant commits
+          const finalizedResultSig = generateResultSignature(allResults);
+          const isSameAsLastCommit = finalizedResultSig === lastCommittedResultSigRef.current;
 
-          // Save snapshot ONLY from final results (not partial)
-          if (isInitialLoad && allResults.length > 0) {
-            saveSnapshot(userId, allResults,
-              allResults.length > 0 ? {
-                created_at: allResults[allResults.length - 1].created_at,
-                id: allResults[allResults.length - 1].id
-              } : null
-            );
-          }
-
-          // WALMART-GRADE: Flip visual commit ready ONLY after finalization
-          if (!commitDoneRef.current) {
-            commitDoneRef.current = true;
-            setVisualCommitReady(true);
-
+          if (isSameAsLastCommit) {
+            // Result is identical to last commit - suppress visual commit
             if (__DEV__) {
-              console.log(`[useListingsCursor] Cycle finalized: id=${currentCycleId} finalCount=${allResults.length}`);
-              console.log(`[useListingsCursor] Cycle commit: id=${currentCycleId} visualCommitReady=true`);
+              console.log(`[useListingsCursor] Commit suppressed (no-op): cycle=${currentCycleId} finalCount=${allResults.length}`);
             }
-          }
 
-          // WALMART-GRADE: Mark snapshot loaded flag as false after first live fetch
-          if (snapshotLoadedRef.current) {
-            snapshotLoadedRef.current = false;
+            // Still update internal state (live data hydrated, snapshot saved)
+            setError(null);
+            setInitialLoadComplete(true);
+            setHasHydratedLiveData(true);
+
+            // Save snapshot if appropriate (optional but useful for cache refresh)
+            if (isInitialLoad && allResults.length > 0) {
+              saveSnapshot(userId, allResults,
+                allResults.length > 0 ? {
+                  created_at: allResults[allResults.length - 1].created_at,
+                  id: allResults[allResults.length - 1].id
+                } : null
+              );
+            }
+
+            // Mark snapshot loaded flag as false after first live fetch
+            if (snapshotLoadedRef.current) {
+              snapshotLoadedRef.current = false;
+            }
+
+            // Mark commit done to prevent duplicate attempts
+            commitDoneRef.current = true;
+          } else {
+            // Result is different - commit normally
+            // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
+            setListings(allResults);
+            setHasMore(allResults.length >= pageSize);
+
+            // Save snapshot ONLY from final results (not partial)
+            if (isInitialLoad && allResults.length > 0) {
+              saveSnapshot(userId, allResults,
+                allResults.length > 0 ? {
+                  created_at: allResults[allResults.length - 1].created_at,
+                  id: allResults[allResults.length - 1].id
+                } : null
+              );
+            }
+
+            // WALMART-GRADE: Flip visual commit ready ONLY after finalization
+            if (!commitDoneRef.current) {
+              commitDoneRef.current = true;
+              setVisualCommitReady(true);
+
+              if (__DEV__) {
+                console.log(`[useListingsCursor] Cycle finalized: id=${currentCycleId} finalCount=${allResults.length}`);
+                console.log(`[useListingsCursor] Cycle commit: id=${currentCycleId} visualCommitReady=true`);
+              }
+            }
+
+            // WALMART-GRADE: Mark snapshot loaded flag as false after first live fetch
+            if (snapshotLoadedRef.current) {
+              snapshotLoadedRef.current = false;
+            }
+
+            // Update last committed signature
+            lastCommittedResultSigRef.current = finalizedResultSig;
+
+            // Update state after commit
+            setError(null);
+            setInitialLoadComplete(true);
+            setHasHydratedLiveData(true);
           }
         } else {
+          // Pagination - append results
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
-        }
 
-        setError(null);
-        setInitialLoadComplete(true);
-        setHasHydratedLiveData(true);
+          setError(null);
+          setInitialLoadComplete(true);
+          setHasHydratedLiveData(true);
+        }
 
         // ====================================================================
         // WALMART-GRADE QUEUED REFETCH
