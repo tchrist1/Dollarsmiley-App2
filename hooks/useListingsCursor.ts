@@ -535,7 +535,10 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     state: job.state,
     latitude: latitude,
     longitude: longitude,
-    deadline: job.deadline,
     distance_miles: job.distance_miles !== undefined && job.distance_miles !== null ? job.distance_miles : null,
+    fixed_price: job.fixed_price,
+    budget_min: job.budget_min,
+    budget_max: job.budget_max,
+    featured_image_url: job.featured_image_url,
   } as any;
 }
