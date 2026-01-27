@@ -1,20 +1,23 @@
 /*
-  # Fix get_services_cursor_paginated to use base_price
-  
-  ## Summary
-  Updates the v1 cursor function to return `base_price` as `price` so home screen displays correct prices.
-  
-  ## Issues Fixed
-  - Home screen cards showing $0 in list/grid/map views
-  - The v1 function was selecting sl.price (NULL) instead of sl.base_price (has values)
-  
+  # Fix Distance Badge Display
+
+  ## Issue
+  - Distance badge not showing on home listing cards
+  - get_services_cursor_paginated only calculates distance when p_distance filter is active
+  - Should calculate distance whenever user coordinates are available
+
+  ## Solution
+  - Always calculate distance_miles when user lat/lng are provided
+  - Only filter by distance when p_distance is also provided
+  - This matches the behavior in get_jobs_cursor_paginated (which is already correct)
+
   ## Changes
-  1. Update get_services_cursor_paginated to select base_price as price
-  2. Update get_home_feed_snapshot to use base_price as well
+  1. Update distance calculation condition from v_apply_distance_filter to just checking user coordinates
+  2. Keep distance filtering separate (still uses v_apply_distance_filter)
 */
 
 -- ============================================================================
--- FIX V1 CURSOR FUNCTION
+-- FIX SERVICES CURSOR FUNCTION - ALWAYS CALCULATE DISTANCE
 -- ============================================================================
 
 DROP FUNCTION IF EXISTS get_services_cursor_paginated(
@@ -185,90 +188,7 @@ BEGIN
       WHEN p_sort_by = 'popular' THEN dc.booking_count
       ELSE NULL
     END DESC NULLS LAST,
-    dc.created_at DESC,
-    dc.id DESC
+    dc.created_at DESC
   LIMIT p_limit;
 END;
 $$;
-
--- ============================================================================
--- FIX SNAPSHOT FUNCTION
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION get_home_feed_snapshot(
-  p_user_id UUID DEFAULT NULL,
-  p_limit INT DEFAULT 20
-)
-RETURNS TABLE(
-  id UUID,
-  marketplace_type TEXT,
-  title TEXT,
-  price DECIMAL,
-  image_url TEXT,
-  created_at TIMESTAMPTZ,
-  rating DECIMAL,
-  provider_id UUID,
-  provider_name TEXT,
-  location TEXT,
-  listing_type TEXT
-)
-LANGUAGE plpgsql
-SECURITY INVOKER
-STABLE
-AS $$
-BEGIN
-  RETURN QUERY
-  WITH services AS (
-    SELECT 
-      sl.id,
-      'Service'::TEXT as marketplace_type,
-      sl.title,
-      sl.base_price as price,
-      sl.featured_image_url as image_url,
-      sl.created_at,
-      sl.rating_average as rating,
-      sl.provider_id,
-      p.full_name as provider_name,
-      COALESCE(p.city || ', ' || p.state, p.city, 'Location TBD') as location,
-      sl.listing_type
-    FROM service_listings sl
-    LEFT JOIN profiles p ON p.id = sl.provider_id
-    WHERE LOWER(sl.status) = 'active'
-    ORDER BY sl.created_at DESC
-    LIMIT p_limit
-  ),
-  jobs AS (
-    SELECT 
-      j.id,
-      'Job'::TEXT as marketplace_type,
-      j.title,
-      COALESCE(j.fixed_price, j.budget_min) as price,
-      j.featured_image_url as image_url,
-      j.created_at,
-      NULL::DECIMAL as rating,
-      j.customer_id as provider_id,
-      p.full_name as provider_name,
-      COALESCE(j.city || ', ' || j.state, j.city, 'Location TBD') as location,
-      'Job'::TEXT as listing_type
-    FROM jobs j
-    LEFT JOIN profiles p ON p.id = j.customer_id
-    WHERE LOWER(j.status) IN ('open', 'in_progress')
-    ORDER BY j.created_at DESC
-    LIMIT p_limit
-  )
-  SELECT * FROM (
-    SELECT * FROM services
-    UNION ALL
-    SELECT * FROM jobs
-  ) combined
-  ORDER BY created_at DESC
-  LIMIT p_limit;
-END;
-$$;
-
--- ============================================================================
--- MAINTAIN PERMISSIONS
--- ============================================================================
-
-GRANT EXECUTE ON FUNCTION get_services_cursor_paginated TO authenticated, anon;
-GRANT EXECUTE ON FUNCTION get_home_feed_snapshot TO authenticated, anon;
