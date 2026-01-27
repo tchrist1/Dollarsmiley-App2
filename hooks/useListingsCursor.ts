@@ -82,6 +82,14 @@ export function useListingsCursor({
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
+  // REFINEMENT 1: SNAPSHOT ONE-SHOT GUARANTEE
+  // Once snapshot is consumed, it can never be re-applied this mount cycle
+  const snapshotConsumedRef = useRef(false);
+
+  // REFINEMENT 2: LIVE FETCH AUTHORITY LOCK
+  // Once live fetch starts, snapshot logic is disabled permanently
+  const liveFetchStartedRef = useRef(false);
+
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
@@ -99,6 +107,16 @@ export function useListingsCursor({
 
   const loadFromSnapshot = useCallback(async (): Promise<boolean> => {
     if (!enableSnapshot) return false;
+
+    // REFINEMENT 1: One-shot guarantee - never re-apply snapshot
+    if (snapshotConsumedRef.current) {
+      return false;
+    }
+
+    // REFINEMENT 2: Authority lock - once live fetch starts, disable snapshot
+    if (liveFetchStartedRef.current) {
+      return false;
+    }
 
     const isCleanInitialLoad =
       !searchQuery.trim() &&
@@ -118,8 +136,16 @@ export function useListingsCursor({
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
 
+        // REFINEMENT 1: Mark snapshot as consumed - can never load again
+        snapshotConsumedRef.current = true;
+
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
+
+        // REFINEMENT 3: Allow snapshot to display immediately
+        // visualCommitReady = true lets snapshot data display
+        // It will remain true until live data overwrites it
+        setVisualCommitReady(true);
 
         // OPTIMIZATION: Log successful snapshot load for observability
         if (__DEV__) {
@@ -182,6 +208,10 @@ export function useListingsCursor({
         setServiceCursor(null);
         setJobCursor(null);
       }
+
+      // REFINEMENT 2: LIVE FETCH AUTHORITY LOCK
+      // Mark that live fetch has started - snapshot logic now disabled
+      liveFetchStartedRef.current = true;
 
       try {
         const shouldFetchServices = !filters.listingType ||
@@ -331,12 +361,26 @@ export function useListingsCursor({
 
         if (!isMountedRef.current) return;
 
+        // REFINEMENT 4: ATOMIC LIVE DATA COMMIT
+        // All state updates happen together in one batch
         if (reset) {
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
+          setError(null);
+          setInitialLoadComplete(true);
+          setHasHydratedLiveData(true);
 
-          // Save snapshot for next time
-          if (isInitialLoad && allResults.length > 0) {
+          // REFINEMENT 3: DATA-DRIVEN VISUAL COMMIT
+          // Flip visualCommitReady only after live data is finalized
+          setVisualCommitReady(true);
+
+          if (__DEV__) {
+            console.log('[useListingsCursor] Visual commit ready - live data finalized:', allResults.length, 'listings');
+          }
+
+          // REFINEMENT 5: SNAPSHOT SAVE GUARD
+          // Save ONLY final live listings, never snapshot-derived data
+          if (isInitialLoad && allResults.length > 0 && liveFetchStartedRef.current) {
             saveSnapshot(userId, allResults,
               allResults.length > 0 ? {
                 created_at: allResults[allResults.length - 1].created_at,
@@ -345,13 +389,11 @@ export function useListingsCursor({
             );
           }
         } else {
+          // Pagination: append data
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
+          setError(null);
         }
-
-        setError(null);
-        setInitialLoadComplete(true);
-        setHasHydratedLiveData(true);
       } catch (err: any) {
         if (err.name === 'AbortError') return;
 
@@ -388,7 +430,13 @@ export function useListingsCursor({
     }
 
     setIsTransitioning(true);
-    setVisualCommitReady(false);
+
+    // REFINEMENT 3: Visual commit controlled by data, not timer
+    // Only set visualCommitReady = false if snapshot hasn't been consumed yet
+    // This prevents flickering when snapshot is already displayed
+    if (!snapshotConsumedRef.current) {
+      setVisualCommitReady(false);
+    }
 
     searchTimeout.current = setTimeout(() => {
       fetchListingsCursor(true);
@@ -398,9 +446,9 @@ export function useListingsCursor({
         snapshotLoadedRef.current = false;
       }
 
-      // Set visual commit ready immediately when data is ready
+      // REFINEMENT 3: Removed timer-based visualCommitReady flip
+      // visualCommitReady now flips only when live data is ready (in fetchListingsCursor)
       setIsTransitioning(false);
-      setVisualCommitReady(true);
     }, effectiveDebounce);
 
     return () => {
