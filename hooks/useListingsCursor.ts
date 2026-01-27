@@ -82,33 +82,8 @@ export function useListingsCursor({
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
-  // REFINEMENT 1: SNAPSHOT ONE-SHOT GUARANTEE
-  // Once snapshot is consumed, it can never be re-applied this mount cycle
-  const snapshotConsumedRef = useRef(false);
-
-  // REFINEMENT 2: LIVE FETCH AUTHORITY LOCK
-  // Once live fetch starts, snapshot logic is disabled permanently
-  const liveFetchStartedRef = useRef(false);
-
-  // LIVE FETCH READY GATE: Track if initial live fetch has started
-  // Prevents premature fetch before location coordinates are hydrated
-  const initialLiveFetchStartedRef = useRef(false);
-
-  // POLISH: Track if blocked log has been shown to prevent spam
-  const blockedLoggedRef = useRef(false);
-
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
-
-  // TIER-3 OPTIMIZATION: Optimistic live fetch with deferred commit
-  const optimisticLiveResultRef = useRef<{
-    listings: MarketplaceListing[];
-    serviceCursor: Cursor | null;
-    jobCursor: Cursor | null;
-    hasMore: boolean;
-  } | null>(null);
-  const optimisticLiveSignatureRef = useRef<string | null>(null);
-  const hasCommittedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -118,56 +93,12 @@ export function useListingsCursor({
     };
   }, []);
 
-  // TIER-3: Generate signature from current params for optimistic fetch matching
-  const generateParamsSignature = useCallback(() => {
-    return JSON.stringify({
-      query: searchQuery.trim(),
-      cats: filters.categories.sort(),
-      loc: filters.location.trim(),
-      dist: filters.distance,
-      lat: filters.userLatitude,
-      lng: filters.userLongitude,
-      priceMin: filters.priceMin,
-      priceMax: filters.priceMax,
-      rating: filters.rating,
-      verified: filters.verified,
-      serviceType: filters.serviceType,
-      listingType: filters.listingType,
-      sortBy: filters.sortBy,
-    });
-  }, [searchQuery, filters]);
-
-  // POLISH: Snapshot loads immediately on mount (before live fetch readiness)
-  useEffect(() => {
-    // Only run on initial mount for clean loads
-    const isCleanInitialLoad =
-      !searchQuery.trim() &&
-      filters.categories.length === 0 &&
-      !filters.location.trim() &&
-      !filters.priceMin &&
-      !filters.priceMax;
-
-    if (enableSnapshot && isCleanInitialLoad && !snapshotConsumedRef.current) {
-      loadFromSnapshot();
-    }
-  }, []); // Mount-only effect
-
   // ============================================================================
   // PHASE 1: INSTANT SNAPSHOT LOAD
   // ============================================================================
 
   const loadFromSnapshot = useCallback(async (): Promise<boolean> => {
     if (!enableSnapshot) return false;
-
-    // REFINEMENT 1: One-shot guarantee - never re-apply snapshot
-    if (snapshotConsumedRef.current) {
-      return false;
-    }
-
-    // REFINEMENT 2: Authority lock - once live fetch starts, disable snapshot
-    if (liveFetchStartedRef.current) {
-      return false;
-    }
 
     const isCleanInitialLoad =
       !searchQuery.trim() &&
@@ -187,16 +118,8 @@ export function useListingsCursor({
         setHasMore(instantFeed.listings.length >= pageSize);
         setInitialLoadComplete(true);
 
-        // REFINEMENT 1: Mark snapshot as consumed - can never load again
-        snapshotConsumedRef.current = true;
-
         // Tier-4: Mark snapshot loaded for optimized refresh
         snapshotLoadedRef.current = true;
-
-        // REFINEMENT 3: Allow snapshot to display immediately
-        // visualCommitReady = true lets snapshot data display
-        // It will remain true until live data overwrites it
-        setVisualCommitReady(true);
 
         // OPTIMIZATION: Log successful snapshot load for observability
         if (__DEV__) {
@@ -221,15 +144,7 @@ export function useListingsCursor({
   // ============================================================================
 
   const fetchListingsCursor = useCallback(
-    async (reset: boolean = false, optimistic: boolean = false) => {
-      // TIER-3: Skip if already committed (single commit guarantee)
-      if (hasCommittedRef.current && reset && !optimistic) {
-        if (__DEV__) {
-          console.log('[useListingsCursor] Skipping fetch - already committed');
-        }
-        return;
-      }
-
+    async (reset: boolean = false) => {
       // Cancel previous request
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -251,16 +166,12 @@ export function useListingsCursor({
         if (snapshotLoaded) {
           // Continue with background refresh
           // Don't set loading to true since we have snapshot data
-        } else if (!optimistic) {
-          // Only show loading if not optimistic
+        } else {
           setLoading(true);
         }
       } else if (reset) {
-        // TIER-3: Don't show loading spinner for optimistic fetches
-        if (!optimistic) {
-          setLoading(true);
-          setListings([]);
-        }
+        setLoading(true);
+        setListings([]);
       } else {
         if (!hasMore || loadingMore) return;
         setLoadingMore(true);
@@ -271,10 +182,6 @@ export function useListingsCursor({
         setServiceCursor(null);
         setJobCursor(null);
       }
-
-      // REFINEMENT 2: LIVE FETCH AUTHORITY LOCK
-      // Mark that live fetch has started - snapshot logic now disabled
-      liveFetchStartedRef.current = true;
 
       try {
         const shouldFetchServices = !filters.listingType ||
@@ -381,8 +288,6 @@ export function useListingsCursor({
 
         // Process results
         const allResults: MarketplaceListing[] = [];
-        let nextServiceCursor: Cursor | null = null;
-        let nextJobCursor: Cursor | null = null;
 
         for (const result of results) {
           if (result.error) {
@@ -399,24 +304,18 @@ export function useListingsCursor({
               const services = result.data.map((s: any) => normalizeServiceCursor(s));
               allResults.push(...services);
 
-              // Capture cursor
+              // Update cursor
               if (result.nextCursor) {
-                nextServiceCursor = result.nextCursor;
-                if (!optimistic) {
-                  setServiceCursor(result.nextCursor);
-                }
+                setServiceCursor(result.nextCursor);
               }
             } else {
               // Convert jobs to MarketplaceListing
               const jobs = result.data.map((j: any) => normalizeJobCursor(j));
               allResults.push(...jobs);
 
-              // Capture cursor
+              // Update cursor
               if (result.nextCursor) {
-                nextJobCursor = result.nextCursor;
-                if (!optimistic) {
-                  setJobCursor(result.nextCursor);
-                }
+                setJobCursor(result.nextCursor);
               }
             }
           }
@@ -432,44 +331,12 @@ export function useListingsCursor({
 
         if (!isMountedRef.current) return;
 
-        // TIER-3: Optimistic vs Authoritative commit
-        if (optimistic) {
-          // Store optimistically fetched result without visual commit
-          optimisticLiveResultRef.current = {
-            listings: allResults,
-            serviceCursor: nextServiceCursor,
-            jobCursor: nextJobCursor,
-            hasMore: allResults.length >= pageSize,
-          };
-          optimisticLiveSignatureRef.current = generateParamsSignature();
-
-          if (__DEV__) {
-            console.log('[useListingsCursor] Optimistic result held (waiting for final params):', allResults.length, 'listings');
-          }
-          return;
-        }
-
-        // REFINEMENT 4: ATOMIC LIVE DATA COMMIT (Authoritative)
-        // All state updates happen together in one batch
         if (reset) {
           setListings(allResults);
           setHasMore(allResults.length >= pageSize);
-          setError(null);
-          setInitialLoadComplete(true);
-          setHasHydratedLiveData(true);
-          hasCommittedRef.current = true; // TIER-3: Mark committed
 
-          // REFINEMENT 3: DATA-DRIVEN VISUAL COMMIT
-          // Flip visualCommitReady only after live data is finalized
-          setVisualCommitReady(true);
-
-          if (__DEV__) {
-            console.log('[useListingsCursor] Visual commit ready - live data finalized:', allResults.length, 'listings');
-          }
-
-          // REFINEMENT 5: SNAPSHOT SAVE GUARD
-          // Save ONLY final live listings, never snapshot-derived data
-          if (isInitialLoad && allResults.length > 0 && liveFetchStartedRef.current) {
+          // Save snapshot for next time
+          if (isInitialLoad && allResults.length > 0) {
             saveSnapshot(userId, allResults,
               allResults.length > 0 ? {
                 created_at: allResults[allResults.length - 1].created_at,
@@ -478,11 +345,13 @@ export function useListingsCursor({
             );
           }
         } else {
-          // Pagination: append data
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
-          setError(null);
         }
+
+        setError(null);
+        setInitialLoadComplete(true);
+        setHasHydratedLiveData(true);
       } catch (err: any) {
         if (err.name === 'AbortError') return;
 
@@ -498,27 +367,14 @@ export function useListingsCursor({
       }
     },
     [searchQuery, filters, userId, pageSize, hasMore, loadingMore,
-     initialLoadComplete, enableSnapshot, serviceCursor, jobCursor, loadFromSnapshot, generateParamsSignature]
+     initialLoadComplete, enableSnapshot, serviceCursor, jobCursor, loadFromSnapshot]
   );
-
-  // LIVE FETCH READY GATE: Compute derived readiness
-  // Block initial live fetch until location coords are available (if needed)
-  const needsLocationCoords = filters.distance !== undefined && filters.distance !== null;
-  const hasLocationCoords = filters.userLatitude !== undefined &&
-                            filters.userLatitude !== null &&
-                            filters.userLongitude !== undefined &&
-                            filters.userLongitude !== null;
-  const liveFetchReady = !!userId && (!needsLocationCoords || hasLocationCoords);
 
   // Debounced effect
   useEffect(() => {
     if (searchTimeout.current) {
       clearTimeout(searchTimeout.current);
     }
-
-    // TIER-3: Determine if this is an optimistic or authoritative fetch
-    const isInitialLoad = !initialLoadComplete && !initialLiveFetchStartedRef.current;
-    const shouldFetchOptimistically = isInitialLoad && !liveFetchReady;
 
     // Tier-4: Optimized debounce logic
     // - Snapshot loaded on initial mount → 0ms delay for background refresh
@@ -532,45 +388,19 @@ export function useListingsCursor({
     }
 
     setIsTransitioning(true);
-
-    // TIER-3: Visual commit timing
-    // - Optimistic fetch: keep visualCommitReady = true (snapshot stays visible)
-    // - Authoritative fetch: set to false only if snapshot not consumed
-    if (!shouldFetchOptimistically && !snapshotConsumedRef.current) {
-      setVisualCommitReady(false);
-    }
+    setVisualCommitReady(false);
 
     searchTimeout.current = setTimeout(() => {
-      // Mark initial live fetch as started
-      if (!initialLiveFetchStartedRef.current) {
-        initialLiveFetchStartedRef.current = true;
-
-        if (shouldFetchOptimistically) {
-          if (__DEV__) {
-            console.log('[useListingsCursor] Optimistic live fetch started (coords pending)');
-          }
-          // Start optimistic fetch - results held in ref
-          fetchListingsCursor(true, true);
-        } else {
-          if (__DEV__) {
-            console.log('[useListingsCursor] Authoritative live fetch started');
-          }
-          // Standard authoritative fetch
-          fetchListingsCursor(true, false);
-        }
-      } else {
-        // Subsequent user-driven changes (already past initial load)
-        fetchListingsCursor(true, false);
-      }
+      fetchListingsCursor(true);
 
       // Reset snapshot flag after first live fetch
       if (snapshotLoadedRef.current) {
         snapshotLoadedRef.current = false;
       }
 
-      // REFINEMENT 3: Removed timer-based visualCommitReady flip
-      // visualCommitReady now flips only when live data is ready (in fetchListingsCursor)
+      // Set visual commit ready immediately when data is ready
       setIsTransitioning(false);
+      setVisualCommitReady(true);
     }, effectiveDebounce);
 
     return () => {
@@ -579,80 +409,6 @@ export function useListingsCursor({
       }
     };
   }, [searchQuery, filters, userId]);
-
-  // TIER-3: Optimistic result commit or corrective fetch when params finalize
-  useEffect(() => {
-    // Only act when liveFetchReady transitions to true during initial load
-    if (!initialLoadComplete && liveFetchReady && initialLiveFetchStartedRef.current) {
-      // Check if we have an optimistic result waiting
-      const optimisticResult = optimisticLiveResultRef.current;
-      const optimisticSignature = optimisticLiveSignatureRef.current;
-
-      if (optimisticResult && optimisticSignature) {
-        // Compare signatures: do current params match optimistic params?
-        const currentSignature = generateParamsSignature();
-        const signaturesMatch = currentSignature === optimisticSignature;
-
-        if (signaturesMatch) {
-          // CASE A: Params match - commit optimistic result immediately
-          if (__DEV__) {
-            console.log('[useListingsCursor] Optimistic result committed (params match):', optimisticResult.listings.length, 'listings');
-          }
-
-          // Commit optimistic result
-          setListings(optimisticResult.listings);
-          setHasMore(optimisticResult.hasMore);
-          setError(null);
-          setInitialLoadComplete(true);
-          setHasHydratedLiveData(true);
-          hasCommittedRef.current = true;
-          setVisualCommitReady(true);
-
-          // Update cursors
-          if (optimisticResult.serviceCursor) {
-            setServiceCursor(optimisticResult.serviceCursor);
-          }
-          if (optimisticResult.jobCursor) {
-            setJobCursor(optimisticResult.jobCursor);
-          }
-
-          // Save snapshot
-          const isInitialLoad = true;
-          if (isInitialLoad && optimisticResult.listings.length > 0) {
-            saveSnapshot(userId, optimisticResult.listings,
-              optimisticResult.listings.length > 0 ? {
-                created_at: optimisticResult.listings[optimisticResult.listings.length - 1].created_at,
-                id: optimisticResult.listings[optimisticResult.listings.length - 1].id
-              } : null
-            );
-          }
-
-          // Clear optimistic refs
-          optimisticLiveResultRef.current = null;
-          optimisticLiveSignatureRef.current = null;
-        } else {
-          // CASE B: Params changed - trigger corrective fetch
-          if (__DEV__) {
-            console.log('[useListingsCursor] Corrective fetch triggered (params changed)');
-          }
-
-          // Clear optimistic refs
-          optimisticLiveResultRef.current = null;
-          optimisticLiveSignatureRef.current = null;
-
-          // Trigger corrective authoritative fetch
-          fetchListingsCursor(true, false);
-        }
-      } else {
-        // CASE C: No optimistic result (backward compatibility)
-        // This shouldn't happen in normal flow, but handle gracefully
-        if (__DEV__) {
-          console.log('[useListingsCursor] No optimistic result, triggering standard fetch');
-        }
-        fetchListingsCursor(true, false);
-      }
-    }
-  }, [liveFetchReady, initialLoadComplete, fetchListingsCursor, generateParamsSignature, userId]);
 
   const fetchMore = useCallback(() => {
     if (!loading && !loadingMore && hasMore) {
