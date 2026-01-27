@@ -85,6 +85,10 @@ export function useListingsCursor({
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
+  // Track userId to prevent re-fetch when it transitions from null to real value
+  const initialUserIdRef = useRef<string | null | undefined>(undefined);
+  const hasCompletedFirstFetchRef = useRef(false);
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -376,6 +380,21 @@ export function useListingsCursor({
       clearTimeout(searchTimeout.current);
     }
 
+    // OPTIMIZATION: Skip re-fetch when userId transitions from null to real value
+    // This happens when auth loads after the component mounts - we already have/are fetching data
+    if (initialUserIdRef.current === undefined) {
+      // First run - store initial userId
+      initialUserIdRef.current = userId;
+    } else if (initialUserIdRef.current === null && userId !== null && hasCompletedFirstFetchRef.current) {
+      // userId changed from null to real value AFTER we started fetching - skip re-fetch
+      // The data is user-agnostic for the home feed (public listings), so no need to refetch
+      initialUserIdRef.current = userId;
+      if (__DEV__) {
+        console.log('[useListingsCursor] Skipping re-fetch: userId transitioned from null to real value');
+      }
+      return;
+    }
+
     // Tier-4: Optimized debounce logic
     // - Snapshot loaded on initial mount → 0ms delay for background refresh
     // - Initial load without snapshot → 50ms delay
@@ -386,6 +405,9 @@ export function useListingsCursor({
       // Initial mount
       effectiveDebounce = snapshotLoadedRef.current ? 0 : 50;
     }
+
+    // Mark that we've started the first fetch (before timeout)
+    hasCompletedFirstFetchRef.current = true;
 
     setIsTransitioning(true);
     setVisualCommitReady(false);
