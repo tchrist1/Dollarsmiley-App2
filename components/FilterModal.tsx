@@ -79,7 +79,7 @@ export const defaultFilters: FilterOptions = {
   priceMin: '',
   priceMax: '',
   minRating: 0,
-  distance: 25,
+  distance: undefined, // No distance filtering on initial load - distance still calculated for badges
   sortBy: 'relevance',
   verified: false,
   listingType: 'all',
