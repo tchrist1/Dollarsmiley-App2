@@ -306,10 +306,12 @@ export default function HomeScreen() {
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
+    expansionMetadata,
   } = useListings({
     searchQuery,
     filters,
     userId: profile?.id || null,
+    userType: profile?.user_type || null,
     pageSize: 20,
     debounceMs: 300,
   });
@@ -549,19 +551,55 @@ export default function HomeScreen() {
   // ============================================================================
   // Reduced from 6 dependencies to 3 by simplifying logic
   // Faster recalculation: ~5ms vs previous ~15ms for 100 listings
+  // Enhanced with "More options nearby" section for sparse local supply
   // ============================================================================
   const feedData = useMemo(() => {
-    // Simple grouped layout for all listings
     const groupedListings: any[] = [];
-    for (let i = 0; i < listings.length; i += 2) {
-      groupedListings.push({
-        type: 'row',
-        id: `row-${i}`,
-        items: [listings[i], listings[i + 1]].filter(Boolean)
-      });
+
+    if (expansionMetadata?.hasExpanded) {
+      // Split listings into primary and expanded sections
+      const primaryListings = listings.slice(0, expansionMetadata.primaryCount);
+      const expandedListings = listings.slice(expansionMetadata.primaryCount);
+
+      // Add primary listings (grouped by 2)
+      for (let i = 0; i < primaryListings.length; i += 2) {
+        groupedListings.push({
+          type: 'row',
+          id: `primary-row-${i}`,
+          items: [primaryListings[i], primaryListings[i + 1]].filter(Boolean)
+        });
+      }
+
+      // Add section header
+      if (expandedListings.length > 0) {
+        groupedListings.push({
+          type: 'section-header',
+          id: 'expanded-header',
+          title: 'More options nearby',
+        });
+
+        // Add expanded listings (grouped by 2)
+        for (let i = 0; i < expandedListings.length; i += 2) {
+          groupedListings.push({
+            type: 'row',
+            id: `expanded-row-${i}`,
+            items: [expandedListings[i], expandedListings[i + 1]].filter(Boolean)
+          });
+        }
+      }
+    } else {
+      // No expansion - simple grouped layout
+      for (let i = 0; i < listings.length; i += 2) {
+        groupedListings.push({
+          type: 'row',
+          id: `row-${i}`,
+          items: [listings[i], listings[i + 1]].filter(Boolean)
+        });
+      }
     }
+
     return groupedListings;
-  }, [listings]);
+  }, [listings, expansionMetadata]);
 
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
@@ -796,6 +834,15 @@ export default function HomeScreen() {
         listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
       }
 
+      // Determine if this is an expanded marker (beyond primary distance)
+      const isExpanded = (
+        profile?.user_type === 'Customer' &&
+        filters.distance !== undefined &&
+        listing.distance_miles !== null &&
+        listing.distance_miles !== undefined &&
+        listing.distance_miles > filters.distance
+      );
+
       return {
         id: listing.id,
         latitude: lat,
@@ -805,11 +852,12 @@ export default function HomeScreen() {
         type: 'listing' as const,
         listingType: listingType,
         pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
+        isExpanded: isExpanded,
       };
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, filters.distance]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
@@ -937,7 +985,26 @@ export default function HomeScreen() {
   }, [handleCardPress]);
 
   // List view renderer - stable, no viewMode dependency
+  // Section header renderer for "More options nearby"
+  const renderSectionHeader = useCallback(({ item }: { item: any }) => {
+    if (item.type !== 'section-header') return null;
+
+    return (
+      <View style={styles.expandedSectionHeader}>
+        <Text style={styles.expandedSectionTitle}>{item.title}</Text>
+        <Text style={styles.expandedSectionSubtitle}>
+          Listings within 100 miles of your location
+        </Text>
+      </View>
+    );
+  }, []);
+
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
+    // Handle section headers
+    if (item.type === 'section-header') {
+      return renderSectionHeader({ item });
+    }
+
     if (item.type === 'row') {
       return (
         <View>
@@ -951,10 +1018,15 @@ export default function HomeScreen() {
     }
 
     return renderListingCard({ item: item.data });
-  }, [renderListingCard]);
+  }, [renderListingCard, renderSectionHeader]);
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
+    // Handle section headers
+    if (item.type === 'section-header') {
+      return renderSectionHeader({ item });
+    }
+
     if (item.type === 'row') {
       return (
         <View style={styles.gridRow}>
@@ -968,7 +1040,7 @@ export default function HomeScreen() {
     }
 
     return renderGridCard({ item: item.data });
-  }, [renderGridCard]);
+  }, [renderGridCard, renderSectionHeader]);
 
   const handleClearFiltersAndSearch = useCallback(() => {
     setSearchQuery('');
@@ -1955,5 +2027,25 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     fontWeight: fontWeight.medium,
+  },
+  // "More options nearby" section header styles
+  expandedSectionHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  expandedSectionTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  expandedSectionSubtitle: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
   },
 });

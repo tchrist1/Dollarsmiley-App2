@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { MarketplaceListing } from '@/types/database';
+import { MarketplaceListing, UserType } from '@/types/database';
 import { FilterOptions } from '@/components/FilterModal';
 import {
   getInstantHomeFeed,
@@ -22,6 +22,12 @@ import {
 import { coalescedRpc } from '@/lib/request-coalescer';
 
 // ============================================================================
+// HOME DISCOVERY: Sparse Supply Detection
+// ============================================================================
+const SPARSE_LOCAL_THRESHOLD = 30;
+const EXPANDED_DISTANCE_MAX = 100; // miles
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -29,9 +35,16 @@ interface UseListingsCursorOptions {
   searchQuery: string;
   filters: FilterOptions;
   userId: string | null;
+  userType?: UserType | null; // For Customer discovery mode detection
   pageSize?: number;
   debounceMs?: number;
   enableSnapshot?: boolean; // Enable snapshot-first loading
+}
+
+export interface HomeExpansionMetadata {
+  hasExpanded: boolean;
+  primaryCount: number;
+  expandedCount: number;
 }
 
 interface UseListingsCursorReturn {
@@ -45,6 +58,7 @@ interface UseListingsCursorReturn {
   isTransitioning: boolean;
   hasHydratedLiveData: boolean;
   visualCommitReady: boolean;
+  expansionMetadata: HomeExpansionMetadata | null;
 }
 
 interface Cursor {
@@ -60,6 +74,7 @@ export function useListingsCursor({
   searchQuery,
   filters,
   userId,
+  userType = null,
   pageSize = 20,
   debounceMs = 300,
   enableSnapshot = true,
@@ -73,6 +88,7 @@ export function useListingsCursor({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
   const [visualCommitReady, setVisualCommitReady] = useState(true);
+  const [expansionMetadata, setExpansionMetadata] = useState<HomeExpansionMetadata | null>(null);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -484,9 +500,79 @@ export function useListingsCursor({
             commitDoneRef.current = true;
           } else {
             // Result is different - commit normally
+
+            // ====================================================================
+            // HOME DISCOVERY: RESULT BUCKETING (CUSTOMER MODE ONLY)
+            // ====================================================================
+            // Detect if we're in Customer discovery mode
+            const isCustomerDiscoveryMode = (
+              userType === 'Customer' &&
+              filters.distance !== undefined &&
+              filters.distance !== null &&
+              filters.userLatitude !== undefined &&
+              filters.userLongitude !== undefined
+            );
+
+            let finalResults: MarketplaceListing[];
+            let hasExpandedSection = false;
+            let primaryCount = 0;
+            let expandedCount = 0;
+
+            if (isCustomerDiscoveryMode) {
+              // Bucket 1: PRIMARY (near you) - within filter distance
+              const primaryResults = allResults.filter(listing =>
+                listing.distance_miles !== null &&
+                listing.distance_miles !== undefined &&
+                listing.distance_miles <= filters.distance!
+              );
+
+              // Bucket 2: EXPANDED (more options nearby) - beyond filter but within max
+              const expandedResults = allResults.filter(listing =>
+                listing.distance_miles !== null &&
+                listing.distance_miles !== undefined &&
+                listing.distance_miles > filters.distance! &&
+                listing.distance_miles <= EXPANDED_DISTANCE_MAX
+              );
+
+              primaryCount = primaryResults.length;
+              expandedCount = expandedResults.length;
+
+              // Apply sparse supply logic
+              if (primaryCount < SPARSE_LOCAL_THRESHOLD && expandedCount > 0) {
+                // Append expanded results
+                finalResults = [...primaryResults, ...expandedResults];
+                hasExpandedSection = true;
+
+                // DEV logging
+                if (__DEV__) {
+                  console.log(
+                    `[useListingsCursor] Home Discovery: Sparse local supply (${primaryCount}). ` +
+                    `Appending ${expandedCount} nearby listings (≤${EXPANDED_DISTANCE_MAX} mi).`
+                  );
+                }
+              } else {
+                // Sufficient local supply - no expansion
+                finalResults = primaryResults;
+              }
+            } else {
+              // Not in Customer discovery mode - use all results as-is
+              finalResults = allResults;
+            }
+
             // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
-            setListings(allResults);
+            setListings(finalResults);
             setHasMore(allResults.length >= pageSize);
+
+            // Set expansion metadata
+            if (hasExpandedSection) {
+              setExpansionMetadata({
+                hasExpanded: true,
+                primaryCount,
+                expandedCount,
+              });
+            } else {
+              setExpansionMetadata(null);
+            }
 
             // Save snapshot ONLY from final results (not partial)
             if (isInitialLoad && allResults.length > 0) {
@@ -504,7 +590,7 @@ export function useListingsCursor({
               setVisualCommitReady(true);
 
               if (__DEV__) {
-                console.log(`[useListingsCursor] Cycle finalized: id=${currentCycleId} finalCount=${allResults.length}`);
+                console.log(`[useListingsCursor] Cycle finalized: id=${currentCycleId} finalCount=${finalResults.length}`);
                 console.log(`[useListingsCursor] Cycle commit: id=${currentCycleId} visualCommitReady=true`);
               }
             }
@@ -667,6 +753,7 @@ export function useListingsCursor({
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
+    expansionMetadata,
   };
 }
 
