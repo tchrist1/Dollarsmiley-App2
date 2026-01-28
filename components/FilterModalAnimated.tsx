@@ -1,8 +1,7 @@
 /**
  * WEEK 3: Animated FilterModal with Polish
  *
- * Adds smooth animations and visual polish to FilterModalOptimized.
- * Provides professional, native-feeling interactions.
+ * Provides smooth animations and professional, native-feeling interactions.
  */
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
