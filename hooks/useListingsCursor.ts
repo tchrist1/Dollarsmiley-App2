@@ -122,6 +122,7 @@ export function useListingsCursor({
   const queuedRefetchRef = useRef(false); // Queue next refetch if signature changes
   const queuedSignatureRef = useRef<string | null>(null); // Queued signature
   const lastCommittedResultSigRef = useRef<string | null>(null); // Last committed result signature
+  const lastExpansionSignatureRef = useRef<string | null>(null); // Last expansion evaluation signature
 
   useEffect(() => {
     return () => {
@@ -691,16 +692,8 @@ export function useListingsCursor({
               snapshotLoadedRef.current = false;
             }
 
-            // Clear expansion state on no-op (no new data to expand)
-            setListingsPrimary(allResults);
-            setListingsNearby([]);
-            setExpansionMetadata({
-              enabled: false,
-              selectedDistance: null,
-              expandedMax: EXPANDED_DISTANCE_MAX,
-              primaryCount: allResults.length,
-              nearbyCount: 0,
-            });
+            // PHASE 3 FIX: Expansion logic will run below - don't clear here
+            // Let expansion evaluation handle state based on signature
           } else {
             // Result is different - commit normally
             // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
@@ -740,41 +733,68 @@ export function useListingsCursor({
             setError(null);
             setInitialLoadComplete(true);
             setHasHydratedLiveData(true);
-
-            // ====================================================================
-            // PHASE 2: CONDITIONAL EXPANSION FETCH (NEARBY OPTIONS)
-            // ====================================================================
-            // Trigger ONLY when:
-            // - User applied distance filter
-            // - Coordinates are available
-            // - Primary results are sparse (< 30)
-            // ====================================================================
-            const hasUserDistance = filters.distance !== undefined && filters.distance !== null;
-            const hasCoords = filters.userLatitude !== undefined && filters.userLatitude !== null &&
-                             filters.userLongitude !== undefined && filters.userLongitude !== null;
-            const isSparse = allResults.length < SPARSE_THRESHOLD;
-
-            if (hasUserDistance && hasCoords && isSparse) {
-              // Trigger expansion fetch asynchronously (non-blocking)
-              fetchExpansionResults(allResults, currentCycleId).catch(err => {
-                if (__DEV__) {
-                  console.warn('[useListingsCursor] Expansion fetch failed (non-fatal):', err);
-                }
-                // Expansion failure is non-fatal - keep primary results
-              });
-            } else {
-              // Clear expansion state when conditions not met
-              setListingsPrimary(allResults);
-              setListingsNearby([]);
-              setExpansionMetadata({
-                enabled: false,
-                selectedDistance: null,
-                expandedMax: EXPANDED_DISTANCE_MAX,
-                primaryCount: allResults.length,
-                nearbyCount: 0,
-              });
-            }
           }
+
+          // ====================================================================
+          // PHASE 2: CONDITIONAL EXPANSION FETCH (NEARBY OPTIONS)
+          // ====================================================================
+          // Trigger ONLY when:
+          // - User applied distance filter
+          // - Coordinates are available
+          // - Primary results are sparse (< 30)
+          // ====================================================================
+          // PHASE 3 FIX: Run expansion logic for BOTH no-op and normal paths
+
+          // PHASE 2 FIX: Generate expansion signature to detect distance changes
+          const expansionSignature = JSON.stringify({
+            distance: filters.distance,
+            lat: filters.userLatitude,
+            lng: filters.userLongitude,
+            categories: [...(filters.categories || [])].sort(),
+            search: searchQuery?.trim() || '',
+          });
+
+          // PHASE 2 FIX: Reset expansion state when signature changes
+          if (expansionSignature !== lastExpansionSignatureRef.current) {
+            // Clear expansion cache when distance or location changes
+            setListingsPrimary(allResults);
+            setListingsNearby([]);
+            setExpansionMetadata({
+              enabled: false,
+              selectedDistance: null,
+              expandedMax: EXPANDED_DISTANCE_MAX,
+              primaryCount: allResults.length,
+              nearbyCount: 0,
+            });
+            lastExpansionSignatureRef.current = expansionSignature;
+          }
+
+          const hasUserDistance = filters.distance !== undefined && filters.distance !== null;
+          const hasCoords = filters.userLatitude !== undefined && filters.userLatitude !== null &&
+                           filters.userLongitude !== undefined && filters.userLongitude !== null;
+          const isSparse = allResults.length < SPARSE_THRESHOLD;
+
+          if (hasUserDistance && hasCoords && isSparse) {
+            // Trigger expansion fetch asynchronously (non-blocking)
+            fetchExpansionResults(allResults, currentCycleId).catch(err => {
+              if (__DEV__) {
+                console.warn('[useListingsCursor] Expansion fetch failed (non-fatal):', err);
+              }
+              // Expansion failure is non-fatal - keep primary results
+            });
+          } else if (!hasUserDistance || !hasCoords) {
+            // Clear expansion state when conditions not met
+            setListingsPrimary(allResults);
+            setListingsNearby([]);
+            setExpansionMetadata({
+              enabled: false,
+              selectedDistance: null,
+              expandedMax: EXPANDED_DISTANCE_MAX,
+              primaryCount: allResults.length,
+              nearbyCount: 0,
+            });
+          }
+          // Note: If conditions met but NOT sparse, we keep existing expansion state
         } else {
           // Pagination - append results
           setListings(prev => [...prev, ...allResults]);

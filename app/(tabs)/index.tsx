@@ -567,7 +567,8 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++;
+    // PHASE 1: Distance is ALWAYS active when set (no special-casing for 25 miles)
+    if (filters.distance !== undefined && filters.distance !== null) count++;
     if (filters.sortBy && filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;
     if (filters.listingType && filters.listingType !== 'all') count++;
@@ -745,9 +746,11 @@ export default function HomeScreen() {
         case 'minRating':
           newFilters.minRating = 0;
           break;
+        case 'distance':
+          newFilters.distance = undefined;
+          break;
         case 'location':
           newFilters.location = '';
-          newFilters.distance = undefined;
           break;
         case 'verified':
           newFilters.verified = false;
@@ -902,7 +905,7 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled, listingsNearby]);
+  }, [listings, listingsPrimary, listingsNearby, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
