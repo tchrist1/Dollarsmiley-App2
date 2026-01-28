@@ -307,10 +307,6 @@ export default function HomeScreen() {
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
-    // Nearby Options expansion
-    primaryListings: rawPrimaryListings,
-    nearbyListings: rawNearbyListings,
-    showNearbyOptions,
   } = useListings({
     searchQuery,
     filters,
@@ -335,23 +331,6 @@ export default function HomeScreen() {
     }
     return stableListingsRef.current;
   }, [rawListings, visualCommitReady]);
-
-  // Nearby Options: Stable bucketed listings
-  const stablePrimaryListingsRef = useRef<MarketplaceListing[]>([]);
-  const primaryListings = useMemo(() => {
-    if (visualCommitReady) {
-      stablePrimaryListingsRef.current = rawPrimaryListings;
-    }
-    return stablePrimaryListingsRef.current;
-  }, [rawPrimaryListings, visualCommitReady]);
-
-  const stableNearbyListingsRef = useRef<MarketplaceListing[]>([]);
-  const nearbyListings = useMemo(() => {
-    if (visualCommitReady) {
-      stableNearbyListingsRef.current = rawNearbyListings;
-    }
-    return stableNearbyListingsRef.current;
-  }, [rawNearbyListings, visualCommitReady]);
 
   const {
     searches: trendingSearches,
@@ -599,53 +578,17 @@ export default function HomeScreen() {
   // Faster recalculation: ~5ms vs previous ~15ms for 100 listings
   // ============================================================================
   const feedData = useMemo(() => {
+    // Simple grouped layout for all listings
     const groupedListings: any[] = [];
-
-    // ========================================================================
-    // NEARBY OPTIONS: Separate primary and nearby listings with section header
-    // ========================================================================
-    if (showNearbyOptions && primaryListings.length > 0) {
-      // Primary results
-      for (let i = 0; i < primaryListings.length; i += 2) {
-        groupedListings.push({
-          type: 'row',
-          id: `primary-row-${i}`,
-          items: [primaryListings[i], primaryListings[i + 1]].filter(Boolean),
-          tier: 'primary',
-        });
-      }
-
-      // Section header for nearby options
-      if (nearbyListings.length > 0) {
-        groupedListings.push({
-          type: 'nearby_header',
-          id: 'nearby-header',
-        });
-
-        // Nearby results
-        for (let i = 0; i < nearbyListings.length; i += 2) {
-          groupedListings.push({
-            type: 'row',
-            id: `nearby-row-${i}`,
-            items: [nearbyListings[i], nearbyListings[i + 1]].filter(Boolean),
-            tier: 'nearby',
-          });
-        }
-      }
-    } else {
-      // Standard layout (no expansion)
-      for (let i = 0; i < listings.length; i += 2) {
-        groupedListings.push({
-          type: 'row',
-          id: `row-${i}`,
-          items: [listings[i], listings[i + 1]].filter(Boolean),
-          tier: 'primary',
-        });
-      }
+    for (let i = 0; i < listings.length; i += 2) {
+      groupedListings.push({
+        type: 'row',
+        id: `row-${i}`,
+        items: [listings[i], listings[i + 1]].filter(Boolean)
+      });
     }
-
     return groupedListings;
-  }, [listings, showNearbyOptions, primaryListings, nearbyListings]);
+  }, [listings]);
 
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
@@ -913,15 +856,6 @@ export default function HomeScreen() {
         listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
       }
 
-      // Determine marker tier for Nearby Options
-      let tier: 'primary' | 'nearby' = 'primary';
-      if (showNearbyOptions) {
-        const isInNearby = nearbyListings.some((n) => n.id === listing.id);
-        if (isInNearby) {
-          tier = 'nearby';
-        }
-      }
-
       return {
         id: listing.id,
         latitude: lat,
@@ -931,12 +865,11 @@ export default function HomeScreen() {
         type: 'listing' as const,
         listingType: listingType,
         pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
-        tier: tier, // Add tier for map marker styling
       };
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, showNearbyOptions, nearbyListings]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
@@ -1065,30 +998,11 @@ export default function HomeScreen() {
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
-    // Nearby Options section header
-    if (item.type === 'nearby_header') {
-      return (
-        <View style={styles.nearbyHeaderContainer}>
-          <Text style={styles.nearbyHeaderText}>More options nearby</Text>
-          <Text style={styles.nearbyHeaderSubtext}>
-            Beyond your selected distance
-          </Text>
-        </View>
-      );
-    }
-
     if (item.type === 'row') {
-      const isNearby = item.tier === 'nearby';
       return (
         <View>
           {item.items.map((listing: MarketplaceListing) => (
-            <View
-              key={listing.id}
-              style={[
-                styles.listItemContainer,
-                isNearby && styles.listItemNearby,
-              ]}
-            >
+            <View key={listing.id} style={styles.listItemContainer}>
               {renderListingCard({ item: listing })}
             </View>
           ))}
@@ -1101,30 +1015,11 @@ export default function HomeScreen() {
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
-    // Nearby Options section header
-    if (item.type === 'nearby_header') {
-      return (
-        <View style={styles.nearbyHeaderContainer}>
-          <Text style={styles.nearbyHeaderText}>More options nearby</Text>
-          <Text style={styles.nearbyHeaderSubtext}>
-            Beyond your selected distance
-          </Text>
-        </View>
-      );
-    }
-
     if (item.type === 'row') {
-      const isNearby = item.tier === 'nearby';
       return (
         <View style={styles.gridRow}>
           {item.items.map((listing: MarketplaceListing) => (
-            <View
-              key={listing.id}
-              style={[
-                styles.gridItemWrapper,
-                isNearby && styles.gridItemNearby,
-              ]}
-            >
+            <View key={listing.id} style={styles.gridItemWrapper}>
               {renderGridCard({ item: listing })}
             </View>
           ))}
@@ -2121,33 +2016,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     fontWeight: fontWeight.medium,
-  },
-  // Nearby Options styles
-  nearbyHeaderContainer: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    marginTop: spacing.md,
-  },
-  nearbyHeaderText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  nearbyHeaderSubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  listItemNearby: {
-    opacity: 0.7,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.border,
-  },
-  gridItemNearby: {
-    opacity: 0.7,
   },
 });

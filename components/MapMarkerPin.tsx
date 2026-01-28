@@ -11,7 +11,6 @@ interface MapMarkerPinProps {
   price?: number;
   isSelected?: boolean;
   onPress?: () => void;
-  tier?: 'primary' | 'nearby'; // Nearby Options: visual distinction
 }
 
 const getMarkerConfig = (type: MarkerType) => {
@@ -43,17 +42,16 @@ const getMarkerConfig = (type: MarkerType) => {
   }
 };
 
-export function MapMarkerPin({ type, price, isSelected = false, onPress, tier = 'primary' }: MapMarkerPinProps) {
+export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMarkerPinProps) {
   const config = getMarkerConfig(type);
   const Icon = config.icon;
-  const isNearby = tier === 'nearby';
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       hitSlop={{ top: 25, bottom: 35, left: 25, right: 25 }}
-      style={[styles.container, isNearby && styles.containerNearby]}
+      style={styles.container}
       pointerEvents="box-only"
     >
       <View
@@ -65,7 +63,6 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress, tier = 
             shadowColor: config.shadowColor,
           },
           isSelected && styles.bubbleSelected,
-          isNearby && styles.bubbleNearby,
         ]}
         pointerEvents="none"
       >
@@ -76,14 +73,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress, tier = 
         />
       </View>
 
-      <View
-        style={[
-          styles.pointer,
-          { borderTopColor: config.bubbleColor },
-          isNearby && styles.pointerNearby,
-        ]}
-        pointerEvents="none"
-      />
+      <View style={[styles.pointer, { borderTopColor: config.bubbleColor }]} pointerEvents="none" />
 
       {(price !== undefined || type === 'Job') && (
         <View
@@ -164,17 +154,5 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
-  },
-  // Nearby Options styles
-  containerNearby: {
-    opacity: 0.6,
-  },
-  bubbleNearby: {
-    borderStyle: 'dashed',
-    shadowOpacity: 0.15,
-    elevation: 4,
-  },
-  pointerNearby: {
-    opacity: 0.6,
   },
 });
