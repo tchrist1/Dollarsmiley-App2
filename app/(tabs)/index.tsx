@@ -658,8 +658,38 @@ export default function HomeScreen() {
   // the same event handler only cause one re-render
   // ============================================================================
   const handleApplyFilters = useCallback((newFilters: FilterOptions) => {
-    // React 18 batches these automatically - single re-render
-    setFilters(newFilters);
+    // ========================================================================
+    // SAFETY GUARD: Distance Radius requires coordinates
+    // ========================================================================
+    // If distance is set but coordinates are missing, clear distance to prevent:
+    // - Empty result sets
+    // - Blank Map View
+    // - Confusing user experience
+    //
+    // This guard is non-blocking and preserves all other filter settings
+    // ========================================================================
+    const hasDistance = newFilters.distance !== undefined && newFilters.distance !== null;
+    const hasCoordinates =
+      newFilters.userLatitude !== undefined &&
+      newFilters.userLatitude !== null &&
+      newFilters.userLongitude !== undefined &&
+      newFilters.userLongitude !== null;
+
+    if (hasDistance && !hasCoordinates) {
+      // Distance filtering requires location coordinates
+      // Clear distance but preserve all other filters
+      if (__DEV__) {
+        console.warn('[Home Distance Guard] Distance filter requires coordinates - clearing distance');
+      }
+
+      setFilters({
+        ...newFilters,
+        distance: undefined,
+      });
+    } else {
+      // All filters valid - apply directly
+      setFilters(newFilters);
+    }
   }, []);
 
   // PRIORITY 1 FIX: Memoize filter open handler to prevent function recreation

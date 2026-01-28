@@ -215,6 +215,36 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
       hasPriceFilter: !!(draftFilters.priceMin || draftFilters.priceMax),
     });
 
+    // ========================================================================
+    // SAFETY GUARD: Distance Radius requires coordinates
+    // ========================================================================
+    const hasDistance = draftFilters.distance !== undefined && draftFilters.distance !== null;
+    const hasCoordinates =
+      draftFilters.userLatitude !== undefined &&
+      draftFilters.userLatitude !== null &&
+      draftFilters.userLongitude !== undefined &&
+      draftFilters.userLongitude !== null;
+
+    if (hasDistance && !hasCoordinates) {
+      // Distance filtering requires location coordinates
+      // Show passive alert and prevent apply
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          'Location Required',
+          'Distance filter requires a location. Please enable location services or select a location on the map.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+
+      if (__DEV__) {
+        console.warn('[FilterModalAnimated Distance Guard] Distance filter requires coordinates');
+      }
+
+      // Don't close modal or apply filters - let user fix the issue
+      endTrack();
+      return;
+    }
+
     // Non-blocking validation (DEV-only)
     if (__DEV__) {
       requestAnimationFrame(() => {
@@ -230,11 +260,10 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
         }
         // PHASE 1C: Location state consistency check
         const hasLocation = !!draftFilters.location?.trim();
-        const hasCoords = draftFilters.userLatitude != null && draftFilters.userLongitude != null;
-        if (hasLocation && !hasCoords) {
+        if (hasLocation && !hasCoordinates) {
           console.warn('[FilterModalAnimated Safety] Location has address but no coordinates - may need geocoding');
         }
-        if (!hasLocation && hasCoords) {
+        if (!hasLocation && hasCoordinates) {
           console.warn('[FilterModalAnimated Safety] Location has coordinates but no address - potential desync');
         }
       });
