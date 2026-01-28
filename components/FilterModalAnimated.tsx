@@ -406,6 +406,13 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                     onSelectType={actions.setListingType}
                   />
 
+                  {/* Service Type - Show immediately after Listing Type */}
+                  <ServiceTypeSection
+                    serviceType={draftFilters.serviceType}
+                    onServiceTypeChange={actions.setServiceType}
+                    showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
+                  />
+
                   {/* Loading indicator */}
                   {!sectionsReady && (
                     <View style={styles.loadingSection}>
@@ -433,7 +440,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                       />
 
                       <DistanceSection
-                        distance={draftFilters.distance || 25}
+                        distance={draftFilters.distance}
                         onDistanceChange={actions.setDistance}
                       />
 
@@ -454,12 +461,6 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                       <SortSection
                         sortBy={draftFilters.sortBy}
                         onSortChange={actions.setSortBy}
-                      />
-
-                      <ServiceTypeSection
-                        serviceType={draftFilters.serviceType}
-                        onServiceTypeChange={actions.setServiceType}
-                        showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
                       />
 
                       <VerifiedSection
