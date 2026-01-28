@@ -28,6 +28,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  tier?: 'primary' | 'nearby';
   isNearby?: boolean;
 }
 
@@ -428,6 +429,7 @@ export default function InteractiveMapView({
                 type={marker.listingType || 'Service'}
                 price={marker.price}
                 isSelected={isSelected}
+                tier={marker.tier}
                 isNearby={marker.isNearby}
                 onPress={() => handleMarkerPress(marker)}
               />

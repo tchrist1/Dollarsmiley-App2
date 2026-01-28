@@ -793,19 +793,26 @@ export default function HomeScreen() {
       return [];
     }
 
-    // Create set of nearby listing IDs for quick lookup
-    const nearbyIds = expansionMetadata.enabled
-      ? new Set(listingsNearby.map(l => `${l.marketplace_type}:${l.id}`))
-      : new Set();
+    // ========================================================================
+    // PHASE 1: SINGLE MARKER SOURCE OF TRUTH
+    // ========================================================================
+    // CRITICAL: Use unified array (listingsPrimary + listingsNearby) when expansion is active
+    // This ensures nearby listings ALWAYS produce markers
+    const markerListings = expansionMetadata.enabled
+      ? [...listingsPrimary, ...listingsNearby]
+      : listingsPrimary;
+
+    // PHASE 2: Create tier map for marker differentiation
+    const primaryIds = new Set(listingsPrimary.map(l => `${l.marketplace_type}:${l.id}`));
 
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
-      listings.forEach((listing) => {
+      markerListings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
         if (profile && profile.latitude && profile.longitude) {
           if (!providersMap.has(profile.id)) {
-            const providerListings = listings.filter(
+            const providerListings = markerListings.filter(
               (l) => {
                 const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
                 return lProfile?.id === profile.id;
@@ -841,8 +848,8 @@ export default function HomeScreen() {
       return Array.from(providersMap.values());
     }
 
-    // Filter listings based on map mode
-    let filteredListings = listings.filter((listing) => listing.latitude != null && listing.longitude != null);
+    // PHASE 4: Filter by map mode (NO distance filtering)
+    let filteredListings = markerListings.filter((listing) => listing.latitude != null && listing.longitude != null);
 
     if (mapMode === 'services') {
       // Show only services (not custom services, not jobs)
@@ -888,8 +895,9 @@ export default function HomeScreen() {
         listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
       }
 
+      // PHASE 2: Determine tier from source array
       const listingId = `${listing.marketplace_type}:${listing.id}`;
-      const isNearby = nearbyIds.has(listingId);
+      const tier = primaryIds.has(listingId) ? 'primary' : 'nearby';
 
       return {
         id: listing.id,
@@ -900,12 +908,13 @@ export default function HomeScreen() {
         type: 'listing' as const,
         listingType: listingType,
         pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
-        isNearby: isNearby,
+        tier: tier,
+        isNearby: tier === 'nearby',
       };
     });
 
     return listingMarkers;
-  }, [listings, listingsPrimary, listingsNearby, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled]);
+  }, [listingsPrimary, listingsNearby, expansionMetadata.enabled, mapMode, profile?.user_type, viewMode]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {

@@ -10,6 +10,7 @@ interface MapMarkerPinProps {
   type: MarkerType;
   price?: number;
   isSelected?: boolean;
+  tier?: 'primary' | 'nearby';
   isNearby?: boolean;
   onPress?: () => void;
 }
@@ -43,16 +44,19 @@ const getMarkerConfig = (type: MarkerType) => {
   }
 };
 
-export function MapMarkerPin({ type, price, isSelected = false, isNearby = false, onPress }: MapMarkerPinProps) {
+export function MapMarkerPin({ type, price, isSelected = false, tier, isNearby = false, onPress }: MapMarkerPinProps) {
   const config = getMarkerConfig(type);
   const Icon = config.icon;
+
+  // PHASE 2: Use tier prop (preferred) or fallback to isNearby
+  const isNearbyMarker = tier === 'nearby' || isNearby;
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
       hitSlop={{ top: 25, bottom: 35, left: 25, right: 25 }}
-      style={[styles.container, isNearby && styles.containerNearby]}
+      style={[styles.container, isNearbyMarker && styles.containerNearby]}
       pointerEvents="box-only"
     >
       <View
@@ -64,7 +68,7 @@ export function MapMarkerPin({ type, price, isSelected = false, isNearby = false
             shadowColor: config.shadowColor,
           },
           isSelected && styles.bubbleSelected,
-          isNearby && styles.bubbleNearby,
+          isNearbyMarker && styles.bubbleNearby,
         ]}
         pointerEvents="none"
       >
