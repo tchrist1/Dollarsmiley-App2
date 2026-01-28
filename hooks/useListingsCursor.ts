@@ -45,6 +45,10 @@ interface UseListingsCursorReturn {
   isTransitioning: boolean;
   hasHydratedLiveData: boolean;
   visualCommitReady: boolean;
+  // Nearby Options expansion
+  primaryListings: MarketplaceListing[];
+  nearbyListings: MarketplaceListing[];
+  showNearbyOptions: boolean;
 }
 
 interface Cursor {
@@ -73,6 +77,11 @@ export function useListingsCursor({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hasHydratedLiveData, setHasHydratedLiveData] = useState(false);
   const [visualCommitReady, setVisualCommitReady] = useState(true);
+
+  // Nearby Options expansion state
+  const [primaryListings, setPrimaryListings] = useState<MarketplaceListing[]>([]);
+  const [nearbyListings, setNearbyListings] = useState<MarketplaceListing[]>([]);
+  const [showNearbyOptions, setShowNearbyOptions] = useState(false);
 
   // Cursor tracking
   const [serviceCursor, setServiceCursor] = useState<Cursor | null>(null);
@@ -444,6 +453,68 @@ export function useListingsCursor({
         if (!isMountedRef.current) return;
 
         // ====================================================================
+        // NEARBY OPTIONS BUCKETING (CLIENT-SIDE ONLY)
+        // ====================================================================
+        // CRITICAL: Only applies when distance filter is explicitly set
+        // Expands discovery when primary results are sparse (< 30)
+        // Does NOT trigger additional fetches or modify filter state
+        // ====================================================================
+        const NEARBY_OPTIONS_THRESHOLD = 30;
+        const EXPANDED_DISTANCE_MAX = 100; // miles
+
+        const distanceFilterActive =
+          filters.distance !== undefined &&
+          filters.distance !== null &&
+          filters.userLatitude !== undefined &&
+          filters.userLatitude !== null &&
+          filters.userLongitude !== undefined &&
+          filters.userLongitude !== null;
+
+        let bucketedPrimary: MarketplaceListing[] = allResults;
+        let bucketedNearby: MarketplaceListing[] = [];
+        let enableNearbyOptions = false;
+
+        if (distanceFilterActive && reset) {
+          // Split results into primary (within filter) and nearby (beyond filter)
+          const primary: MarketplaceListing[] = [];
+          const nearby: MarketplaceListing[] = [];
+
+          allResults.forEach((listing) => {
+            const distanceMiles = listing.distance_miles;
+
+            // If distance_miles is available, use it for bucketing
+            if (distanceMiles !== null && distanceMiles !== undefined) {
+              if (distanceMiles <= filters.distance!) {
+                primary.push(listing);
+              } else if (distanceMiles <= EXPANDED_DISTANCE_MAX) {
+                nearby.push(listing);
+              }
+            } else {
+              // No distance data - include in primary by default
+              primary.push(listing);
+            }
+          });
+
+          // Enable expansion only if primary results are sparse
+          if (primary.length < NEARBY_OPTIONS_THRESHOLD && nearby.length > 0) {
+            bucketedPrimary = primary;
+            bucketedNearby = nearby;
+            enableNearbyOptions = true;
+
+            if (__DEV__) {
+              console.log(
+                `[useListingsCursor] Nearby Options enabled: primary=${primary.length}, nearby=${nearby.length}`
+              );
+            }
+          } else {
+            // No expansion needed - use all results as primary
+            bucketedPrimary = allResults;
+            bucketedNearby = [];
+            enableNearbyOptions = false;
+          }
+        }
+
+        // ====================================================================
         // WALMART-GRADE ATOMIC FINALIZATION
         // ====================================================================
         // CRITICAL: Single visual commit per cycle
@@ -466,6 +537,11 @@ export function useListingsCursor({
             setError(null);
             setInitialLoadComplete(true);
             setHasHydratedLiveData(true);
+
+            // Update bucketed listings even on no-op (expansion may have changed)
+            setPrimaryListings(bucketedPrimary);
+            setNearbyListings(bucketedNearby);
+            setShowNearbyOptions(enableNearbyOptions);
 
             // WALMART-GRADE: Set visualCommitReady to signal cycle complete
             // Even though we're not updating listings, the UI needs to know data is stable
@@ -493,6 +569,11 @@ export function useListingsCursor({
             // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
             setListings(allResults);
             setHasMore(allResults.length >= pageSize);
+
+            // Update bucketed listings for Nearby Options
+            setPrimaryListings(bucketedPrimary);
+            setNearbyListings(bucketedNearby);
+            setShowNearbyOptions(enableNearbyOptions);
 
             // Save snapshot ONLY from final results (not partial)
             if (isInitialLoad && allResults.length > 0) {
@@ -532,6 +613,31 @@ export function useListingsCursor({
           // Pagination - append results
           setListings(prev => [...prev, ...allResults]);
           setHasMore(allResults.length >= pageSize);
+
+          // Pagination: Do NOT apply nearby options bucketing
+          // Nearby options are only for initial filter results
+          // Append to existing bucketed arrays based on current expansion state
+          if (showNearbyOptions && distanceFilterActive) {
+            // Split paginated results into primary and nearby
+            const paginatedPrimary: MarketplaceListing[] = [];
+            const paginatedNearby: MarketplaceListing[] = [];
+
+            allResults.forEach((listing) => {
+              const distanceMiles = listing.distance_miles;
+              if (distanceMiles !== null && distanceMiles !== undefined) {
+                if (distanceMiles <= filters.distance!) {
+                  paginatedPrimary.push(listing);
+                } else if (distanceMiles <= EXPANDED_DISTANCE_MAX) {
+                  paginatedNearby.push(listing);
+                }
+              } else {
+                paginatedPrimary.push(listing);
+              }
+            });
+
+            setPrimaryListings(prev => [...prev, ...paginatedPrimary]);
+            setNearbyListings(prev => [...prev, ...paginatedNearby]);
+          }
 
           setError(null);
           setInitialLoadComplete(true);
@@ -673,6 +779,10 @@ export function useListingsCursor({
     isTransitioning,
     hasHydratedLiveData,
     visualCommitReady,
+    // Nearby Options expansion
+    primaryListings,
+    nearbyListings,
+    showNearbyOptions,
   };
 }
 

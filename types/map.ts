@@ -17,6 +17,7 @@ export interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  tier?: 'primary' | 'nearby'; // Nearby Options: distinguish primary vs expanded results
 }
 
 export interface MapRegion {

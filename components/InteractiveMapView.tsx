@@ -428,6 +428,7 @@ export default function InteractiveMapView({
                 price={marker.price}
                 isSelected={isSelected}
                 onPress={() => handleMarkerPress(marker)}
+                tier={marker.tier}
               />
             </View>
           );
