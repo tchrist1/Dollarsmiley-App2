@@ -10,6 +10,7 @@ interface MapMarkerPinProps {
   type: MarkerType;
   price?: number;
   isSelected?: boolean;
+  isNearby?: boolean;
   onPress?: () => void;
 }
 
@@ -42,7 +43,7 @@ const getMarkerConfig = (type: MarkerType) => {
   }
 };
 
-export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMarkerPinProps) {
+export function MapMarkerPin({ type, price, isSelected = false, isNearby = false, onPress }: MapMarkerPinProps) {
   const config = getMarkerConfig(type);
   const Icon = config.icon;
 
@@ -51,7 +52,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
       onPress={onPress}
       activeOpacity={0.7}
       hitSlop={{ top: 25, bottom: 35, left: 25, right: 25 }}
-      style={styles.container}
+      style={[styles.container, isNearby && styles.containerNearby]}
       pointerEvents="box-only"
     >
       <View
@@ -63,6 +64,7 @@ export function MapMarkerPin({ type, price, isSelected = false, onPress }: MapMa
             shadowColor: config.shadowColor,
           },
           isSelected && styles.bubbleSelected,
+          isNearby && styles.bubbleNearby,
         ]}
         pointerEvents="none"
       >
@@ -154,5 +156,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
     letterSpacing: 0.2,
+  },
+  containerNearby: {
+    opacity: 0.6,
+  },
+  bubbleNearby: {
+    borderStyle: 'dashed',
   },
 });

@@ -51,6 +51,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  isNearby?: boolean;
 }
 
 interface MapRegion {
@@ -381,6 +382,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
   const renderMarkerContent = (marker: MapMarker) => {
     const isSelected = selectedMarker?.id === marker.id;
     const isProvider = marker.type === 'provider';
+    const isNearby = marker.isNearby || false;
 
     if (isProvider) {
       return (
@@ -389,6 +391,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
             styles.markerContainer,
             styles.markerProviderContainer,
             isSelected && styles.markerSelected,
+            isNearby && styles.markerNearby,
           ]}
         >
           <View
@@ -429,6 +432,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         style={[
           styles.markerContainer,
           isSelected && styles.markerSelected,
+          isNearby && styles.markerNearby,
         ]}
       >
         <View
@@ -1169,5 +1173,8 @@ const styles = StyleSheet.create({
   providerStatText: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
+  },
+  markerNearby: {
+    opacity: 0.6,
   },
 });

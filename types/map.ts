@@ -17,6 +17,7 @@ export interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  isNearby?: boolean;
 }
 
 export interface MapRegion {

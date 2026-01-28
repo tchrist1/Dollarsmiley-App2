@@ -298,6 +298,9 @@ export default function HomeScreen() {
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
     listings: rawListings,
+    listingsPrimary,
+    listingsNearby,
+    expansionMetadata,
     loading,
     loadingMore,
     hasMore,
@@ -578,17 +581,38 @@ export default function HomeScreen() {
   // Faster recalculation: ~5ms vs previous ~15ms for 100 listings
   // ============================================================================
   const feedData = useMemo(() => {
-    // Simple grouped layout for all listings
     const groupedListings: any[] = [];
-    for (let i = 0; i < listings.length; i += 2) {
+
+    // Primary listings
+    const primaryListings = expansionMetadata.enabled ? listingsPrimary : listings;
+    for (let i = 0; i < primaryListings.length; i += 2) {
       groupedListings.push({
         type: 'row',
-        id: `row-${i}`,
-        items: [listings[i], listings[i + 1]].filter(Boolean)
+        id: `row-primary-${i}`,
+        items: [primaryListings[i], primaryListings[i + 1]].filter(Boolean)
       });
     }
+
+    // Nearby section header and listings
+    if (expansionMetadata.enabled && listingsNearby.length > 0) {
+      groupedListings.push({
+        type: 'nearby-header',
+        id: 'nearby-header',
+        distance: expansionMetadata.selectedDistance,
+      });
+
+      for (let i = 0; i < listingsNearby.length; i += 2) {
+        groupedListings.push({
+          type: 'row',
+          id: `row-nearby-${i}`,
+          items: [listingsNearby[i], listingsNearby[i + 1]].filter(Boolean),
+          isNearby: true,
+        });
+      }
+    }
+
     return groupedListings;
-  }, [listings]);
+  }, [listings, listingsPrimary, listingsNearby, expansionMetadata]);
 
   // Count listings by type from filtered results
   const resultTypeCounts = useMemo(() => {
@@ -766,6 +790,11 @@ export default function HomeScreen() {
       return [];
     }
 
+    // Create set of nearby listing IDs for quick lookup
+    const nearbyIds = expansionMetadata.enabled
+      ? new Set(listingsNearby.map(l => `${l.marketplace_type}:${l.id}`))
+      : new Set();
+
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
@@ -856,6 +885,9 @@ export default function HomeScreen() {
         listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
       }
 
+      const listingId = `${listing.marketplace_type}:${listing.id}`;
+      const isNearby = nearbyIds.has(listingId);
+
       return {
         id: listing.id,
         latitude: lat,
@@ -865,11 +897,12 @@ export default function HomeScreen() {
         type: 'listing' as const,
         listingType: listingType,
         pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
+        isNearby: isNearby,
       };
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled, listingsNearby]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
@@ -998,11 +1031,21 @@ export default function HomeScreen() {
 
   // List view renderer - stable, no viewMode dependency
   const renderFeedItemList = useCallback(({ item, index }: { item: any; index: number }) => {
+    if (item.type === 'nearby-header') {
+      return (
+        <View style={styles.nearbyHeaderContainer}>
+          <View style={styles.nearbyHeaderLine} />
+          <Text style={styles.nearbyHeaderText}>More options nearby</Text>
+          <View style={styles.nearbyHeaderLine} />
+        </View>
+      );
+    }
+
     if (item.type === 'row') {
       return (
-        <View>
+        <View style={item.isNearby && styles.nearbyListContainer}>
           {item.items.map((listing: MarketplaceListing) => (
-            <View key={listing.id} style={styles.listItemContainer}>
+            <View key={listing.id} style={[styles.listItemContainer, item.isNearby && styles.nearbyListItem]}>
               {renderListingCard({ item: listing })}
             </View>
           ))}
@@ -1015,11 +1058,21 @@ export default function HomeScreen() {
 
   // Grid view renderer - stable, no viewMode dependency
   const renderFeedItemGrid = useCallback(({ item, index }: { item: any; index: number }) => {
+    if (item.type === 'nearby-header') {
+      return (
+        <View style={styles.nearbyHeaderContainerGrid}>
+          <View style={styles.nearbyHeaderLine} />
+          <Text style={styles.nearbyHeaderText}>More options nearby</Text>
+          <View style={styles.nearbyHeaderLine} />
+        </View>
+      );
+    }
+
     if (item.type === 'row') {
       return (
-        <View style={styles.gridRow}>
+        <View style={[styles.gridRow, item.isNearby && styles.nearbyGridRow]}>
           {item.items.map((listing: MarketplaceListing) => (
-            <View key={listing.id} style={styles.gridItemWrapper}>
+            <View key={listing.id} style={[styles.gridItemWrapper, item.isNearby && styles.nearbyGridItem]}>
               {renderGridCard({ item: listing })}
             </View>
           ))}
@@ -2016,5 +2069,41 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.textSecondary,
     fontWeight: fontWeight.medium,
+  },
+  nearbyHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+  },
+  nearbyHeaderContainerGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    width: '100%',
+  },
+  nearbyHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  nearbyHeaderText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginHorizontal: spacing.md,
+  },
+  nearbyListContainer: {
+    opacity: 0.85,
+  },
+  nearbyListItem: {
+    opacity: 1,
+  },
+  nearbyGridRow: {
+    opacity: 0.85,
+  },
+  nearbyGridItem: {
+    opacity: 1,
   },
 });

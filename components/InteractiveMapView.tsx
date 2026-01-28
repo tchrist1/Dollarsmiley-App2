@@ -28,6 +28,7 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
+  isNearby?: boolean;
 }
 
 interface MapRegion {
@@ -427,6 +428,7 @@ export default function InteractiveMapView({
                 type={marker.listingType || 'Service'}
                 price={marker.price}
                 isSelected={isSelected}
+                isNearby={marker.isNearby}
                 onPress={() => handleMarkerPress(marker)}
               />
             </View>

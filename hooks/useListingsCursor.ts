@@ -22,8 +22,12 @@ import {
 import { coalescedRpc } from '@/lib/request-coalescer';
 
 // ============================================================================
-// TYPES
+// TYPES & CONSTANTS
 // ============================================================================
+
+// Expansion feature constants
+const SPARSE_THRESHOLD = 30;
+const EXPANDED_DISTANCE_MAX = 100;
 
 interface UseListingsCursorOptions {
   searchQuery: string;
@@ -34,8 +38,19 @@ interface UseListingsCursorOptions {
   enableSnapshot?: boolean; // Enable snapshot-first loading
 }
 
+interface ExpansionMetadata {
+  enabled: boolean;
+  selectedDistance: number | null;
+  expandedMax: number;
+  primaryCount: number;
+  nearbyCount: number;
+}
+
 interface UseListingsCursorReturn {
   listings: MarketplaceListing[];
+  listingsPrimary: MarketplaceListing[];
+  listingsNearby: MarketplaceListing[];
+  expansionMetadata: ExpansionMetadata;
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -65,6 +80,15 @@ export function useListingsCursor({
   enableSnapshot = true,
 }: UseListingsCursorOptions): UseListingsCursorReturn {
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [listingsPrimary, setListingsPrimary] = useState<MarketplaceListing[]>([]);
+  const [listingsNearby, setListingsNearby] = useState<MarketplaceListing[]>([]);
+  const [expansionMetadata, setExpansionMetadata] = useState<ExpansionMetadata>({
+    enabled: false,
+    selectedDistance: null,
+    expandedMax: EXPANDED_DISTANCE_MAX,
+    primaryCount: 0,
+    nearbyCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -217,6 +241,184 @@ export function useListingsCursor({
 
     return false;
   }, [userId, searchQuery, filters, pageSize, enableSnapshot]);
+
+  // ============================================================================
+  // EXPANSION FETCH (NEARBY OPTIONS)
+  // ============================================================================
+
+  const fetchExpansionResults = useCallback(
+    async (primaryResults: MarketplaceListing[], cycleId: number) => {
+      if (__DEV__) {
+        console.log('[useListingsCursor] Expansion fetch triggered:', {
+          primaryCount: primaryResults.length,
+          selectedDistance: filters.distance,
+          expandedMax: EXPANDED_DISTANCE_MAX,
+        });
+      }
+
+      try {
+        const shouldFetchServices = !filters.listingType ||
+                                   filters.listingType === 'all' ||
+                                   filters.listingType === 'Service' ||
+                                   filters.listingType === 'CustomService';
+        const shouldFetchJobs = !filters.listingType ||
+                               filters.listingType === 'all' ||
+                               filters.listingType === 'Job';
+
+        const fetchPromises: Promise<{
+          type: 'service' | 'job';
+          data: any[] | null;
+          error: any;
+        }>[] = [];
+
+        // Fetch services with expanded distance
+        if (shouldFetchServices) {
+          fetchPromises.push(
+            (async () => {
+              const listingTypes = filters.listingType === 'Service' ? ['Service']
+                : filters.listingType === 'CustomService' ? ['CustomService']
+                : ['Service', 'CustomService'];
+
+              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated_v2', {
+                p_cursor_created_at: null,
+                p_cursor_id: null,
+                p_limit: 100, // Fetch more for expansion
+                p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                p_search: searchQuery.trim() || null,
+                p_min_price: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                p_max_price: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_min_rating: filters.minRating || null,
+                p_listing_types: listingTypes,
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude!,
+                p_user_lng: filters.userLongitude!,
+                p_distance: EXPANDED_DISTANCE_MAX, // Expanded distance
+                p_service_type: filters.serviceType || null
+              });
+
+              return { type: 'service' as const, data, error };
+            })()
+          );
+        }
+
+        // Fetch jobs with expanded distance
+        if (shouldFetchJobs) {
+          fetchPromises.push(
+            (async () => {
+              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated_v2', {
+                p_cursor_created_at: null,
+                p_cursor_id: null,
+                p_limit: 100, // Fetch more for expansion
+                p_category_ids: filters.categories.length > 0 ? filters.categories : null,
+                p_search: searchQuery.trim() || null,
+                p_min_budget: filters.priceMin ? parseFloat(filters.priceMin) : null,
+                p_max_budget: filters.priceMax ? parseFloat(filters.priceMax) : null,
+                p_sort_by: filters.sortBy || 'relevance',
+                p_verified: filters.verified || null,
+                p_user_lat: filters.userLatitude!,
+                p_user_lng: filters.userLongitude!,
+                p_distance: EXPANDED_DISTANCE_MAX // Expanded distance
+              });
+
+              return { type: 'job' as const, data, error };
+            })()
+          );
+        }
+
+        const results = await Promise.all(fetchPromises);
+
+        // Validate cycle is still active
+        if (cycleId !== activeCycleIdRef.current) {
+          if (__DEV__) {
+            console.log('[useListingsCursor] Expansion cycle stale, discarding');
+          }
+          return;
+        }
+
+        // Process expansion results
+        const allExpandedResults: MarketplaceListing[] = [];
+
+        for (const result of results) {
+          if (result.error || !result.data) continue;
+
+          if (result.type === 'service') {
+            const services = result.data.map((s: any) => normalizeServiceCursor(s));
+            allExpandedResults.push(...services);
+          } else {
+            const jobs = result.data.map((j: any) => normalizeJobCursor(j));
+            allExpandedResults.push(...jobs);
+          }
+        }
+
+        // ====================================================================
+        // RESULT BUCKETING: Primary vs Nearby
+        // ====================================================================
+        const selectedDistance = filters.distance!;
+        const primaryIds = new Set(primaryResults.map(l => `${l.marketplace_type}:${l.id}`));
+
+        const primary: MarketplaceListing[] = [];
+        const nearby: MarketplaceListing[] = [];
+
+        for (const listing of allExpandedResults) {
+          const listingId = `${listing.marketplace_type}:${listing.id}`;
+
+          // Skip if already in primary results
+          if (primaryIds.has(listingId)) continue;
+
+          const distance = listing.distance_miles;
+
+          if (distance !== null && distance !== undefined) {
+            if (distance <= selectedDistance) {
+              primary.push(listing);
+            } else if (distance <= EXPANDED_DISTANCE_MAX) {
+              nearby.push(listing);
+            }
+          }
+        }
+
+        // Merge primary results with any new primary discoveries
+        const mergedPrimary = [...primaryResults, ...primary];
+
+        // Update state with bucketed results
+        setListingsPrimary(mergedPrimary);
+        setListingsNearby(nearby);
+        setExpansionMetadata({
+          enabled: nearby.length > 0,
+          selectedDistance,
+          expandedMax: EXPANDED_DISTANCE_MAX,
+          primaryCount: mergedPrimary.length,
+          nearbyCount: nearby.length,
+        });
+
+        // Update main listings array to include both
+        setListings([...mergedPrimary, ...nearby]);
+
+        if (__DEV__) {
+          console.log('[useListingsCursor] Expansion complete:', {
+            primaryCount: mergedPrimary.length,
+            nearbyCount: nearby.length,
+            totalExpanded: allExpandedResults.length,
+          });
+        }
+      } catch (err) {
+        if (__DEV__) {
+          console.warn('[useListingsCursor] Expansion fetch error:', err);
+        }
+        // Keep primary results on error
+        setListingsPrimary(primaryResults);
+        setListingsNearby([]);
+        setExpansionMetadata({
+          enabled: false,
+          selectedDistance: filters.distance || null,
+          expandedMax: EXPANDED_DISTANCE_MAX,
+          primaryCount: primaryResults.length,
+          nearbyCount: 0,
+        });
+      }
+    },
+    [filters, searchQuery]
+  );
 
   // ============================================================================
   // PHASE 2: CURSOR-BASED FETCH
@@ -488,6 +690,17 @@ export function useListingsCursor({
             if (snapshotLoadedRef.current) {
               snapshotLoadedRef.current = false;
             }
+
+            // Clear expansion state on no-op (no new data to expand)
+            setListingsPrimary(allResults);
+            setListingsNearby([]);
+            setExpansionMetadata({
+              enabled: false,
+              selectedDistance: null,
+              expandedMax: EXPANDED_DISTANCE_MAX,
+              primaryCount: allResults.length,
+              nearbyCount: 0,
+            });
           } else {
             // Result is different - commit normally
             // WALMART-GRADE: Set rawListings ONCE for the cycle (atomic commit)
@@ -527,6 +740,40 @@ export function useListingsCursor({
             setError(null);
             setInitialLoadComplete(true);
             setHasHydratedLiveData(true);
+
+            // ====================================================================
+            // PHASE 2: CONDITIONAL EXPANSION FETCH (NEARBY OPTIONS)
+            // ====================================================================
+            // Trigger ONLY when:
+            // - User applied distance filter
+            // - Coordinates are available
+            // - Primary results are sparse (< 30)
+            // ====================================================================
+            const hasUserDistance = filters.distance !== undefined && filters.distance !== null;
+            const hasCoords = filters.userLatitude !== undefined && filters.userLatitude !== null &&
+                             filters.userLongitude !== undefined && filters.userLongitude !== null;
+            const isSparse = allResults.length < SPARSE_THRESHOLD;
+
+            if (hasUserDistance && hasCoords && isSparse) {
+              // Trigger expansion fetch asynchronously (non-blocking)
+              fetchExpansionResults(allResults, currentCycleId).catch(err => {
+                if (__DEV__) {
+                  console.warn('[useListingsCursor] Expansion fetch failed (non-fatal):', err);
+                }
+                // Expansion failure is non-fatal - keep primary results
+              });
+            } else {
+              // Clear expansion state when conditions not met
+              setListingsPrimary(allResults);
+              setListingsNearby([]);
+              setExpansionMetadata({
+                enabled: false,
+                selectedDistance: null,
+                expandedMax: EXPANDED_DISTANCE_MAX,
+                primaryCount: allResults.length,
+                nearbyCount: 0,
+              });
+            }
           }
         } else {
           // Pagination - append results
@@ -664,6 +911,9 @@ export function useListingsCursor({
 
   return {
     listings,
+    listingsPrimary,
+    listingsNearby,
+    expansionMetadata,
     loading,
     loadingMore,
     hasMore,
