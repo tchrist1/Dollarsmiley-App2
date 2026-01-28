@@ -1,3 +1,32 @@
+/**
+ * ============================================================================
+ * ⚠️  TYPE DEFINITIONS ONLY — DO NOT USE THIS COMPONENT
+ * ============================================================================
+ *
+ * This file exists ONLY to export:
+ *   • FilterOptions interface
+ *   • defaultFilters constant
+ *
+ * The FilterModal component in this file is NOT USED in production.
+ *
+ * ACTIVE COMPONENT:
+ *   ✅ components/FilterModalAnimated.tsx
+ *
+ * This file is kept solely to maintain type definitions that are imported by:
+ *   • app/(tabs)/index.tsx
+ *   • components/FilterModalAnimated.tsx
+ *   • contexts/HomeStateContext.tsx
+ *   • hooks/useHomeFilters.ts
+ *   • Multiple test files
+ *
+ * IMPORTANT:
+ *   ⛔ Do NOT modify the FilterModal component below
+ *   ⛔ Do NOT import this component for UI rendering
+ *   ✅ Only import FilterOptions and defaultFilters types
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import {
   View,

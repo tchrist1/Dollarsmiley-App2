@@ -10,7 +10,7 @@ import { ServiceListing, MarketplaceListing, Job, Category } from '@/types/datab
 import { useAuth } from '@/contexts/AuthContext';
 import CachedAvatar from '@/components/CachedAvatar';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
-// WEEK 3: Using optimized FilterModal with 90% performance improvement
+// Filter Modal: Types from FilterModal, UI component from FilterModalAnimated
 import { FilterOptions, defaultFilters } from '@/components/FilterModal';
 import { FilterModalAnimated as FilterModal } from '@/components/FilterModalAnimated';
 import { ActiveFiltersBar } from '@/components/ActiveFiltersBar';

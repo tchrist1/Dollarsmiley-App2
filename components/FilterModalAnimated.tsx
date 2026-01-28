@@ -1,7 +1,31 @@
 /**
- * WEEK 3: Animated FilterModal with Polish
+ * ============================================================================
+ * SOURCE OF TRUTH — HOME FILTERS MODAL
+ * ============================================================================
  *
- * Provides smooth animations and professional, native-feeling interactions.
+ * This is the ONLY filter modal component used by the application.
+ *
+ * IMPORTED BY:
+ *   • app/(tabs)/index.tsx (aliased as FilterModal)
+ *
+ * TYPE DEFINITIONS:
+ *   • FilterOptions and defaultFilters are imported from ./FilterModal
+ *   • FilterModal.tsx exists ONLY for type exports (not component usage)
+ *
+ * GUARDRAILS:
+ *   ⛔ Do NOT create alternative FilterModal implementations
+ *   ⛔ Do NOT modify FilterModal.tsx component (types only)
+ *   ✅ All Home Filters UI changes must be made HERE
+ *   ✅ Uses FilterSections.tsx for modular section components
+ *
+ * ARCHITECTURE:
+ *   • Animated modal with smooth transitions
+ *   • Performance-optimized with useFilterReducer
+ *   • Debounced inputs for price fields
+ *   • Category caching with session storage
+ *   • Location services integration
+ *
+ * ============================================================================
  */
 
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
