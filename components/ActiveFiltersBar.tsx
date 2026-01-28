@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { X, DollarSign, MapPin, Tag, Star, Award, Filter, Layers } from 'lucide-react-native';
+import { X, DollarSign, MapPin, Tag, Star, Award, Filter, Layers, ArrowUpDown } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import type { FilterOptions } from './FilterModal';
 import type { Category } from '@/types/database';
@@ -13,6 +13,18 @@ interface ActiveFiltersBarProps {
   isTransitioning?: boolean;
 }
 
+// Sort option labels for display
+const SORT_LABELS: Record<string, string> = {
+  relevance: 'Relevance',
+  price_low: 'Price: Low to High',
+  price_high: 'Price: High to Low',
+  rating: 'Highest Rated',
+  popular: 'Most Popular',
+  recent: 'Most Recent',
+  distance: 'Nearest First',
+  reviews: 'Most Reviews',
+};
+
 // QUICK WIN 1: Memoize active filters computation
 function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<string, string>) {
   const activeFilters: Array<{
@@ -20,6 +32,7 @@ function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<stri
     label: string;
     value?: any;
     icon: any;
+    isSort?: boolean;
   }> = [];
 
   if (filters.listingType && filters.listingType !== 'all') {
@@ -98,6 +111,17 @@ function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<stri
     });
   }
 
+  // Display current sort (non-removable, informational only)
+  if (filters.sortBy && filters.sortBy !== 'relevance') {
+    const sortLabel = SORT_LABELS[filters.sortBy] || filters.sortBy;
+    activeFilters.push({
+      type: 'sortBy',
+      label: `Sorted: ${sortLabel}`,
+      icon: ArrowUpDown,
+      isSort: true,
+    });
+  }
+
   return activeFilters;
 }
 
@@ -147,16 +171,26 @@ export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
       >
         {displayFilters.map((filter, index) => {
           const IconComponent = filter.icon;
+          const isSort = filter.isSort === true;
           return (
-            <View key={`${filter.type}-${index}`} style={[styles.filterChip, isTransitioning && styles.filterChipTransitioning]}>
-              <IconComponent size={14} color={colors.primary} />
-              <Text style={styles.filterText}>{filter.label}</Text>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemove(filter.type, filter.value)}
-              >
-                <X size={14} color={colors.textSecondary} />
-              </TouchableOpacity>
+            <View
+              key={`${filter.type}-${index}`}
+              style={[
+                styles.filterChip,
+                isSort && styles.sortChip,
+                isTransitioning && styles.filterChipTransitioning
+              ]}
+            >
+              <IconComponent size={14} color={isSort ? colors.textSecondary : colors.primary} />
+              <Text style={[styles.filterText, isSort && styles.sortText]}>{filter.label}</Text>
+              {!isSort && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => handleRemove(filter.type, filter.value)}
+                >
+                  <X size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
             </View>
           );
         })}
@@ -197,6 +231,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary + '30',
   },
+  sortChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
   filterChipTransitioning: {
     opacity: 0.6,
   },
@@ -204,6 +242,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
     color: colors.primary,
+  },
+  sortText: {
+    color: colors.textSecondary,
+    fontWeight: fontWeight.normal,
   },
   removeButton: {
     padding: 2,
