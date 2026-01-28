@@ -256,16 +256,6 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
     }));
   }, [debouncedPriceMin, debouncedPriceMax]);
 
-  // Clear serviceType when switching away from Services listing type
-  useEffect(() => {
-    if (draftFilters.listingType !== 'Service' && draftFilters.serviceType) {
-      setDraftFilters(prev => ({
-        ...prev,
-        serviceType: undefined,
-      }));
-    }
-  }, [draftFilters.listingType, draftFilters.serviceType]);
-
   // Price handlers update local state only (debounced updates to draftFilters)
   const handleManualPriceChange = useCallback((type: 'min' | 'max', value: string) => {
     if (type === 'min') {
@@ -505,11 +495,11 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
               </View>
             </View>
 
-            {/* Service Type - Show ONLY when Services are selected */}
+            {/* Service Type - Show when Services are selected */}
             <ServiceTypeSection
               serviceType={draftFilters.serviceType}
               onServiceTypeChange={(serviceType) => setDraftFilters(prev => ({ ...prev, serviceType }))}
-              showForServices={draftFilters.listingType === 'Service'}
+              showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
             />
 
             {/* Loading indicator while sections load */}
