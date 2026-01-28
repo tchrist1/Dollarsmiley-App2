@@ -92,19 +92,13 @@ function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<stri
     });
   }
 
-  // PHASE 1: Distance as first-class active filter
-  if (filters.distance !== undefined && filters.distance !== null) {
-    activeFilters.push({
-      type: 'distance',
-      label: `≤ ${filters.distance} mi`,
-      icon: MapPin,
-    });
-  }
-
   if (filters.location) {
+    const locationLabel = filters.distance
+      ? `${filters.location} (${filters.distance} mi)`
+      : filters.location;
     activeFilters.push({
       type: 'location',
-      label: filters.location,
+      label: locationLabel,
       icon: MapPin,
     });
   }

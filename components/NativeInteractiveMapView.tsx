@@ -51,7 +51,6 @@ interface MapMarker {
   responseTime?: string;
   completionRate?: number;
   avatarUrl?: string;
-  tier?: 'primary' | 'nearby';
   isNearby?: boolean;
 }
 
@@ -383,8 +382,7 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
   const renderMarkerContent = (marker: MapMarker) => {
     const isSelected = selectedMarker?.id === marker.id;
     const isProvider = marker.type === 'provider';
-    // PHASE 2: Use tier prop (preferred) or fallback to isNearby
-    const isNearby = marker.tier === 'nearby' || marker.isNearby || false;
+    const isNearby = marker.isNearby || false;
 
     if (isProvider) {
       return (

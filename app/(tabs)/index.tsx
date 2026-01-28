@@ -567,8 +567,7 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
-    // PHASE 1: Distance is ALWAYS active when set (no special-casing for 25 miles)
-    if (filters.distance !== undefined && filters.distance !== null) count++;
+    if (filters.distance && filters.distance !== 25) count++;
     if (filters.sortBy && filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;
     if (filters.listingType && filters.listingType !== 'all') count++;
@@ -746,11 +745,9 @@ export default function HomeScreen() {
         case 'minRating':
           newFilters.minRating = 0;
           break;
-        case 'distance':
-          newFilters.distance = undefined;
-          break;
         case 'location':
           newFilters.location = '';
+          newFilters.distance = undefined;
           break;
         case 'verified':
           newFilters.verified = false;
@@ -793,26 +790,19 @@ export default function HomeScreen() {
       return [];
     }
 
-    // ========================================================================
-    // PHASE 1: SINGLE MARKER SOURCE OF TRUTH
-    // ========================================================================
-    // CRITICAL: Use unified array (listingsPrimary + listingsNearby) when expansion is active
-    // This ensures nearby listings ALWAYS produce markers
-    const markerListings = expansionMetadata.enabled
-      ? [...listingsPrimary, ...listingsNearby]
-      : listingsPrimary;
-
-    // PHASE 2: Create tier map for marker differentiation
-    const primaryIds = new Set(listingsPrimary.map(l => `${l.marketplace_type}:${l.id}`));
+    // Create set of nearby listing IDs for quick lookup
+    const nearbyIds = expansionMetadata.enabled
+      ? new Set(listingsNearby.map(l => `${l.marketplace_type}:${l.id}`))
+      : new Set();
 
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
-      markerListings.forEach((listing) => {
+      listings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
         if (profile && profile.latitude && profile.longitude) {
           if (!providersMap.has(profile.id)) {
-            const providerListings = markerListings.filter(
+            const providerListings = listings.filter(
               (l) => {
                 const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
                 return lProfile?.id === profile.id;
@@ -848,8 +838,8 @@ export default function HomeScreen() {
       return Array.from(providersMap.values());
     }
 
-    // PHASE 4: Filter by map mode (NO distance filtering)
-    let filteredListings = markerListings.filter((listing) => listing.latitude != null && listing.longitude != null);
+    // Filter listings based on map mode
+    let filteredListings = listings.filter((listing) => listing.latitude != null && listing.longitude != null);
 
     if (mapMode === 'services') {
       // Show only services (not custom services, not jobs)
@@ -895,9 +885,8 @@ export default function HomeScreen() {
         listingType = listing.listing_type === 'CustomService' ? 'CustomService' : 'Service';
       }
 
-      // PHASE 2: Determine tier from source array
       const listingId = `${listing.marketplace_type}:${listing.id}`;
-      const tier = primaryIds.has(listingId) ? 'primary' : 'nearby';
+      const isNearby = nearbyIds.has(listingId);
 
       return {
         id: listing.id,
@@ -908,13 +897,12 @@ export default function HomeScreen() {
         type: 'listing' as const,
         listingType: listingType,
         pricingType: listing.marketplace_type === 'Job' ? listing.pricing_type : undefined,
-        tier: tier,
-        isNearby: tier === 'nearby',
+        isNearby: isNearby,
       };
     });
 
     return listingMarkers;
-  }, [listingsPrimary, listingsNearby, expansionMetadata.enabled, mapMode, profile?.user_type, viewMode]);
+  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled, listingsNearby]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
