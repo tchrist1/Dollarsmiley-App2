@@ -93,12 +93,19 @@ function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<stri
   }
 
   if (filters.location) {
-    const locationLabel = filters.distance
-      ? `${filters.location} (${filters.distance} mi)`
-      : filters.location;
     activeFilters.push({
       type: 'location',
-      label: locationLabel,
+      label: filters.location,
+      icon: MapPin,
+    });
+  }
+
+  // PHASE 1: Distance as first-class active filter
+  // Distance is active when it's a number (not null/undefined)
+  if (typeof filters.distance === 'number') {
+    activeFilters.push({
+      type: 'distance',
+      label: `≤ ${filters.distance} mi`,
       icon: MapPin,
     });
   }

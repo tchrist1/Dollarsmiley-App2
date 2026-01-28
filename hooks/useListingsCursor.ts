@@ -109,6 +109,10 @@ export function useListingsCursor({
   // Tier-4: Track if snapshot was loaded to optimize initial refresh debounce
   const snapshotLoadedRef = useRef(false);
 
+  // PHASE 2: Track previous distance to detect changes
+  const prevDistanceRef = useRef<number | undefined | null>(filters.distance);
+  const expansionEvaluatedRef = useRef(false);
+
   // ============================================================================
   // CYCLE MANAGEMENT (WALMART-GRADE SOFT LANDING)
   // ============================================================================
@@ -130,6 +134,40 @@ export function useListingsCursor({
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
+
+  // PHASE 2: Reset expansion state when distance changes
+  useEffect(() => {
+    const currentDistance = filters.distance;
+    const prevDistance = prevDistanceRef.current;
+
+    // Detect distance change (including undefined → number, number → undefined, number → different number)
+    const distanceChanged = currentDistance !== prevDistance;
+
+    if (distanceChanged) {
+      if (__DEV__) {
+        console.log('[useListingsCursor] Distance changed, resetting expansion state:', {
+          prev: prevDistance,
+          current: currentDistance,
+        });
+      }
+
+      // Clear expansion state
+      setListingsNearby([]);
+      setExpansionMetadata({
+        enabled: false,
+        selectedDistance: null,
+        expandedMax: EXPANDED_DISTANCE_MAX,
+        primaryCount: 0,
+        nearbyCount: 0,
+      });
+
+      // Reset expansion evaluation flag
+      expansionEvaluatedRef.current = false;
+
+      // Update previous distance ref
+      prevDistanceRef.current = currentDistance;
+    }
+  }, [filters.distance]);
 
   // ============================================================================
   // STABLE SIGNATURE GENERATION (PREVENT DUPLICATE FETCHES)
@@ -748,13 +786,18 @@ export function useListingsCursor({
             // - User applied distance filter
             // - Coordinates are available
             // - Primary results are sparse (< 30)
+            // - Expansion not yet evaluated for this distance
             // ====================================================================
             const hasUserDistance = filters.distance !== undefined && filters.distance !== null;
             const hasCoords = filters.userLatitude !== undefined && filters.userLatitude !== null &&
                              filters.userLongitude !== undefined && filters.userLongitude !== null;
             const isSparse = allResults.length < SPARSE_THRESHOLD;
+            const shouldEvaluateExpansion = !expansionEvaluatedRef.current;
 
-            if (hasUserDistance && hasCoords && isSparse) {
+            if (hasUserDistance && hasCoords && isSparse && shouldEvaluateExpansion) {
+              // Mark expansion as evaluated for this distance
+              expansionEvaluatedRef.current = true;
+
               // Trigger expansion fetch asynchronously (non-blocking)
               fetchExpansionResults(allResults, currentCycleId).catch(err => {
                 if (__DEV__) {

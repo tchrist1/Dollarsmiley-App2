@@ -567,10 +567,12 @@ export default function HomeScreen() {
     if (filters.location.trim()) count++;
     if (filters.priceMin || filters.priceMax) count++;
     if (filters.minRating > 0) count++;
-    if (filters.distance && filters.distance !== 25) count++;
+    // PHASE 1: Distance is active when it's a number (no special-casing)
+    if (typeof filters.distance === 'number') count++;
     if (filters.sortBy && filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;
     if (filters.listingType && filters.listingType !== 'all') count++;
+    if (filters.serviceType) count++;
     return count;
   }, [filters]);
 
@@ -747,6 +749,10 @@ export default function HomeScreen() {
           break;
         case 'location':
           newFilters.location = '';
+          // Don't clear distance when removing location
+          break;
+        case 'distance':
+          // PHASE 1: Distance filter removal (separate from location)
           newFilters.distance = undefined;
           break;
         case 'verified':
@@ -783,12 +789,18 @@ export default function HomeScreen() {
   // ============================================================================
   // Only recalculate when listings array actually changes (not on every render)
   // Tier-4: Lazy computation - defer until map view is active
+  // PHASE 4: Includes both primary and nearby markers with distinction
   // ============================================================================
   const rawMapMarkers = useMemo(() => {
     // Tier-4: Skip expensive computation if map view not active
     if (viewMode !== 'map') {
       return [];
     }
+
+    // PHASE 4: Use primary + nearby arrays when expansion is enabled
+    const allListings = expansionMetadata.enabled
+      ? [...listingsPrimary, ...listingsNearby]
+      : listings;
 
     // Create set of nearby listing IDs for quick lookup
     const nearbyIds = expansionMetadata.enabled
@@ -798,11 +810,11 @@ export default function HomeScreen() {
     if (mapMode === 'providers') {
       const providersMap = new Map();
 
-      listings.forEach((listing) => {
+      allListings.forEach((listing) => {
         const profile = listing.marketplace_type === 'Job' ? listing.customer : listing.provider;
         if (profile && profile.latitude && profile.longitude) {
           if (!providersMap.has(profile.id)) {
-            const providerListings = listings.filter(
+            const providerListings = allListings.filter(
               (l) => {
                 const lProfile = l.marketplace_type === 'Job' ? l.customer : l.provider;
                 return lProfile?.id === profile.id;
@@ -839,7 +851,7 @@ export default function HomeScreen() {
     }
 
     // Filter listings based on map mode
-    let filteredListings = listings.filter((listing) => listing.latitude != null && listing.longitude != null);
+    let filteredListings = allListings.filter((listing) => listing.latitude != null && listing.longitude != null);
 
     if (mapMode === 'services') {
       // Show only services (not custom services, not jobs)
@@ -902,7 +914,7 @@ export default function HomeScreen() {
     });
 
     return listingMarkers;
-  }, [listings, mapMode, profile?.user_type, hasHydratedLiveData, viewMode, expansionMetadata.enabled, listingsNearby]);
+  }, [listings, listingsPrimary, listingsNearby, expansionMetadata.enabled, mapMode, profile?.user_type, hasHydratedLiveData, viewMode]);
 
   const stableMapMarkersRef = useRef<any[]>([]);
   const getMapMarkers = useMemo(() => {
