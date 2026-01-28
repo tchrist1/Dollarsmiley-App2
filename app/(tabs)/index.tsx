@@ -1247,6 +1247,7 @@ export default function HomeScreen() {
             onMapRecenter={handleMapRecenter}
             onMapLayers={handleMapLayers}
             styles={styles}
+            hasNearbyExpansion={expansionMetadata.enabled}
           />
         </View>
       ) : (

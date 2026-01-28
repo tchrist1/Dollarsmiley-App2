@@ -21,6 +21,7 @@ interface InteractiveMapViewPlatformProps {
   onZoomChange?: (zoom: number) => void;
   filterLocation?: { latitude: number; longitude: number };
   filterDistance?: number;
+  hasNearbyExpansion?: boolean;
 }
 
 const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, InteractiveMapViewPlatformProps>((props, ref) => {
@@ -39,6 +40,7 @@ const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, Inter
           onZoomChange={props.onZoomChange}
           filterLocation={props.filterLocation}
           filterDistance={props.filterDistance}
+          hasNearbyExpansion={props.hasNearbyExpansion}
         />
       );
     }
@@ -59,6 +61,7 @@ const InteractiveMapViewPlatform = forwardRef<NativeInteractiveMapViewRef, Inter
         onZoomChange={props.onZoomChange}
         filterLocation={props.filterLocation}
         filterDistance={props.filterDistance}
+        hasNearbyExpansion={props.hasNearbyExpansion}
       />
     );
   } catch (error) {

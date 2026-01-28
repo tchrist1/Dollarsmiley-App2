@@ -25,6 +25,7 @@ interface HomeMapViewWrapperProps {
   onMapRecenter: () => void;
   onMapLayers: () => void;
   styles: any;
+  hasNearbyExpansion?: boolean;
 }
 
 export function HomeMapViewWrapper({
@@ -45,6 +46,7 @@ export function HomeMapViewWrapper({
   onMapRecenter,
   onMapLayers,
   styles,
+  hasNearbyExpansion = false,
 }: HomeMapViewWrapperProps) {
   return (
     <View
@@ -65,6 +67,7 @@ export function HomeMapViewWrapper({
         onZoomChange={onZoomChange}
         filterLocation={filterLocation}
         filterDistance={filterDistance}
+        hasNearbyExpansion={hasNearbyExpansion}
       />
 
       {viewMode === 'map' && (

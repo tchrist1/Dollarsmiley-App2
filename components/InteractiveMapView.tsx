@@ -58,6 +58,7 @@ interface InteractiveMapViewProps {
   onZoomChange?: (zoom: number) => void;
   filterLocation?: { latitude: number; longitude: number };
   filterDistance?: number;
+  hasNearbyExpansion?: boolean;
 }
 
 const { width, height } = Dimensions.get('window');
@@ -73,6 +74,7 @@ export default function InteractiveMapView({
   clusterRadius = 60,
   filterLocation,
   filterDistance,
+  hasNearbyExpansion = false,
 }: InteractiveMapViewProps) {
   const [selectedMarker, setSelectedMarker] = useState<MapMarker | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<Cluster | null>(null);
@@ -278,7 +280,16 @@ export default function InteractiveMapView({
   };
 
   // Memoize expensive filtering and clustering calculations
-  const visibleMarkers = useMemo(() => markers.filter(isMarkerInView), [markers, region]);
+  // PHASE 2: Conditional viewport filter relaxation for nearby markers
+  const visibleMarkers = useMemo(() => {
+    if (hasNearbyExpansion) {
+      // When discovery expansion is active, show all nearby markers regardless of viewport
+      // Primary markers still filtered by viewport for performance
+      return markers.filter(marker => marker.isNearby || isMarkerInView(marker));
+    }
+    // Default behavior: filter all markers by viewport
+    return markers.filter(isMarkerInView);
+  }, [markers, region, hasNearbyExpansion]);
   const clusteredItems = useMemo(() => clusterMarkers(visibleMarkers), [visibleMarkers, enableClustering, clusterRadius, region.latitudeDelta]);
 
   const radiusOverlay = useMemo(() => {

@@ -77,6 +77,7 @@ interface NativeInteractiveMapViewProps {
   onMapGestureEnd?: () => void;
   filterLocation?: { latitude: number; longitude: number };
   filterDistance?: number;
+  hasNearbyExpansion?: boolean;
 }
 
 export interface NativeInteractiveMapViewRef {
