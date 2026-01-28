@@ -18,7 +18,7 @@ export function useHomeFilters(options: UseHomeFiltersOptions = {}) {
     if (filters.listingType !== 'all') count++;
     if (filters.categories.length > 0) count++;
     if (filters.priceMin || filters.priceMax) count++;
-    if (filters.distance !== undefined && filters.distance !== 25) count++;
+    if (filters.distance !== undefined) count++;
     if (filters.minRating > 0) count++;
     if (filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;

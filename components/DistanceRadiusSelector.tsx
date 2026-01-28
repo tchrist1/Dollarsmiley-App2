@@ -9,7 +9,7 @@ import { MapPin, Navigation } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 
 interface DistanceRadiusSelectorProps {
-  distance: number;
+  distance: number | undefined;
   onDistanceChange: (distance: number) => void;
   useCurrentLocation?: boolean;
   onUseLocationToggle?: () => void;
@@ -46,11 +46,14 @@ export const DistanceRadiusSelector = React.memo(function DistanceRadiusSelector
   }, []);
 
   // QUICK WIN 2: Memoize expensive calculations
-  const { innerCircleScale, middleCircleScale, outerCircleScale } = useMemo(() => ({
-    innerCircleScale: calculateCircleScale(distance, 0.4, 2.0),
-    middleCircleScale: calculateCircleScale(distance, 0.6, 3.0),
-    outerCircleScale: calculateCircleScale(distance, 0.8, 4.0),
-  }), [distance]);
+  const { innerCircleScale, middleCircleScale, outerCircleScale } = useMemo(() => {
+    const dist = distance || 25;
+    return {
+      innerCircleScale: calculateCircleScale(dist, 0.4, 2.0),
+      middleCircleScale: calculateCircleScale(dist, 0.6, 3.0),
+      outerCircleScale: calculateCircleScale(dist, 0.8, 4.0),
+    };
+  }, [distance]);
 
   return (
     <View style={styles.container}>
@@ -78,15 +81,22 @@ export const DistanceRadiusSelector = React.memo(function DistanceRadiusSelector
       )}
 
       {/* Distance Display */}
-      <View style={styles.distanceDisplay}>
-        <View style={styles.distanceValue}>
-          <Text style={[styles.distanceNumber, { color: getDistanceColor(distance) }]}>
-            {distance}
-          </Text>
-          <Text style={styles.distanceUnit}>miles</Text>
+      {distance !== undefined ? (
+        <View style={styles.distanceDisplay}>
+          <View style={styles.distanceValue}>
+            <Text style={[styles.distanceNumber, { color: getDistanceColor(distance) }]}>
+              {distance}
+            </Text>
+            <Text style={styles.distanceUnit}>miles</Text>
+          </View>
+          <Text style={styles.distanceLabel}>{getDistanceLabel(distance)}</Text>
         </View>
-        <Text style={styles.distanceLabel}>{getDistanceLabel(distance)}</Text>
-      </View>
+      ) : (
+        <View style={styles.distanceDisplay}>
+          <Text style={styles.noSelectionText}>No distance filter applied</Text>
+          <Text style={styles.noSelectionSubtext}>Select a radius below to filter by distance</Text>
+        </View>
+      )}
 
       {/* Quick Select Chips */}
       <View style={styles.quickSelect}>
@@ -201,6 +211,18 @@ const styles = StyleSheet.create({
   distanceLabel: {
     fontSize: fontSize.md,
     color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  noSelectionText: {
+    fontSize: fontSize.lg,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+    textAlign: 'center',
+  },
+  noSelectionSubtext: {
+    fontSize: fontSize.sm,
+    color: colors.textLight,
+    textAlign: 'center',
     marginTop: spacing.xs,
   },
   quickSelect: {

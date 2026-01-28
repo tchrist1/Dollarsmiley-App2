@@ -26,7 +26,7 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency, formatDistance, formatRating } from '@/lib/currency-utils';
-import { invalidateAllCaches, getCachedCategories } from '@/lib/session-cache';
+import { invalidateAllCaches, getCachedCategories, setCachedCategories } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
 import { getServiceLocationDisplay } from '@/lib/service-location-utils';
@@ -382,10 +382,28 @@ export default function HomeScreen() {
 
   // Load categories from cache for ActiveFiltersBar display
   useEffect(() => {
-    const cached = getCachedCategories(null);
-    if (cached && cached.length > 0) {
-      setCategories(cached);
-    }
+    const loadCategories = async () => {
+      const cached = getCachedCategories(null);
+      if (cached && cached.length > 0) {
+        setCategories(cached);
+        return;
+      }
+
+      // Fetch from database if not in cache
+      const { data } = await supabase
+        .from('categories')
+        .select('id, name, parent_id, sort_order, is_active')
+        .eq('is_active', true)
+        .order('sort_order')
+        .limit(100);
+
+      if (data) {
+        setCategories(data);
+        setCachedCategories(data, null);
+      }
+    };
+
+    loadCategories();
   }, []);
 
   // ============================================================================
@@ -675,13 +693,16 @@ export default function HomeScreen() {
           break;
         case 'location':
           newFilters.location = '';
-          newFilters.distance = 25;
+          newFilters.distance = undefined;
           break;
         case 'verified':
           newFilters.verified = false;
           break;
         case 'listingType':
           newFilters.listingType = 'all';
+          break;
+        case 'serviceType':
+          newFilters.serviceType = undefined;
           break;
         case 'sortBy':
           newFilters.sortBy = 'relevance';

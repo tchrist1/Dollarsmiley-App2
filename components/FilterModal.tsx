@@ -22,6 +22,7 @@ import { Button } from '@/components/Button';
 import { DistanceRadiusSelector } from '@/components/DistanceRadiusSelector';
 import { RatingFilter } from '@/components/RatingFilter';
 import { SortOptionsSelector, SortOption } from '@/components/SortOptionsSelector';
+import { ServiceTypeSection } from '@/components/FilterSections';
 import MapboxAutocompleteInput from '@/components/MapboxAutocompleteInput';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { getCachedCategories, setCachedCategories } from '@/lib/session-cache';
@@ -494,6 +495,13 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
               </View>
             </View>
 
+            {/* Service Type - Show when Services are selected */}
+            <ServiceTypeSection
+              serviceType={draftFilters.serviceType}
+              onServiceTypeChange={(serviceType) => setDraftFilters(prev => ({ ...prev, serviceType }))}
+              showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
+            />
+
             {/* Loading indicator while sections load */}
             {!sectionsReady && (
               <View style={styles.loadingSection}>
@@ -585,7 +593,7 @@ export const FilterModal = memo(function FilterModal({ visible, onClose, onApply
                 <View style={styles.section}>
                   <Text style={styles.sectionTitle}>Distance Radius</Text>
                   <DistanceRadiusSelector
-                    distance={draftFilters.distance || 25}
+                    distance={draftFilters.distance}
                     onDistanceChange={(distance) => setDraftFilters(prev => ({ ...prev, distance }))}
                   />
                 </View>
