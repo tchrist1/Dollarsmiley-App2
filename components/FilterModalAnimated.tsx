@@ -410,7 +410,7 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                   <ServiceTypeSection
                     serviceType={draftFilters.serviceType}
                     onServiceTypeChange={actions.setServiceType}
-                    showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
+                    showForServices={draftFilters.listingType === 'Service'}
                   />
 
                   {/* Loading indicator */}
