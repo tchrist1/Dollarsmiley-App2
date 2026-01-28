@@ -49,6 +49,7 @@ import {
   RatingSection,
   SortSection,
   VerifiedSection,
+  ServiceTypeSection,
 } from '@/components/FilterSections';
 import { FilterOptions, defaultFilters } from './FilterModal';
 import { filterPerf, useFilterPerformance } from '@/lib/filter-performance';
@@ -453,6 +454,12 @@ export const FilterModalAnimated = memo(function FilterModalAnimated({
                       <SortSection
                         sortBy={draftFilters.sortBy}
                         onSortChange={actions.setSortBy}
+                      />
+
+                      <ServiceTypeSection
+                        serviceType={draftFilters.serviceType}
+                        onServiceTypeChange={actions.setServiceType}
+                        showForServices={draftFilters.listingType === 'Service' || draftFilters.listingType === 'all'}
                       />
 
                       <VerifiedSection

@@ -6,7 +6,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { Search, MapPin, DollarSign, Star, SlidersHorizontal, TrendingUp, Clock, X, Navigation, List, LayoutGrid, User } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import { ServiceListing, MarketplaceListing, Job } from '@/types/database';
+import { ServiceListing, MarketplaceListing, Job, Category } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import CachedAvatar from '@/components/CachedAvatar';
 import { calculateDistance, geocodeAddress } from '@/lib/geolocation';
@@ -26,7 +26,7 @@ import { NativeInteractiveMapViewRef } from '@/components/NativeInteractiveMapVi
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '@/constants/theme';
 import { formatCurrency, formatDistance, formatRating } from '@/lib/currency-utils';
-import { invalidateAllCaches } from '@/lib/session-cache';
+import { invalidateAllCaches, getCachedCategories } from '@/lib/session-cache';
 import { invalidateAllListingCaches } from '@/lib/listing-cache';
 import { MapViewMode } from '@/types/map';
 import { getServiceLocationDisplay } from '@/lib/service-location-utils';
@@ -293,6 +293,7 @@ export default function HomeScreen() {
     ...defaultFilters,
     listingType: (params.filter as 'all' | 'Job' | 'Service' | 'CustomService') || 'all',
   });
+  const [categories, setCategories] = useState<Category[]>([]);
 
   // PHASE 2: Data layer hooks replace old state and fetch functions
   const {
@@ -378,6 +379,14 @@ export default function HomeScreen() {
       userIdRef.current = currentUserId;
     }
   }, [profile?.id]);
+
+  // Load categories from cache for ActiveFiltersBar display
+  useEffect(() => {
+    const cached = getCachedCategories(null);
+    if (cached && cached.length > 0) {
+      setCategories(cached);
+    }
+  }, []);
 
   // ============================================================================
   // PHASE 3B: REALTIME SNAPSHOT INVALIDATION
@@ -1004,6 +1013,7 @@ export default function HomeScreen() {
         onImageResults={handleImageResults}
         onImageError={handleImageError}
         filters={filters}
+        categories={categories}
         onRemoveFilter={handleRemoveFilter}
         onClearAllFilters={handleClearAllFilters}
         isTransitioning={isTransitioning}

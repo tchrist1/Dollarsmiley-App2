@@ -1,18 +1,20 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { X, DollarSign, MapPin, Tag, Star, Award, Filter } from 'lucide-react-native';
+import { X, DollarSign, MapPin, Tag, Star, Award, Filter, Layers } from 'lucide-react-native';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '@/constants/theme';
 import type { FilterOptions } from './FilterModal';
+import type { Category } from '@/types/database';
 
 interface ActiveFiltersBarProps {
   filters: FilterOptions;
+  categories?: Category[];
   onRemoveFilter: (filterType: keyof FilterOptions, value?: any) => void;
   onClearAll: () => void;
   isTransitioning?: boolean;
 }
 
 // QUICK WIN 1: Memoize active filters computation
-function buildActiveFiltersList(filters: FilterOptions) {
+function buildActiveFiltersList(filters: FilterOptions, categoryLookup: Map<string, string>) {
   const activeFilters: Array<{
     type: keyof FilterOptions;
     label: string;
@@ -35,12 +37,21 @@ function buildActiveFiltersList(filters: FilterOptions) {
 
   if (filters.categories && filters.categories.length > 0) {
     filters.categories.forEach((categoryId) => {
+      const categoryName = categoryLookup.get(categoryId) || 'Category';
       activeFilters.push({
         type: 'categories',
-        label: categoryId.substring(0, 8),
+        label: categoryName,
         value: categoryId,
         icon: Tag,
       });
+    });
+  }
+
+  if (filters.serviceType) {
+    activeFilters.push({
+      type: 'serviceType',
+      label: filters.serviceType,
+      icon: Layers,
     });
   }
 
@@ -92,12 +103,22 @@ function buildActiveFiltersList(filters: FilterOptions) {
 
 export const ActiveFiltersBar = React.memo(function ActiveFiltersBar({
   filters,
+  categories = [],
   onRemoveFilter,
   onClearAll,
   isTransitioning = false
 }: ActiveFiltersBarProps) {
+  // Build category lookup map at render time
+  const categoryLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach(cat => {
+      map.set(cat.id, cat.name);
+    });
+    return map;
+  }, [categories]);
+
   // QUICK WIN 1: Memoize expensive computation
-  const activeFilters = useMemo(() => buildActiveFiltersList(filters), [filters]);
+  const activeFilters = useMemo(() => buildActiveFiltersList(filters, categoryLookup), [filters, categoryLookup]);
 
   const stableFiltersRef = React.useRef(activeFilters);
   const displayFilters = useMemo(() => {

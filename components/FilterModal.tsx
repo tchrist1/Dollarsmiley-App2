@@ -69,6 +69,7 @@ export interface FilterOptions {
   sortBy?: 'relevance' | 'price_low' | 'price_high' | 'rating' | 'popular' | 'recent' | 'distance';
   verified?: boolean;
   listingType?: 'all' | 'Job' | 'Service' | 'CustomService';
+  serviceType?: 'In-Person' | 'Remote' | 'Both';
   userLatitude?: number;
   userLongitude?: number;
 }
@@ -83,6 +84,7 @@ export const defaultFilters: FilterOptions = {
   sortBy: 'relevance',
   verified: false,
   listingType: 'all',
+  serviceType: undefined,
   userLatitude: undefined,
   userLongitude: undefined,
 };

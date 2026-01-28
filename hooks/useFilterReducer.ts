@@ -23,6 +23,7 @@ type FilterAction =
   | { type: 'SET_MIN_RATING'; payload: number }
   | { type: 'SET_DISTANCE'; payload: number }
   | { type: 'SET_SORT_BY'; payload: FilterOptions['sortBy'] }
+  | { type: 'SET_SERVICE_TYPE'; payload: FilterOptions['serviceType'] }
   | { type: 'TOGGLE_VERIFIED' }
   | { type: 'SET_USER_COORDINATES'; payload: { latitude: number | undefined; longitude: number | undefined } }
   | { type: 'RESET_FILTERS'; payload?: FilterOptions }
@@ -73,6 +74,9 @@ function filterReducer(state: FilterOptions, action: FilterAction): FilterOption
     case 'SET_SORT_BY':
       return { ...state, sortBy: action.payload };
 
+    case 'SET_SERVICE_TYPE':
+      return { ...state, serviceType: action.payload };
+
     case 'TOGGLE_VERIFIED':
       return { ...state, verified: !state.verified };
 
@@ -111,6 +115,7 @@ export interface UseFilterReducerReturn {
     setMinRating: (rating: number) => void;
     setDistance: (distance: number) => void;
     setSortBy: (sortBy: FilterOptions['sortBy']) => void;
+    setServiceType: (serviceType: FilterOptions['serviceType']) => void;
     toggleVerified: () => void;
     setUserCoordinates: (latitude: number | undefined, longitude: number | undefined) => void;
     resetFilters: (initialFilters?: FilterOptions) => void;
@@ -157,6 +162,9 @@ export function useFilterReducer(initialFilters: FilterOptions = defaultFilters)
 
     setSortBy: (sortBy: FilterOptions['sortBy']) =>
       dispatch({ type: 'SET_SORT_BY', payload: sortBy }),
+
+    setServiceType: (serviceType: FilterOptions['serviceType']) =>
+      dispatch({ type: 'SET_SERVICE_TYPE', payload: serviceType }),
 
     toggleVerified: () =>
       dispatch({ type: 'TOGGLE_VERIFIED' }),

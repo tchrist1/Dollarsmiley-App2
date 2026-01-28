@@ -23,6 +23,7 @@ export function useHomeFilters(options: UseHomeFiltersOptions = {}) {
     if (filters.sortBy !== 'relevance') count++;
     if (filters.verified) count++;
     if (filters.location) count++;
+    if (filters.serviceType) count++;
 
     return count;
   }, [filters]);

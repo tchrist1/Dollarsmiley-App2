@@ -6,6 +6,7 @@ import { ActiveFiltersBar } from '@/components/ActiveFiltersBar';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import ImageSearchButton from '@/components/ImageSearchButton';
 import { colors } from '@/constants/theme';
+import type { Category } from '@/types/database';
 
 interface HomeHeaderProps {
   searchQuery: string;
@@ -17,6 +18,7 @@ interface HomeHeaderProps {
   onImageResults: (matches: any[], analysis: any) => void;
   onImageError: (error: string) => void;
   filters: FilterOptions;
+  categories?: Category[];
   onRemoveFilter: (filterType: keyof FilterOptions, value?: any) => void;
   onClearAllFilters: () => void;
   isTransitioning: boolean;
@@ -39,6 +41,7 @@ export function HomeHeader({
   onImageResults,
   onImageError,
   filters,
+  categories,
   onRemoveFilter,
   onClearAllFilters,
   isTransitioning,
@@ -89,6 +92,7 @@ export function HomeHeader({
 
       <ActiveFiltersBar
         filters={filters}
+        categories={categories}
         onRemoveFilter={onRemoveFilter}
         onClearAll={onClearAllFilters}
         isTransitioning={isTransitioning}

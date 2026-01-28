@@ -388,6 +388,55 @@ export const VerifiedSection = memo(({ verified, onToggleVerified }: VerifiedSec
 }, (prev, next) => prev.verified === next.verified);
 
 // ============================================================================
+// SERVICE TYPE SECTION
+// ============================================================================
+
+interface ServiceTypeSectionProps {
+  serviceType: FilterOptions['serviceType'];
+  onServiceTypeChange: (serviceType: FilterOptions['serviceType']) => void;
+  showForServices: boolean;
+}
+
+const SERVICE_TYPES = ['In-Person', 'Remote', 'Both'] as const;
+
+export const ServiceTypeSection = memo(({ serviceType, onServiceTypeChange, showForServices }: ServiceTypeSectionProps) => {
+  if (!showForServices) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Service Type</Text>
+      <View style={styles.optionsRow}>
+        {SERVICE_TYPES.map((type) => (
+          <TouchableOpacity
+            key={type}
+            style={[
+              styles.optionChip,
+              serviceType === type && styles.optionChipSelected,
+            ]}
+            onPress={() => onServiceTypeChange(type)}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.optionText,
+                serviceType === type && styles.optionTextSelected,
+              ]}
+            >
+              {type}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}, (prev, next) =>
+  prev.serviceType === next.serviceType &&
+  prev.showForServices === next.showForServices
+);
+
+// ============================================================================
 // STYLES
 // ============================================================================
 

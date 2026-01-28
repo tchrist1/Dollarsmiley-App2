@@ -121,6 +121,7 @@ export function useListingsCursor({
       searchQuery: query.trim(),
       categories: sortedCategories,
       listingType: filts.listingType || 'all',
+      serviceType: filts.serviceType || null,
       verified: filts.verified || null,
       sortBy: filts.sortBy || 'relevance',
       location: filts.location?.trim() || null,
@@ -311,7 +312,7 @@ export function useListingsCursor({
                 : ['Service', 'CustomService'];
 
               // PHASE 2A: Coalesced RPC call to reduce duplicate requests
-              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated', {
+              const { data, error } = await coalescedRpc(supabase, 'get_services_cursor_paginated_v2', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,
@@ -325,7 +326,8 @@ export function useListingsCursor({
                 p_verified: filters.verified || null,
                 p_user_lat: filters.userLatitude !== undefined && filters.userLatitude !== null ? filters.userLatitude : null,
                 p_user_lng: filters.userLongitude !== undefined && filters.userLongitude !== null ? filters.userLongitude : null,
-                p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null
+                p_distance: filters.distance !== undefined && filters.distance !== null ? filters.distance : null,
+                p_service_type: filters.serviceType || null
               });
 
               let nextCursor: Cursor | null = null;
@@ -352,7 +354,7 @@ export function useListingsCursor({
               const currentCursor = reset ? null : jobCursor;
 
               // PHASE 2A: Coalesced RPC call to reduce duplicate requests
-              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated', {
+              const { data, error } = await coalescedRpc(supabase, 'get_jobs_cursor_paginated_v2', {
                 p_cursor_created_at: currentCursor?.created_at || null,
                 p_cursor_id: currentCursor?.id || null,
                 p_limit: pageSize,
