@@ -169,6 +169,10 @@ const NativeInteractiveMapView = forwardRef<NativeInteractiveMapViewRef, NativeI
         letterText = 'SP';
       } else if (marker.listingType === 'Job') {
         letterText = marker.pricingType === 'fixed_price' ? 'FJ' : 'QJ';
+        // DEV-ONLY: Validation log for job pin assignment
+        if (__DEV__ && !marker.pricingType) {
+          console.warn('[Map Pin Warning] Job marker missing pricingType:', marker.id);
+        }
       } else if (marker.listingType === 'Service' || marker.listingType === 'CustomService') {
         letterText = 'S';
       }

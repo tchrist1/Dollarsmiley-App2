@@ -94,6 +94,9 @@ export default function MapViewFAB({ mode, onModeChange }: MapViewFABProps) {
   };
 
   const handleModeSelect = (newMode: MapViewMode) => {
+    if (__DEV__) {
+      console.log('[Map FAB] Mode changed:', { from: mode, to: newMode });
+    }
     onModeChange(newMode);
     toggleExpanded();
   };

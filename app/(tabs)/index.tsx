@@ -930,10 +930,23 @@ export default function HomeScreen() {
         if (hasInvalidMarker) {
           console.warn('[Home Safety] Invalid map marker detected');
         }
+
+        // DEV-ONLY: Job Pin Type Validation
+        const jobMarkers = markers.filter(m => m.listingType === 'Job');
+        if (jobMarkers.length > 0) {
+          const fjCount = jobMarkers.filter(m => m.pricingType === 'fixed_price').length;
+          const qjCount = jobMarkers.filter(m => m.pricingType === 'quote_based').length;
+          console.log('[Map Pin Validation]', {
+            totalJobs: jobMarkers.length,
+            FJ_pins: fjCount,
+            QJ_pins: qjCount,
+            mapMode,
+          });
+        }
       }
     }
     return stableMapMarkersRef.current;
-  }, [rawMapMarkers, visualCommitReady]);
+  }, [rawMapMarkers, visualCommitReady, mapMode]);
 
   const handleMarkerPress = useCallback((marker: any) => {
     if (marker.type === 'provider') {
