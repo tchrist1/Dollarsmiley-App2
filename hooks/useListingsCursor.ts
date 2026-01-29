@@ -989,6 +989,7 @@ function normalizeServiceCursor(service: any): MarketplaceListing {
     description: service.description || '',
     price: service.price,
     base_price: service.price, // Map to base_price for UI compatibility
+    pricing_type: service.pricing_type || 'Fixed', // Default to Fixed if not provided by RPC
     image_url: service.image_url,
     featured_image_url: service.image_url,
     created_at: service.created_at,
@@ -1050,11 +1051,13 @@ function normalizeJobCursor(job: any): MarketplaceListing {
     title: job.title,
     description: job.description || '',
     budget: job.budget,
+    pricing_type: job.fixed_price ? 'fixed_price' : 'quote_based', // Infer from available price fields
     photos,
     created_at: job.created_at,
     status: job.status,
     customer_id: job.customer_id,
     category_id: job.category_id,
+    listing_type: 'Job', // Explicit discriminator for consistency with services
     customer: job.customer_id ? {
       id: job.customer_id,
       full_name: job.customer_full_name || null,
