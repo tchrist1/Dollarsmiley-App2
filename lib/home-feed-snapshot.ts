@@ -204,11 +204,7 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       id: snapshot.id,
       title: snapshot.title,
       budget: snapshot.price,
-      fixed_price: snapshot.price, // Map snapshot price to fixed_price for UI compatibility
-      pricing_type: snapshot.price ? 'fixed_price' : 'quote_based',
-      listing_type: 'Job', // Explicit discriminator
       photos: snapshot.image_url ? [snapshot.image_url] : [],
-      featured_image_url: snapshot.image_url,
       created_at: snapshot.created_at,
       customer: {
         id: snapshot.provider_id,
@@ -232,7 +228,6 @@ export function snapshotToMarketplaceListing(snapshot: SnapshotMinimal): Marketp
       title: snapshot.title,
       price: snapshot.price,
       base_price: snapshot.price, // Map to base_price for UI compatibility
-      pricing_type: 'Fixed', // Default for snapshots - will hydrate from live data
       image_url: snapshot.image_url,
       featured_image_url: snapshot.image_url,
       created_at: snapshot.created_at,
