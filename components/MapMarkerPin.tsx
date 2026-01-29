@@ -12,10 +12,9 @@ interface MapMarkerPinProps {
   isSelected?: boolean;
   isNearby?: boolean;
   onPress?: () => void;
-  pricingType?: 'fixed_price' | 'quote_based';
 }
 
-const getMarkerConfig = (type: MarkerType, pricingType?: 'fixed_price' | 'quote_based') => {
+const getMarkerConfig = (type: MarkerType) => {
   switch (type) {
     case 'Service':
       return {
@@ -23,7 +22,7 @@ const getMarkerConfig = (type: MarkerType, pricingType?: 'fixed_price' | 'quote_
         bubbleColorLight: '#D1FAE5',
         shadowColor: '#10B981',
         icon: MapPin,
-        label: 'S',
+        label: 'Service',
       };
     case 'CustomService':
       return {
@@ -31,23 +30,21 @@ const getMarkerConfig = (type: MarkerType, pricingType?: 'fixed_price' | 'quote_
         bubbleColorLight: '#EDE9FE',
         shadowColor: '#8B5CF6',
         icon: Sparkles,
-        label: 'CS',
+        label: 'Custom',
       };
     case 'Job':
-      // Differentiate between Fixed-Price Jobs (FJ) and Quoted Jobs (QJ)
-      const jobLabel = pricingType === 'fixed_price' ? 'FJ' : 'QJ';
       return {
         bubbleColor: '#F59E0B',
         bubbleColorLight: '#FEF3C7',
         shadowColor: '#F59E0B',
         icon: Briefcase,
-        label: jobLabel,
+        label: 'Job',
       };
   }
 };
 
-export function MapMarkerPin({ type, price, isSelected = false, isNearby = false, onPress, pricingType }: MapMarkerPinProps) {
-  const config = getMarkerConfig(type, pricingType);
+export function MapMarkerPin({ type, price, isSelected = false, isNearby = false, onPress }: MapMarkerPinProps) {
+  const config = getMarkerConfig(type);
   const Icon = config.icon;
 
   return (
@@ -71,14 +68,11 @@ export function MapMarkerPin({ type, price, isSelected = false, isNearby = false
         ]}
         pointerEvents="none"
       >
-        <Text
-          style={[
-            styles.labelText,
-            { color: isSelected ? colors.white : config.bubbleColor },
-          ]}
-        >
-          {config.label}
-        </Text>
+        <Icon
+          size={20}
+          color={isSelected ? colors.white : config.bubbleColor}
+          strokeWidth={2.5}
+        />
       </View>
 
       <View style={[styles.pointer, { borderTopColor: config.bubbleColor }]} pointerEvents="none" />
@@ -132,11 +126,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 12,
-  },
-  labelText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: -0.5,
   },
   pointer: {
     width: 0,

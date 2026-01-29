@@ -20,7 +20,6 @@ interface MapMarker {
   price?: number;
   type?: 'listing' | 'provider';
   listingType?: MarkerType;
-  pricingType?: 'fixed_price' | 'quote_based';
   subtitle?: string;
   rating?: number;
   isVerified?: boolean;
@@ -441,7 +440,6 @@ export default function InteractiveMapView({
                 price={marker.price}
                 isSelected={isSelected}
                 isNearby={marker.isNearby}
-                pricingType={marker.pricingType}
                 onPress={() => handleMarkerPress(marker)}
               />
             </View>
